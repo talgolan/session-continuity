@@ -1,10 +1,12 @@
 {
   "name": "session-continuity",
-  "version": "0.1.0",
-  "description": "Establish and maintain cross-session memory for a project via two in-repo docs — SESSION_PRIMER.md (current state, refreshed every commit) and LEARNINGS.md (bugs that took 15+ min to diagnose, written as recipes). Works standalone or alongside CLAUDE.md and agent-memory systems.",
+  "version": "0.2.0",
+  "description": "Cross-session memory for Claude Code projects via two in-repo docs: SESSION_PRIMER.md (current state) and LEARNINGS.md (hard-won bugs).",
   "author": {
     "name": "Tal Golan"
   },
+  "homepage": "https://github.com/talgolan/session-continuity",
+  "repository": "https://github.com/talgolan/session-continuity",
   "license": "MIT",
   "keywords": [
     "memory",
