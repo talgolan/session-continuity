@@ -15,12 +15,13 @@ Run these checks:
 1. Does `docs/SESSION_PRIMER.md` exist?
 2. If yes, does the `git log --oneline -5` block inside it match the actual output of `git log --oneline -5` for the primary branch?
 3. If yes, is the primer file's mtime newer than HEAD's commit date?
+4. If yes, does `git diff --cached --name-only` contain any file outside `docs/`, `README*`, `CHANGELOG*`, `LICENSE*`? (Code is staged and a commit is imminent — the primer will be stale the moment that commit lands.)
 
-Three states result:
+Four states result:
 
 - **No primer** → init mode (Step 2)
-- **Primer exists but stale** (log block drifted, or mtime older than HEAD) → refresh mode (Step 3)
-- **Primer exists and current** → check mode (Step 4)
+- **Primer exists but stale** (log block drifted, mtime older than HEAD, or code staged for commit) → refresh mode (Step 3)
+- **Primer exists and current (nothing staged)** → check mode (Step 4)
 
 ## Step 2 — Init mode
 
