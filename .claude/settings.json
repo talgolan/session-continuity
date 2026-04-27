@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch *)",
+      "mcp__plugin_mempalace_mempalace__mempalace_get_aaak_spec",
+      "mcp__plugin_mempalace_mempalace__mempalace_list_rooms"
+    ]
+  }
+}
