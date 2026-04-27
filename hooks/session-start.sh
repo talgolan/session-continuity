@@ -1,11 +1,23 @@
 #!/usr/bin/env bash
 # SessionStart hook for session-continuity.
-# Emits a read-reminder when docs/SESSION_PRIMER.md is present in cwd,
-# then invokes version-check.sh (weekly freshness check). Silent otherwise.
+# Reads stdin JSON from Claude Code, extracts cwd, and emits a
+# read-reminder when docs/SESSION_PRIMER.md is present in that cwd.
+# Then invokes version-check.sh (weekly freshness check). Silent otherwise.
 
 set -eu
 
-primer="docs/SESSION_PRIMER.md"
+payload="$(cat || true)"
+
+cwd="$(printf '%s' "$payload" \
+  | grep -oE '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' \
+  | head -1 \
+  | sed -E 's/.*"cwd"[[:space:]]*:[[:space:]]*"(.*)"/\1/')"
+
+if [ -z "$cwd" ] || [ ! -d "$cwd" ]; then
+  exit 0
+fi
+
+primer="$cwd/docs/SESSION_PRIMER.md"
 
 if [ ! -f "$primer" ]; then
   exit 0
