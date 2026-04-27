@@ -1,5 +1,7 @@
 # session-continuity v0.2 Public Release Implementation Plan
 
+> **RESUMPTION STATE (as of 2026-04-27):** Paused mid-Task 11. Tasks 1-10 fully complete and committed. Two bugs found+fixed during smoke testing. The only remaining Task-11 item is a human verification in a `--plugin-dir` Claude session — see "Resumption checklist" at the bottom of this file before continuing.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Restructure the `session-continuity` skill into a Claude Code plugin, add slash commands + hooks + auto-update, publish to GitHub (`talgolan/session-continuity`), and submit to the Anthropic plugin marketplace.
@@ -1335,3 +1337,59 @@ All spec sections have task coverage. Second-machine install verification (Task 
 - Plugin manifest location: `.claude-plugin/plugin.json` (always dot-prefixed).
 
 No inconsistencies found.
+
+---
+
+## Resumption checklist (2026-04-27 pause point)
+
+### What's done
+
+- Tasks 1-10 fully committed on `main` (13 commits total, clean tree).
+- `git log --oneline` as of pause:
+  ```
+  29ed6d8 chore: add project .claude/settings.json with minimal allowlist
+  c5e7e93 fix(hooks): read tool input from stdin JSON, not env var
+  4358009 fix(primer): treat staged code as drift, not current state
+  89519f8 docs: rewrite README around plugin installation
+  17292c2 docs: add CHANGELOG.md following keep-a-changelog format
+  8d1cfc5 ci: add tag-triggered GitHub Release workflow
+  3ea7866 feat: add SessionStart, PreToolUse, and weekly freshness hooks
+  f5b085e feat: add /session-continuity:learning slash command
+  20995b0 feat: add /session-continuity:primer slash command
+  7414bf2 chore: bump plugin.json to 0.2.0 with homepage and repository
+  93a6a0d docs(skill): tighten description and document plugin affordances
+  baf57ea refactor: move skill and templates into plugin layout
+  be46bca chore: import v0.1 layout as baseline before v0.2 restructure
+  ```
+
+### What was learned during Task 11 smoke testing (and fixed)
+
+Two real bugs were caught by exercising the plugin in a live Claude session via `claude --plugin-dir`:
+
+1. **Primer check mode ignored staged code.** `/session-continuity:primer` reported "up to date" while code files were staged and a commit was imminent. Fixed in commit `4358009` by adding a 4th state-detection check: any staged file outside `docs/`, `README*`, `CHANGELOG*`, `LICENSE*` now forces refresh mode.
+2. **Hooks read env vars that don't exist.** The original hooks grep'd `$CLAUDE_TOOL_INPUT`, but Claude Code delivers hook payloads as **stdin JSON**, not env vars. Additionally, hooks run with cwd at `$CLAUDE_PROJECT_DIR` (the plugin root for `--plugin-dir` installs), not the user's repo. Both hooks now parse stdin and use the `cwd` field from the JSON payload. Fixed in commit `c5e7e93`. Re-verified with 6 bash-level smoke tests (including the previously-untested nudge fire scenario — TEST 5 correctly emits ⚠️, TEST 6 correctly stays silent when primer is staged).
+
+### What's still pending
+
+- **Task 11 final check (human):** In a restarted `claude --plugin-dir /Users/tal.golan/.claude/skills/session-continuity` session from `/tmp/sc-smoke-test` (recreate the dir with `mkdir -p /tmp/sc-smoke-test && cd /tmp/sc-smoke-test && git init -b main && echo '# t' > README.md && git add README.md && git commit -m init` if gone), exercise the PreToolUse nudge one more time in a live session to confirm the stdin fix works end-to-end, not just in bash smoke tests.
+    - Setup: `/session-continuity:primer` to init, commit the primer, then edit/stage `src/foo.js` while leaving primer unstaged, then ask Claude to `git commit -m 'test'`. Expect a `<system-reminder>` with ⚠️ in the tool-result stream.
+    - If it fires: Task 11 passes.
+    - If it doesn't: likely another platform quirk; investigate with Agent(claude-code-guide) for current hook docs.
+- **Task 12 — publish to GitHub.** Requires explicit user confirmation before running. Commands are in Task 12 of this plan, starting with `gh auth status` and ending with tag `v0.2.0` push. The release workflow should fire automatically.
+- **Task 13 — second-machine install verification (human).**
+- **Task 14 — marketplace submission (human).**
+- **Task 15 — wrap-up verification, including Step 15.3 where this repo uses its own `/session-continuity:primer` to create its own primer (the dogfooding moment).**
+
+### Quick resumption command
+
+To verify everything is still where we left it:
+
+```bash
+cd /Users/tal.golan/.claude/skills/session-continuity
+git status            # should be clean, on main
+git log --oneline | head -15
+bash hooks/pre-commit-check.sh < /dev/null ; echo $?   # should print 0
+```
+
+If those look right, read this file from the top, then say: "I want to resume the session-continuity v0.2 release. Continue from the pending Task 11 hook verification." The next agent should skip the brainstorming + planning skills (already done, committed to git) and go straight to executing Task 11's remaining check and then Task 12 after confirmation.
+
