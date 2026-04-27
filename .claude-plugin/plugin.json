@@ -1,0 +1,18 @@
+{
+  "name": "session-continuity",
+  "version": "0.1.0",
+  "description": "Establish and maintain cross-session memory for a project via two in-repo docs — SESSION_PRIMER.md (current state, refreshed every commit) and LEARNINGS.md (bugs that took 15+ min to diagnose, written as recipes). Works standalone or alongside CLAUDE.md and agent-memory systems.",
+  "author": {
+    "name": "Tal Golan"
+  },
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "session",
+    "handoff",
+    "continuity",
+    "documentation",
+    "onboarding",
+    "post-mortem"
+  ]
+}
