@@ -1,6 +1,6 @@
 ---
 name: session-continuity
-description: Establish and maintain cross-session memory for a project via two complementary in-repo docs — docs/SESSION_PRIMER.md (current-state, refreshed alongside substantive commits) and docs/LEARNINGS.md (accumulated-wisdom, append-only for bugs that took 15+ min to diagnose). Use when starting work on a new project, when asked about "session memory" / "context handoff" / "continuity across sessions", when a commit is imminent and these files need refreshing, or when a hard-won bug has been resolved.
+description: Establish and maintain cross-session memory for a project via two in-repo docs — docs/SESSION_PRIMER.md (current state, refreshed alongside substantive commits) and docs/LEARNINGS.md (append-only wisdom for bugs that took 15+ min). Use when starting work, before commits, or after hard-won bugs.
 ---
 
 # Session Continuity
@@ -11,6 +11,8 @@ Two in-repo files act as a handoff between Claude sessions on the same project:
 - **`docs/LEARNINGS.md`** — accumulated wisdom (numbered entries, grouped by layer). Append-only log of bugs that were painful enough to not want to rediscover. **Update when a bug takes 15+ minutes to diagnose.**
 
 The two files are complementary: primer is volatile current-state, LEARNINGS is durable wisdom. A fresh session reads the primer first to get oriented, then consults LEARNINGS when something surprising happens.
+
+If installed as a plugin, two commands are available: `/session-continuity:primer` (init/refresh/check the primer) and `/session-continuity:learning` (append a new LEARNINGS entry interactively). Hooks in `hooks/hooks.json` remind Claude to read the primer on session start and nudge when a `git commit` lands without a primer refresh staged.
 
 ## When to use this skill
 
