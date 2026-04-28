@@ -69,14 +69,14 @@ If you find **zero** candidates, skip the prompt and note "no new learnings" in 
 
 ### Capture flow for each accepted candidate
 
-For each candidate the user picks, follow **Steps 2-6 of `commands/learning.md`**:
+For each candidate the user picks, compose the LEARNINGS entry following `commands/learning.md`'s structure. Replace its Step 2 (field-by-field prompting) with pre-drafting:
 
 - Pre-fill the **Title** from the candidate description.
-- Pre-draft **The trap**, **Symptom**, **Fix**, and **Diagnostic signal** from session context where you can, then present the draft to the user for confirmation / revision. Do not invent details the session does not support — leave a field blank and ask if unclear.
-- Choose section per Step 3 of `commands/learning.md`.
-- Compute the next number per Step 4.
-- Insert at the top of the chosen section per Step 5.
-- Stage: `git add docs/LEARNINGS.md` per Step 6.
+- Pre-draft **The trap**, **Symptom**, **Fix**, and **Diagnostic signal** from session context where you can, then present the full draft to the user in one go for confirmation / revision. Do not invent details the session does not support — leave a field blank and ask if unclear.
+- Choose section per **Step 3 of `commands/learning.md`**.
+- Compute the next number per **Step 4 of `commands/learning.md`**.
+- Insert at the top of the chosen section per **Step 5 of `commands/learning.md`**.
+- Stage per **Step 6 of `commands/learning.md`**: `git add docs/LEARNINGS.md`.
 
 If the user describes "another" candidate not on your list, treat that description as a pre-filled title and follow the same flow.
 
