@@ -12,7 +12,7 @@ Two in-repo files act as a handoff between Claude sessions on the same project:
 
 The two files are complementary: primer is volatile current-state, LEARNINGS is durable wisdom. A fresh session reads the primer first to get oriented, then consults LEARNINGS when something surprising happens.
 
-If installed as a plugin, two commands are available: `/session-continuity:primer` (init/refresh/check the primer) and `/session-continuity:learning` (append a new LEARNINGS entry interactively). Hooks in `hooks/hooks.json` remind Claude to read the primer on session start and nudge when a `git commit` lands without a primer refresh staged.
+If installed as a plugin, three commands are available: `/session-continuity:primer` (init/refresh/check the primer), `/session-continuity:learning` (append a new LEARNINGS entry interactively), and `/session-continuity:end-session` (close-out ritual — refresh the primer, capture any new learnings from this session, and report a ✓/⚠️ checklist before you close the laptop). Hooks in `hooks/hooks.json` remind Claude to read the primer on session start and nudge when a `git commit` lands without a primer refresh staged.
 
 ## When to use this skill
 
