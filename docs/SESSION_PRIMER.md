@@ -76,11 +76,11 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+1a102c0 docs: initialize session continuity for session-continuity itself
 605f54b fix(command): require end-session checklist to enumerate every staged file
 b50c4bd docs(skill): mention /session-continuity:end-session in affordances paragraph
 129cc67 docs: document /session-continuity:end-session in README
 579db5d docs: add [0.3.0] to CHANGELOG — end-session command
-e0c37fe chore: bump plugin.json to 0.3.0
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
