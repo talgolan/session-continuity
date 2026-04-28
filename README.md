@@ -55,6 +55,8 @@ Prompts for trap / symptom / fix / diagnostic signal. Appends the entry at the t
 
 Refreshes the primer, asks whether anything from today is worth a LEARNINGS entry (Claude looks at the session's conversation context to propose candidates), and prints a checklist so you know nothing is forgotten before you close the laptop. Stages changes — does not commit.
 
+> **Scope note.** End-session's reflection is bounded by the *current* Claude session — it can only see what was said and done in this conversation. For LEARNINGS worth capturing from prior sessions (a bug you remember from yesterday, or one that lived in a different Claude instance like a subagent or parallel worktree), use `/session-continuity:learning` directly.
+
 **Picking up an existing project:**
 
 The `SessionStart` hook reminds Claude to read `docs/SESSION_PRIMER.md` first. Follow its "First things first" list before touching anything.

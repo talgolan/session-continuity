@@ -10,17 +10,76 @@ within each group.
 
 ## Claude Code plugin mechanics
 
+### 2. awk CHANGELOG range collapses on single-version files
+
+**The trap.** In the release workflow, extracting one version's CHANGELOG section with `awk "/^## \[${version}\]/,/^## \[/"` looks right — "print from the version header to the next version header." It works fine on multi-version files, so it's easy to ship.
+
+**Symptom.** The first v0.2.0 release fired the workflow, created the GitHub Release, but the release body was "No CHANGELOG section for 0.2.0." The extraction had produced exactly one line (the header) which `sed '$d'` then stripped. CI logs looked green.
+
+**Fix.** Use a state-machine awk that skips the header, copies lines until the next `## [` heading, then exits. Portable across gawk and BSD awk:
+
+```bash
+awk -v ver="$version" '
+  $0 ~ "^## \\[" ver "\\]" { in_section=1; next }
+  in_section && /^## \[/   { exit }
+  in_section                { print }
+' CHANGELOG.md
+```
+
+The original awk range fails because the same pattern matches both the start and end of the range when only one versioned section exists — the range collapses to a single line (the header), which `sed '$d'` then deletes.
+
+**Diagnostic signal.** If your release body says "No CHANGELOG section for X.Y.Z" but the CHANGELOG clearly has that section, suspect the extraction before the CHANGELOG. Test locally by running the exact awk command against the real file before tagging.
+
+---
+
 <!-- Add entries here as they surface -->
 
 ---
 
 ## Slash command skill authoring
 
+### 3. Checklist-style prose needs an explicit "enumerate, don't summarize" rule
+
+**The trap.** A slash command that instructs Claude to "emit a ✓ / ⚠️ checklist of the staged files from `git diff --cached --name-only`" reads like a complete instruction. It isn't. Claude's default is to *summarize* tool output when embedding it in a response — so if `git diff --cached` returns two files, the checklist row might still list only the "most relevant" one.
+
+**Symptom.** The `/session-continuity:end-session` smoke test had two staged files (primer + `src/foo.js`). The bash probe output clearly showed both. The checklist row said `✓ Staged: docs/SESSION_PRIMER.md` — one file missing. No error, no warning, just silently elided.
+
+**Fix.** Add an explicit anti-summarization directive at the start of the section that emits the structured output:
+
+> "**List every file enumerated by the git commands — do not summarize, filter, or pick a 'primary' one.** If `git diff --cached --name-only` returns three files, the row lists all three."
+
+Applies generally: any time command prose tells Claude to produce an inventory from tool output, the prose must say "every item" explicitly. Claude's implicit move is to pick a representative and move on.
+
+**Diagnostic signal.** If your structured output has rows that look "summary-like" when the underlying data has multiple items, the instruction needs tightening. Stage more than one file during smoke tests to flush these out.
+
+---
+
 <!-- Add entries here as they surface -->
 
 ---
 
 ## Hook scripting (SessionStart / PreToolUse)
+
+### 1. PreToolUse hooks must emit JSON to reach Claude's context
+
+**The trap.** `SessionStart` hooks inject plain stdout into Claude's context — that's documented, straightforward, and works on the first try. When writing a `PreToolUse` hook, it's natural to reach for the same pattern: print a `<system-reminder>` block to stdout, exit 0. Bash-level smoke tests show the reminder firing. Looks done.
+
+**Symptom.** In a live Claude session, the hook runs (verified via debug logs) but Claude never sees the reminder. `git commit` proceeds silently without Claude surfacing the nudge at all. No error, no skipped-hook warning — the output just goes to `/dev/null` from Claude's perspective.
+
+**Fix.** `PreToolUse` (unlike `SessionStart`) does NOT treat plain stdout as additional context. You must emit a JSON object with `hookSpecificOutput.additionalContext`, with exit code 0, and `permissionDecision: "allow"` to remain non-blocking:
+
+```bash
+cat <<'EOF'
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","additionalContext":"⚠️ ..."}}
+EOF
+exit 0
+```
+
+Plain stdout from `PreToolUse` is written only to debug logs, never injected. Source: https://code.claude.com/docs/en/hooks.md (sections "stdout Context Injection" and "Decision Control with JSON Output").
+
+**Diagnostic signal.** If a hook's bash smoke tests emit text correctly but Claude ignores it in a live session, the hook's event type probably has a different contract than `SessionStart`. Check the hooks.md matrix before assuming plain stdout works.
+
+---
 
 <!-- Add entries here as they surface -->
 
