@@ -2,6 +2,14 @@
 
 Cross-session memory for Claude Code projects. Two in-repo docs, three slash commands, two hooks.
 
+## Why this exists
+
+LLMs start every session cold. Claude doesn't remember yesterday's debugging, last week's refactor, or the three-hour bug you eventually cornered. The usual fixes reach for clever infrastructure — vector databases, MCP memory servers, auto-generated notes stored in vendor-specific ways that hide the knowledge outside the repo, away from human eyes and tangled with whichever tool happens to be installed.
+
+This skill takes a different route: plain Markdown files, committed to git, alongside the code they describe. Two files hold the memory, three slash commands keep them honest, two hooks nudge when the habit slips. That's the whole system.
+
+The choice buys three properties most AI memory systems lack. Humans and Claude read the same files, so there's no opaque layer between you and what's remembered. Every change is a git commit, so history is auditable and every edit has an author. The storage is plain text, so it's portable — any tool that reads Markdown can use it, including future LLMs that don't exist yet.
+
 ## Install
 
 ```bash
@@ -76,6 +84,28 @@ The `SessionStart` hook reminds Claude to read `docs/SESSION_PRIMER.md` first. F
 ## Philosophy
 
 Primer answers "what is true **right now**?" LEARNINGS answers "what should I know to avoid rediscovering pain?" Two files, two questions, one habit.
+
+## Two files, two questions — why the split matters
+
+Most memory systems lump everything together: notes, decisions, observations, bug reports, all blended in a searchable soup. That fails in a specific way for software projects, because current state and accumulated wisdom have opposite shapes.
+
+The **primer** is high-churn. Yesterday's commit is already out of date; next week's priorities will look different again. It needs to be overwritten freely, refreshed with every substantive change, and short enough to re-read on every session start. A primer that accumulates forever becomes a scroll tomb.
+
+**LEARNINGS** is the exact opposite. Each entry is a bug that took hours to diagnose, the kind of hard-won knowledge that would cost the same hours again if lost. It needs to be append-only, numbered stably so cross-references don't rot, and preserved exactly as written when the author's memory was sharpest. A LEARNINGS file that gets rewritten loses the point.
+
+Blending them forces bad tradeoffs. Either the current-state notes drown the accumulated wisdom, or the wisdom gets edited away when someone trims "stale" entries. This skill keeps them in separate files with separate update contracts — the primer says "what is true right now," LEARNINGS says "what should I know to avoid rediscovering pain," and neither pretends to answer the other's question.
+
+## What it is not
+
+Understanding what this skill deliberately avoids is as useful as understanding what it does.
+
+**Not automatic.** The slash commands require you to invoke them. The hooks nudge, they don't write files themselves. Automatic memory capture sounds appealing but has a predictable failure mode: noise, contradictions, and stale state that Claude confidently believes is current. A memory system is only useful if its contents can be trusted, and trust comes from deliberate capture.
+
+**Not a framework.** There's no extension API, no plugin architecture, no abstraction layer waiting for you to subclass it. The surface is three commands and two hooks, and that's the whole product. PRs that expand the surface will be declined.
+
+**Not a replacement for `CLAUDE.md`, vector search, or MCP memory servers.** Each of those solves a different problem. `CLAUDE.md` is for durable project conventions ("always use Bun, never commit to main"). Vector search is for semantic retrieval across large unstructured corpora. MCP memory servers are for cross-project or cross-session context that needs rich querying. This skill is for *the two specific questions above*, in *a single project's repo*, with *plain text in git* as the storage. When one of the other tools fits your need better, use it instead.
+
+**Not an LLM-only tool.** Every file is human-readable and human-editable. You can open `docs/LEARNINGS.md` in any editor, add an entry by hand, and Claude will see it on the next session. The slash commands are conveniences, not gates.
 
 ## Updating
 
