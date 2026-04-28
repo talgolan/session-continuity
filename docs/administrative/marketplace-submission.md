@@ -1,11 +1,5 @@
 # Anthropic plugin marketplace submission
 
-Polished answers for the submission form at https://platform.claude.com/plugins/submit.
-Pre-filled fields (name, repository, description, license, keywords) come from `.claude-plugin/plugin.json`.
-The three narrative fields below are the ones the form is likely to ask for in free text.
-
----
-
 ## What does it do / why would I install it?
 
 Claude Code sessions start cold — Claude doesn't remember yesterday's debugging, last week's refactor, or the three-hour bug you eventually cornered. Most fixes reach for clever infrastructure (vector databases, MCP memory servers, vendor-specific notes stores) that hides the knowledge outside the repo, away from human eyes.
