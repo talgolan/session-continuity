@@ -24,7 +24,8 @@ This file is the shortest path to productive context. Read it in order.
 
 Claude Code plugin. Key paths:
 
-- `plugin.json` — plugin manifest (name, version, homepage, repository)
+- `.claude-plugin/plugin.json` — plugin manifest (name, version, homepage, repository)
+- `.claude-plugin/marketplace.json` — single-plugin marketplace catalog (what `/plugin marketplace add` reads)
 - `skills/session-continuity/SKILL.md` — main skill description shown in marketplace
 - `skills/session-continuity/templates/` — `SESSION_PRIMER.md` and `LEARNINGS.md` starter templates
 - `commands/` — slash command skill files (`primer.md`, `learning.md`, `end-session.md`)
@@ -69,9 +70,12 @@ No external credentials or costs.
 
 ## Current state
 
-- v0.3.0 shipped — all three slash commands stable
-- `end-session` checklist now enumerates every staged file (not summaries)
-- No known open bugs; outstanding items are feature-level
+- v0.4.0 staged — marketplace-submission hardening pass. See the 0.4.0 CHANGELOG entry for the full diff story.
+- Three slash commands are stable (`primer`, `learning`, `end-session`).
+- `hooks/hooks.json` now uses `if: "Bash(git commit *)"` to scope the `PreToolUse` hook; it no longer fires on every Bash call.
+- `.claude-plugin/marketplace.json` added so the repo is installable via `/plugin marketplace add talgolan/session-continuity`.
+- `docs/` is now clean: only `SESSION_PRIMER.md` and `LEARNINGS.md`. Dev artifacts (marketplace-submission notes, specs, plans) moved under `meta/`.
+- No known open bugs; outstanding items are feature-level.
 
 **Current `git log --oneline -5` (primary branch):**
 
@@ -87,7 +91,7 @@ Regenerate this block whenever you commit — see "Primer maintenance" below.
 
 ## Outstanding items (explicitly deferred — not bugs, decisions)
 
-1. **Marketplace submission.** Plugin is install-via-github only. Submit to the Anthropic marketplace when the process is available.
+1. **Submit to the Anthropic marketplace.** v0.4.0 is ready. Form URLs in `meta/administrative/marketplace-submission.md`.
 
 2. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo.
 

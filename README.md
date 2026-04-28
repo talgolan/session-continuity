@@ -10,13 +10,18 @@ This skill takes a different route: plain Markdown files, committed to git, alon
 
 The choice buys three properties most AI memory systems lack. Humans and Claude read the same files, so there's no opaque layer between you and what's remembered. Every change is a git commit, so history is auditable and every edit has an author. The storage is plain text, so it's portable — any tool that reads Markdown can use it, including future LLMs that don't exist yet.
 
+There's a second reason, less obvious than the first: **shorter Claude Code sessions are better sessions**. Less accumulated context means lower cost per turn, better accuracy, and — critically — less context rot. Retrieval accuracy at large context sizes varies sharply by model: Sonnet 4.6 degrades earliest, Opus 4.7 is substantially worse than its predecessor at 1M tokens (roughly 32% vs. 78% retrieval accuracy in our testing), and Opus 4.6 holds up best. The practical consequence is that a workflow which lets you end a session and start a fresh one without losing context is not just a nice-to-have — it's how you keep Claude sharp across a long-running project. That's what `docs/SESSION_PRIMER.md` and `docs/LEARNINGS.md` buy you: the ability to close the laptop at any point, come back cold, and have a new Claude session up to speed in two file reads instead of rebuilding context by re-prompting.
+
 ## Install
 
-```bash
-claude plugins install github:talgolan/session-continuity
+From inside Claude Code, add this repo as a plugin marketplace, then install the single plugin it hosts:
+
+```
+/plugin marketplace add talgolan/session-continuity
+/plugin install session-continuity@session-continuity
 ```
 
-Once the plugin is live on the Anthropic marketplace, you can also discover it there. Until then, the command above works from any Claude Code install.
+Run `/reload-plugins` once the install finishes. Once the plugin is live on the official Anthropic marketplace (`claude-plugins-official`), you'll also be able to discover it via `/plugin` → **Discover**; until then, the two-step sequence above works on any recent Claude Code install.
 
 ## What you get
 
@@ -26,7 +31,7 @@ Once the plugin is live on the Anthropic marketplace, you can also discover it t
 - **`/session-continuity:learning`** — append a new LEARNINGS entry interactively. Computes the next number, inserts at the top of the chosen section.
 - **`/session-continuity:end-session`** — close-out ritual. Refreshes the primer, surfaces LEARNINGS candidates from this session's context, and reports a ✓ / ⚠️ checklist of staged / unstaged / untracked / unpushed state with a suggested commit message. Never commits.
 - **`SessionStart` hook** — reminds Claude to read the primer on new sessions.
-- **`PreToolUse` hook** — non-blocking nudge when `git commit` runs without the primer staged.
+- **`PreToolUse` hook** — non-blocking nudge when `git commit` runs without the primer staged. Scoped via the hook's `if: Bash(git commit *)` field, so the script only fires on actual `git commit` calls and never on unrelated Bash commands.
 - **Weekly freshness check** — one GitHub API call per 7 days per machine. Opt-out: `SESSION_CONTINUITY_SKIP_UPDATE_CHECK=1`.
 
 ## Usage
@@ -109,11 +114,14 @@ Understanding what this skill deliberately avoids is as useful as understanding 
 
 ## Updating
 
-```bash
-/plugin update session-continuity
+To pick up newer versions, refresh the marketplace and reload:
+
+```
+/plugin marketplace update session-continuity
+/reload-plugins
 ```
 
-The weekly freshness check in `SessionStart` will nudge you when a new version ships. Opt out with `SESSION_CONTINUITY_SKIP_UPDATE_CHECK=1`.
+The weekly freshness check in `SessionStart` will nudge you inside Claude when a new GitHub release ships. Opt out with `SESSION_CONTINUITY_SKIP_UPDATE_CHECK=1`.
 
 ## Platform notes
 

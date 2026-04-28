@@ -17,14 +17,35 @@ jobs:
       - name: Extract CHANGELOG section for this tag
         id: changelog
         run: |
+          # Strip the leading "v" from the tag name to get a bare semver string
+          # (e.g. "v0.4.0" -> "0.4.0"). GITHUB_REF_NAME is user-controlled —
+          # anyone with push-tag access could craft a tag whose name is
+          # interpreted as awk pattern syntax. We validate it against a strict
+          # semver regex before letting it anywhere near awk (see LEARNINGS
+          # entry on tag-injection).
           version="${GITHUB_REF_NAME#v}"
+          if ! printf '%s' "$version" \
+            | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?(\+[A-Za-z0-9.-]+)?$'; then
+            echo "Tag '${GITHUB_REF_NAME}' does not match semver vX.Y.Z[-prerelease][+build]; aborting." >&2
+            exit 1
+          fi
+
+          # Extract the section between "## [X.Y.Z]" and the next "## [..."
+          # heading. We use index() (string-literal match) rather than regex
+          # (~) so that unusual characters in $version never become pattern
+          # metacharacters — belt-and-suspenders on top of the regex validation
+          # above. See LEARNINGS entry #2 for the earlier awk-range bug that
+          # prompted this form.
           awk -v ver="$version" '
-            $0 ~ "^## \\[" ver "\\]" { in_section=1; next }
-            in_section && /^## \[/   { exit }
-            in_section                { print }
+            index($0, "## [" ver "]") == 1 { in_section=1; next }
+            in_section && /^## \[/         { exit }
+            in_section                      { print }
           ' CHANGELOG.md > RELEASE_NOTES.md
-          # Trim leading/trailing blank lines.
+
+          # Trim leading/trailing blank lines so the Release body is clean.
           sed -i -e '/./,$!d' -e ':a' -e '/^\n*$/{$d;N;ba' -e '}' RELEASE_NOTES.md
+
+          # Fallback body if the CHANGELOG has no matching section.
           if [ ! -s RELEASE_NOTES.md ]; then
             echo "No CHANGELOG section for ${version}." > RELEASE_NOTES.md
           fi

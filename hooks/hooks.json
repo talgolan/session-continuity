@@ -11,7 +11,11 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/pre-commit-check.sh" }
+          {
+            "type": "command",
+            "if": "Bash(git commit *)",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/pre-commit-check.sh"
+          }
         ]
       }
     ]

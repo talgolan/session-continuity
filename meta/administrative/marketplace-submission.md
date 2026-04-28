@@ -20,7 +20,7 @@ Developers using Claude Code on projects they'll come back to across many sessio
 
 ## Any telemetry / external calls?
 
-One external call: a weekly `HEAD` request to the GitHub Releases API (`https://api.github.com/repos/talgolan/session-continuity/releases/latest`) to check for new versions and nudge the user when an update is available. The check runs at most once per 7 days per machine (mtime-cached to `~/.cache/session-continuity/last-check`), has a 3-second timeout, fails silently on network errors, and can be disabled entirely by setting `SESSION_CONTINUITY_SKIP_UPDATE_CHECK=1`. No analytics, no identifiers, no PII sent — just an unauthenticated public-endpoint GET. All other functionality (primer files, LEARNINGS, slash commands, hooks) runs entirely locally against the user's own repo.
+One external call: a weekly unauthenticated GET to the GitHub Releases API to check for new versions and nudge the user when an update is available. The URL is derived from the `repository` field in `.claude-plugin/plugin.json` (falling back to `https://api.github.com/repos/talgolan/session-continuity/releases/latest` if parsing fails), so renaming the repo doesn't silently break the check. The request runs at most once per 7 days per machine (mtime-cached to `~/.cache/session-continuity/last-check`), has a 3-second timeout, fails silently on network errors, and can be disabled entirely by setting `SESSION_CONTINUITY_SKIP_UPDATE_CHECK=1`. No analytics, no identifiers, no PII sent. All other functionality (primer files, LEARNINGS, slash commands, hooks) runs entirely locally against the user's own repo.
 
 ---
 
@@ -35,4 +35,4 @@ For reference, the form likely pulls these directly from the manifest:
 - **License:** MIT
 - **Homepage:** `https://github.com/talgolan/session-continuity`
 - **Keywords:** memory, session, handoff, continuity, documentation, onboarding, post-mortem
-- **Version at submission:** 0.3.0
+- **Version at submission:** 0.4.0

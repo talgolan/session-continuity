@@ -23,18 +23,28 @@ If either is missing, tell the user:
 
 Exit. Do not proceed.
 
-## Step 1 — Refresh the primer
+## Step 1 — Refresh the primer (drift-gated)
+
+Before prompting the user for anything, run a drift check. The goal: if the primer is already in sync with the repo, do nothing and record a no-op. Only enter the refresh flow when something actually changed.
+
+### Drift check (silent — no user prompt)
+
+Read `docs/SESSION_PRIMER.md` and compare its `git log --oneline -5` block to the actual output of `git log --oneline -5` against the primary branch. Two outcomes:
+
+- **Block matches.** Treat the primer as current. Do NOT prompt for outstanding-items changes. Skip the rest of Step 1. In Step 3's checklist, record the Primer refresh row as ✓ "Primer already current (no-op)".
+- **Block differs** (any line differs — subjects, hashes, or ordering). Enter the refresh flow below.
+
+If the primer has a test-counts section, optionally re-run the test command(s) to confirm the counts are still accurate. Count mismatches also count as drift.
+
+### Refresh flow (runs only when drift was detected)
 
 Follow the logic in **Step 3 of `commands/primer.md`** (refresh mode):
 
-1. Read the current `docs/SESSION_PRIMER.md`.
-2. Regenerate the `git log --oneline -5` block with current output.
-3. If the primer has a test-counts section, run the test command(s) found there and update the counts to match current output.
-4. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?"
-5. Apply the edits.
-6. Stage the updated primer: `git add docs/SESSION_PRIMER.md`.
-
-If the primer is already current (`git log` block matches, no test counts to update, user has no outstanding-items changes), skip the prompt and note in Step 3's checklist that primer refresh was a no-op (still ✓).
+1. Regenerate the `git log --oneline -5` block with current output.
+2. If the primer has a test-counts section and the counts changed, update them to match current output.
+3. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?"
+4. Apply the edits.
+5. Stage the updated primer: `git add docs/SESSION_PRIMER.md`.
 
 **Do not** commit. Staging only.
 

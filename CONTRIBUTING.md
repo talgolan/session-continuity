@@ -21,7 +21,7 @@ If you're unsure whether your idea fits, open an issue first and describe what y
 1. Read the [README](README.md) for the user-facing view.
 2. Read `docs/SESSION_PRIMER.md` — it's the current-state snapshot for this very repo, maintained by the plugin's own commands.
 3. Skim `docs/LEARNINGS.md` — real bugs we've hit, grouped by layer. Useful context for hook/command work.
-4. Skim the most recent spec + plan in `docs/superpowers/` to see how changes are shaped before they become code.
+4. Skim the most recent spec + plan in `meta/superpowers/` to see how changes are shaped before they become code. (`docs/` in this repo is intentionally limited to the two files the plugin ships — primer and LEARNINGS. Dev artifacts like specs, plans, and marketplace paperwork live under `meta/` so they don't pollute the plugin's public surface.)
 
 ## Local development
 
@@ -78,7 +78,8 @@ Hook output validates as JSON (for `pre-commit-check.sh`) or plain text (for `se
 ```
 session-continuity/
 ├── .claude-plugin/
-│   └── plugin.json              # manifest — name, version, keywords
+│   ├── plugin.json              # manifest — name, version, keywords
+│   └── marketplace.json         # catalog that lets users install this repo via /plugin marketplace add
 ├── skills/
 │   └── session-continuity/
 │       ├── SKILL.md             # main skill description (shown in marketplace)
@@ -92,12 +93,13 @@ session-continuity/
 ├── hooks/
 │   ├── hooks.json               # hook registration
 │   ├── session-start.sh         # SessionStart event
-│   ├── pre-commit-check.sh      # PreToolUse event (Bash matcher)
+│   ├── pre-commit-check.sh      # PreToolUse event (Bash matcher + `if: Bash(git commit *)`)
 │   └── version-check.sh         # weekly freshness check (invoked by session-start.sh)
 ├── docs/
-│   ├── SESSION_PRIMER.md        # this repo's own primer (yes, we dogfood)
-│   ├── LEARNINGS.md             # this repo's own LEARNINGS
-│   ├── administrative/          # meta-docs (submission forms, contributor notes)
+│   ├── SESSION_PRIMER.md        # this repo's own primer (yes, we dogfood the pattern)
+│   └── LEARNINGS.md             # this repo's own LEARNINGS
+├── meta/
+│   ├── administrative/          # meta-docs (marketplace-submission answers, contributor notes)
 │   └── superpowers/
 │       ├── specs/               # design docs (one per feature)
 │       └── plans/               # implementation plans (one per feature)
@@ -106,8 +108,11 @@ session-continuity/
 ├── README.md
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md              # you are here
+├── SECURITY.md                  # security disclosure + scope
 └── LICENSE
 ```
+
+`docs/` is intentionally limited to the two files the plugin ships — primer and LEARNINGS — so it mirrors what users see in their own projects. Repo-specific dev artifacts (design specs, implementation plans, submission paperwork) live under `meta/` so they don't pollute the plugin's public surface.
 
 Files that change together live together. If you're adding a new slash command, you'll likely touch `commands/<name>.md`, the "three commands" paragraph in `skills/session-continuity/SKILL.md`, `README.md`, and `CHANGELOG.md`. If you're modifying a hook, you'll likely only touch `hooks/<name>.sh`.
 
@@ -144,7 +149,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 ### Specs and plans (for non-trivial changes)
 
-Anything larger than a single-file tweak should start with a spec in `docs/superpowers/specs/` and an implementation plan in `docs/superpowers/plans/`. See the existing files for the shape.
+Anything larger than a single-file tweak should start with a spec in `meta/superpowers/specs/` and an implementation plan in `meta/superpowers/plans/`. See the existing files for the shape.
 
 This isn't bureaucracy — it's cheaper than writing code that needs to be redone. If the spec reveals the idea doesn't fit the scope, you've saved hours.
 

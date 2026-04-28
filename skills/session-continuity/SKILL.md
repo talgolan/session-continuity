@@ -26,14 +26,11 @@ Invoke when:
 
 ## Quick start (new project)
 
-1. Read the templates in `./templates/`:
-   - [`templates/SESSION_PRIMER.md`](templates/SESSION_PRIMER.md)
-   - [`templates/LEARNINGS.md`](templates/LEARNINGS.md)
-2. Create `docs/` if it doesn't exist.
-3. Copy both templates into the project's `docs/` directory.
-4. Fill in the `{{PLACEHOLDERS}}` with project-specific content. Leave sections you don't have information for as "TBD" — don't invent.
-5. Commit both files together with a message like `docs: initialize session continuity (primer + learnings)`.
-6. Announce to the user: the primer needs refreshing alongside substantive commits (stage the refresh in the same commit as the real change — do not commit the primer by itself), and LEARNINGS needs an entry for every bug that took 15+ minutes to diagnose.
+Run `/session-continuity:primer`. The command detects that no primer exists, copies both templates from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/` into the project's `docs/`, fills in every placeholder it can derive automatically (project name, latest commits, working directory, test command), prompts the user for anything left blank, and stages both files. It does not commit.
+
+After the user commits, remind them of the two maintenance rules: refresh the primer alongside substantive commits (stage the refresh in the same commit as the real change — do not commit the primer by itself), and add a LEARNINGS entry for every bug that took 15+ minutes to diagnose.
+
+If the `/session-continuity:primer` command is not installed (e.g. this skill was vendored manually, not installed as a plugin), fall back to copying the templates by hand from [`templates/SESSION_PRIMER.md`](templates/SESSION_PRIMER.md) and [`templates/LEARNINGS.md`](templates/LEARNINGS.md), filling placeholders, and committing the pair.
 
 ## Quick start (existing project with these files)
 

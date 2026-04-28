@@ -1,6 +1,6 @@
 {
   "name": "session-continuity",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Cross-session memory for Claude Code projects via two in-repo docs: SESSION_PRIMER.md (current state) and LEARNINGS.md (hard-won bugs).",
   "author": {
     "name": "Tal Golan"
