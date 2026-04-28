@@ -80,20 +80,24 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-1a102c0 docs: initialize session continuity for session-continuity itself
-605f54b fix(command): require end-session checklist to enumerate every staged file
-b50c4bd docs(skill): mention /session-continuity:end-session in affordances paragraph
-129cc67 docs: document /session-continuity:end-session in README
-579db5d docs: add [0.3.0] to CHANGELOG — end-session command
+59dcb89 feat: v0.4.0 — marketplace-submission hardening pass
+c1571bd docs: streamline marketplace-submission.md by removing redundant content
+f840d68 docs: update CONTRIBUTING.md for clarity in contribution guidance
+c66e354 docs: add CONTRIBUTING.md with scope policy and authoring conventions
+7fe7931 docs: move marketplace-submission.md into docs/administrative/
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
 
 ## Outstanding items (explicitly deferred — not bugs, decisions)
 
-1. **Submit to the Anthropic marketplace.** v0.4.0 is ready. Form URLs in `meta/administrative/marketplace-submission.md`.
+1. **Tag v0.4.0 and push.** Commit 59dcb89 ships the hardening pass but no tag has been pushed. `git tag v0.4.0 && git push origin v0.4.0` to fire the release workflow.
 
-2. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo.
+2. **Submit to the Anthropic marketplace.** v0.4.0 is ready. Form answers in `meta/administrative/marketplace-submission.md`. Submission URLs: claude.ai/settings/plugins/submit or platform.claude.com/plugins/submit.
+
+3. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo.
+
+4. **Add captured learnings from the v0.4.0 session.** Four candidates identified (install-command-form verification via WebFetch, pipefail+grep/head/sed regression, .claude/settings.json auto-population hygiene, GITHUB_REF_NAME awk injection) — worth a `/session-continuity:learning` pass each.
 
 ## Workflow conventions
 
