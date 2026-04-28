@@ -3,6 +3,13 @@
 You are picking up work on {{PROJECT_NAME}} from a previous session.
 This file is the shortest path to productive context. Read it in order.
 
+## Ground rules (how to work here)
+
+1. Don’t assume. Don’t hide confusion. Surface tradeoffs.
+2. Minimum code that solves the problem. Nothing speculative.
+3. Touch only what you must. Clean up only your own mess.
+4. Define success criteria. Loop until verified.
+
 ## First things first (read these before touching anything)
 
 1. **`CLAUDE.md`** at the repo root — project conventions, runtime
