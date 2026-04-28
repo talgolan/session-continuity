@@ -1,6 +1,6 @@
 # session-continuity
 
-Cross-session memory for Claude Code projects. Two in-repo docs, two slash commands, two hooks.
+Cross-session memory for Claude Code projects. Two in-repo docs, three slash commands, two hooks.
 
 ## Install
 
@@ -87,7 +87,7 @@ The weekly freshness check in `SessionStart` will nudge you when a new version s
 
 ## Platform notes
 
-Hooks are bash scripts and rely on `git` on PATH. On Windows, use Git Bash or WSL. Native PowerShell support is not included in v0.2.
+Hooks are bash scripts and rely on `git` on PATH. On Windows, use Git Bash or WSL. Native PowerShell support is not planned.
 
 ## Contributing
 
