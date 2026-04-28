@@ -107,6 +107,8 @@ Handle these edge cases explicitly:
 
 ### Emit the checklist
 
+**List every file enumerated by the git commands — do not summarize, filter, or pick a "primary" one.** If `git diff --cached --name-only` returns three files, the "Staged files" row lists all three. Same rule for the Unstaged and Untracked rows. The suggested-commit message may emphasize one theme, but the checklist rows are inventories, not summaries.
+
 Output using this structure. Use ✓ (green), ⚠️ (yellow), or → (suggestion):
 
 | Row | Marker | Content |

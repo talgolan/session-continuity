@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [0.3.0] — 2026-04-28
 
 ### Added
-- `/session-continuity:end-session` slash command — zero-arg close-out ritual. Refreshes the primer (Step 1 delegates to `/session-continuity:primer` refresh mode), reflects on session context to surface LEARNINGS candidates and appends any the user accepts (Step 2 delegates to `/session-continuity:learning`), then emits a ✓ / ⚠️ checklist of staged / unstaged / untracked / unpushed state with a suggested commit message.
+- `/session-continuity:end-session` slash command — zero-arg close-out ritual. Refreshes the primer (Step 1 delegates to `/session-continuity:primer` refresh mode), reflects on session context to surface LEARNINGS candidates and appends any the user accepts (Step 2 delegates to `/session-continuity:learning`), then emits a ✓ / ⚠️ checklist of staged / unstaged / untracked / unpushed state with a suggested commit message. The checklist enumerates every file from each `git` probe — summaries or "primary file" reductions are explicitly disallowed so nothing gets overlooked before close.
 
 ### Changed
 - `README.md` lists the new command.
