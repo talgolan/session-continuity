@@ -121,7 +121,7 @@ Hooks are bash scripts and rely on `git` on PATH. On Windows, use Git Bash or WS
 
 ## Contributing
 
-Issues and PRs welcome at [github.com/talgolan/session-continuity](https://github.com/talgolan/session-continuity). Please keep the scope tight: this skill ships a two-file pattern, not a framework. PRs that fit the existing shape will move quickly; PRs that expand scope will be declined or redirected.
+Issues and PRs welcome at [github.com/talgolan/session-continuity](https://github.com/talgolan/session-continuity). See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide — scope policy, local development, authoring conventions for commands and hooks, and the release process. TL;DR: this skill ships a two-file pattern, not a framework. PRs that fit the existing shape will move quickly; PRs that expand scope will be declined or redirected.
 
 ## License
 
