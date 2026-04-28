@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-04-28
+
+### Added
+- `/session-continuity:end-session` slash command — zero-arg close-out ritual. Refreshes the primer (Step 1 delegates to `/session-continuity:primer` refresh mode), reflects on session context to surface LEARNINGS candidates and appends any the user accepts (Step 2 delegates to `/session-continuity:learning`), then emits a ✓ / ⚠️ checklist of staged / unstaged / untracked / unpushed state with a suggested commit message.
+
+### Changed
+- `README.md` lists the new command.
+- `SKILL.md` plugin-affordances paragraph mentions the new command.
+
 ## [0.2.0] — 2026-04-27
 
 ### Added
