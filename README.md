@@ -16,6 +16,7 @@ Once the plugin is live on the Anthropic marketplace, you can also discover it t
 - **`docs/LEARNINGS.md`** — append-only wisdom. Numbered entries for bugs that took 15+ minutes to diagnose. Graveyard of hard-won knowledge.
 - **`/session-continuity:primer`** — init / refresh / check the primer. State-dispatching, never commits automatically.
 - **`/session-continuity:learning`** — append a new LEARNINGS entry interactively. Computes the next number, inserts at the top of the chosen section.
+- **`/session-continuity:end-session`** — close-out ritual. Refreshes the primer, surfaces LEARNINGS candidates from this session's context, and reports a ✓ / ⚠️ checklist of staged / unstaged / untracked / unpushed state with a suggested commit message. Never commits.
 - **`SessionStart` hook** — reminds Claude to read the primer on new sessions.
 - **`PreToolUse` hook** — non-blocking nudge when `git commit` runs without the primer staged.
 - **Weekly freshness check** — one GitHub API call per 7 days per machine. Opt-out: `SESSION_CONTINUITY_SKIP_UPDATE_CHECK=1`.
@@ -45,6 +46,14 @@ Detects drift, regenerates the `git log --oneline -5` block, prompts for outstan
 ```
 
 Prompts for trap / symptom / fix / diagnostic signal. Appends the entry at the top of the section you pick, with the next sequential number.
+
+**Ending a work session:**
+
+```
+/session-continuity:end-session
+```
+
+Refreshes the primer, asks whether anything from today is worth a LEARNINGS entry (Claude looks at the session's conversation context to propose candidates), and prints a checklist so you know nothing is forgotten before you close the laptop. Stages changes — does not commit.
 
 **Picking up an existing project:**
 
