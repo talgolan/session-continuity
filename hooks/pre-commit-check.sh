@@ -60,10 +60,12 @@ if [ -z "$code_staged" ]; then
   exit 0
 fi
 
+# PreToolUse hooks do NOT inject plain stdout as context — they need
+# JSON with hookSpecificOutput.additionalContext. SessionStart hooks,
+# by contrast, do inject plain stdout. See:
+# https://code.claude.com/docs/en/hooks.md
 cat <<'EOF'
-<system-reminder>
-⚠️ docs/SESSION_PRIMER.md is not staged for this commit, but code files are. Consider `git add docs/SESSION_PRIMER.md` if outstanding items or landed commits need an update. Skip if the primer is genuinely unaffected by this change.
-</system-reminder>
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","additionalContext":"⚠️ docs/SESSION_PRIMER.md is not staged for this commit, but code files are. Consider `git add docs/SESSION_PRIMER.md` if outstanding items or landed commits need an update. Skip if the primer is genuinely unaffected by this change."}}
 EOF
 
 exit 0
