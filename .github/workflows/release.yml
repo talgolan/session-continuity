@@ -18,8 +18,13 @@ jobs:
         id: changelog
         run: |
           version="${GITHUB_REF_NAME#v}"
-          awk "/^## \\[${version}\\]/,/^## \\[/" CHANGELOG.md \
-            | sed '$d' > RELEASE_NOTES.md
+          awk -v ver="$version" '
+            $0 ~ "^## \\[" ver "\\]" { in_section=1; next }
+            in_section && /^## \[/   { exit }
+            in_section                { print }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          # Trim leading/trailing blank lines.
+          sed -i -e '/./,$!d' -e ':a' -e '/^\n*$/{$d;N;ba' -e '}' RELEASE_NOTES.md
           if [ ! -s RELEASE_NOTES.md ]; then
             echo "No CHANGELOG section for ${version}." > RELEASE_NOTES.md
           fi
