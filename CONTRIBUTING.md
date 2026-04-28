@@ -1,6 +1,6 @@
 # Contributing to session-continuity
 
-Thanks for thinking about contributing. This is a small, opinionated project with a tight scope, so reading this file before starting work will save both of us time.
+Thanks for thinking about contributing. This is a small, opinionated project with a tight scope, so reading this file before starting work will save everyone time.
 
 ## Scope first
 
