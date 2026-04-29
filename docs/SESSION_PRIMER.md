@@ -32,9 +32,11 @@ Claude Code plugin. Key paths:
 - `hooks/` — `SessionStart` and `PreToolUse` hook scripts
 - `docs/` — this primer and LEARNINGS
 
-No build step. Everything is Markdown and shell scripts. Install via:
-```bash
-claude plugins install github:talgolan/session-continuity
+No build step. Everything is Markdown and shell scripts. Install via (from inside Claude Code):
+```
+/plugin marketplace add talgolan/session-continuity
+/plugin install session-continuity@session-continuity
+/reload-plugins
 ```
 
 ## Working directory
@@ -70,11 +72,11 @@ No external credentials or costs.
 
 ## Current state
 
-- v0.4.0 staged — marketplace-submission hardening pass. See the 0.4.0 CHANGELOG entry for the full diff story.
+- v0.4.1 staged — prose fixes for placeholder leakage and premature outstanding-items edits, both caught by the v0.4.0 clean-machine acceptance test. See the 0.4.1 and 0.4.0 CHANGELOG entries for the full diff story.
 - Three slash commands are stable (`primer`, `learning`, `end-session`).
-- `hooks/hooks.json` now uses `if: "Bash(git commit *)"` to scope the `PreToolUse` hook; it no longer fires on every Bash call.
-- `.claude-plugin/marketplace.json` added so the repo is installable via `/plugin marketplace add talgolan/session-continuity`.
-- `docs/` is now clean: only `SESSION_PRIMER.md` and `LEARNINGS.md`. Dev artifacts (marketplace-submission notes, specs, plans) moved under `meta/`.
+- `hooks/hooks.json` uses `if: "Bash(git commit *)"` to scope the `PreToolUse` hook; it does not fire on every Bash call.
+- `.claude-plugin/marketplace.json` present so the repo is installable via `/plugin marketplace add talgolan/session-continuity`.
+- `docs/` holds only `SESSION_PRIMER.md` and `LEARNINGS.md`. Dev artifacts (marketplace-submission notes, specs, plans) live under `meta/`.
 - No known open bugs; outstanding items are feature-level.
 
 **Current `git log --oneline -5` (primary branch):**

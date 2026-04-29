@@ -136,7 +136,7 @@ Conventional commits format. The `type(scope): subject` pattern matches the exis
 feat(end-session): support stash detection in checklist
 fix(hooks): handle detached HEAD in pre-commit-check
 docs(readme): clarify the marketplace submission status
-chore: bump plugin.json to 0.4.0
+chore: bump plugin.json to 0.4.1
 ```
 
 Subject line ≤ 72 chars. Body is optional but encouraged for anything non-obvious — explain the *why*, not the *what* (the diff shows the what).

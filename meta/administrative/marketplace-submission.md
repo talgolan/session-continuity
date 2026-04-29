@@ -35,4 +35,4 @@ For reference, the form likely pulls these directly from the manifest:
 - **License:** MIT
 - **Homepage:** `https://github.com/talgolan/session-continuity`
 - **Keywords:** memory, session, handoff, continuity, documentation, onboarding, post-mortem
-- **Version at submission:** 0.4.0
+- **Version at submission:** 0.4.1
