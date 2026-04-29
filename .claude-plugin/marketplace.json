@@ -9,7 +9,7 @@
       "name": "session-continuity",
       "source": "./",
       "description": "Cross-session memory for Claude Code projects via two in-repo docs: SESSION_PRIMER.md (current state) and LEARNINGS.md (hard-won bugs).",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "homepage": "https://github.com/talgolan/session-continuity",
       "license": "MIT",
       "keywords": [

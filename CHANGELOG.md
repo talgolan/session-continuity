@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] — 2026-04-28
+
+### Fixed
+- `/session-continuity:primer` init mode could commit literal `{{PLACEHOLDER}}` tokens when the user skipped the "fill in the blanks" step and went straight to `git commit`. Step 5/6 now wait for the user's answer and substitute `TBD` for any remaining `{{...}}` tokens before staging — `grep -n '{{' docs/SESSION_PRIMER.md docs/LEARNINGS.md` must return nothing after init completes. Caught by the v0.4.0 clean-machine acceptance test.
+- `/session-continuity:end-session` Step 1 now waits for the user's answer to the "outstanding items — anything to remove or add?" prompt before applying edits. Previous prose let Claude proactively clear items it interpreted as stale.
+
+### Changed
+- `docs/LEARNINGS.md` gains entry #4 documenting the placeholder-leakage trap and its fix.
+
 ## [0.4.0] — 2026-04-28
 
 ### Added

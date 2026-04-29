@@ -33,9 +33,10 @@ Four states result:
    - `{{LATEST_COMMIT_HASH_N}}` / `{{LATEST_COMMIT_SUBJECT_N}}` — from `git log --oneline -5`.
    - `{{WORKING_DIRECTORY_ABSOLUTE_PATH}}` — from `pwd`.
    - `{{TEST_COMMAND_N}}` — from `package.json` `scripts.test` if present.
-5. Ask the user for the blanks that can't be derived (layout summary, packages, outstanding items, workflow conventions).
-6. Stage both files: `git add docs/SESSION_PRIMER.md docs/LEARNINGS.md`.
-7. Tell the user: "Primer and LEARNINGS staged. Review and commit with `git commit -m 'docs: initialize session continuity'` when ready."
+5. Ask the user for the blanks that can't be derived (layout summary, packages, outstanding items, workflow conventions). **Wait for their answer.** Do not proceed to Step 6 until the user responds.
+6. **Replace any remaining `{{PLACEHOLDER}}` tokens with `TBD` before staging.** If the user skipped a field, declined to answer, or asked you to stage/commit without filling everything in, substitute `TBD` (with an empty body line where the template had prose). Never leave `{{...}}` syntax in a file you are about to stage — `grep -n '{{' docs/SESSION_PRIMER.md docs/LEARNINGS.md` must return nothing after this step.
+7. Stage both files: `git add docs/SESSION_PRIMER.md docs/LEARNINGS.md`.
+8. Tell the user: "Primer and LEARNINGS staged. Review and commit with `git commit -m 'docs: initialize session continuity'` when ready." Include a one-line note listing any fields that were set to `TBD` so the user knows what to fill in later.
 
 **Do not commit automatically.** The user commits when ready.
 

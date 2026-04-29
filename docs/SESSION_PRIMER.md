@@ -80,24 +80,24 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+90d9d18 docs(primer): refresh for v0.4.0 — update git log block and outstanding items
 59dcb89 feat: v0.4.0 — marketplace-submission hardening pass
 c1571bd docs: streamline marketplace-submission.md by removing redundant content
 f840d68 docs: update CONTRIBUTING.md for clarity in contribution guidance
 c66e354 docs: add CONTRIBUTING.md with scope policy and authoring conventions
-7fe7931 docs: move marketplace-submission.md into docs/administrative/
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
 
 ## Outstanding items (explicitly deferred — not bugs, decisions)
 
-1. **Tag v0.4.0 and push.** Commit 59dcb89 ships the hardening pass but no tag has been pushed. `git tag v0.4.0 && git push origin v0.4.0` to fire the release workflow.
+1. **Tag v0.4.1 and push.** v0.4.1 ships the two prose fixes from the clean-machine acceptance test (placeholder-leakage + premature-apply in end-session). `git tag v0.4.1 && git push origin v0.4.1` to fire the release workflow.
 
-2. **Submit to the Anthropic marketplace.** v0.4.0 is ready. Form answers in `meta/administrative/marketplace-submission.md`. Submission URLs: claude.ai/settings/plugins/submit or platform.claude.com/plugins/submit.
+2. **Submit to the Anthropic marketplace.** v0.4.1 is ready. Form answers in `meta/administrative/marketplace-submission.md`. Bump the "Version at submission" field in that file to 0.4.1 before submitting.
 
 3. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo.
 
-4. **Add captured learnings from the v0.4.0 session.** Four candidates identified (install-command-form verification via WebFetch, pipefail+grep/head/sed regression, .claude/settings.json auto-population hygiene, GITHUB_REF_NAME awk injection) — worth a `/session-continuity:learning` pass each.
+4. **Add captured learnings from the v0.4.0 session.** Three candidates still open (install-command-form verification via WebFetch, pipefail+grep/head/sed regression, `.claude/settings.json` auto-population hygiene, `GITHUB_REF_NAME` awk injection) — worth a `/session-continuity:learning` pass each. Placeholder-leakage already captured as LEARNINGS #4.
 
 ## Workflow conventions
 

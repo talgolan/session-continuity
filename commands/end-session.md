@@ -42,8 +42,8 @@ Follow the logic in **Step 3 of `commands/primer.md`** (refresh mode):
 
 1. Regenerate the `git log --oneline -5` block with current output.
 2. If the primer has a test-counts section and the counts changed, update them to match current output.
-3. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?"
-4. Apply the edits.
+3. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?" **Wait for their answer before continuing.** Do not preemptively edit the list, clear items you interpret as "stale," or proceed with Step 4 based on your own reading.
+4. Apply the edits the user specified. If the user replied "nothing to change" (or similar), skip this step.
 5. Stage the updated primer: `git add docs/SESSION_PRIMER.md`.
 
 **Do not** commit. Staging only.

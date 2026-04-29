@@ -38,6 +38,18 @@ The original awk range fails because the same pattern matches both the start and
 
 ## Slash command skill authoring
 
+### 4. Init-mode commits can leak `{{PLACEHOLDER}}` tokens when the user skips ahead
+
+**The trap.** The primer command's init mode copies templates, fills in derivable fields, and "asks the user for the blanks." Reads fine. But the command prose doesn't say what Claude should do if the user *never answers* — pastes a `git commit` command or says "commit it" before filling in the blanks. Claude's default is to stage and proceed with the placeholders still present, so the committed file ends up containing literal `{{PACKAGE_1}}`, `{{ITEM_1_BODY}}`, etc.
+
+**Symptom.** Clean-machine acceptance test for v0.4.0. `/session-continuity:primer` ran init mode cleanly, asked for the seven blanks, the user said `git commit -m "docs: init session continuity"` without answering. The commit landed (`a37b00c` in `/tmp/sc-accept`) with a primer full of `{{PLACEHOLDER}}` tokens — visible to anyone who later reads the file. No error, no warning, just a fresh user's first commit looking broken.
+
+**Fix.** Tighten `commands/primer.md` Step 4/5 with an explicit fallback rule: *"For any `{{PLACEHOLDER}}` the user declines to fill in or hasn't answered, replace the token with `TBD` before staging. Never leave `{{...}}` syntax in a staged file."* The general lesson: any command that asks the user to supply values must define the fallback when the user skips — silence is a valid user response and the command needs to specify the resulting file state.
+
+**Diagnostic signal.** After init mode runs to completion, `grep -n '{{' docs/SESSION_PRIMER.md docs/LEARNINGS.md` should return nothing. If it does, the init-mode prose missed a fallback path.
+
+---
+
 ### 3. Checklist-style prose needs an explicit "enumerate, don't summarize" rule
 
 **The trap.** A slash command that instructs Claude to "emit a ✓ / ⚠️ checklist of the staged files from `git diff --cached --name-only`" reads like a complete instruction. It isn't. Claude's default is to *summarize* tool output when embedding it in a response — so if `git diff --cached` returns two files, the checklist row might still list only the "most relevant" one.
