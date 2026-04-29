@@ -131,6 +131,10 @@ Hooks are bash scripts and rely on `git` on PATH. On Windows, use Git Bash or WS
 
 Issues and PRs welcome at [github.com/talgolan/session-continuity](https://github.com/talgolan/session-continuity). See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide — scope policy, local development, authoring conventions for commands and hooks, and the release process. TL;DR: this skill ships a two-file pattern, not a framework. PRs that fit the existing shape will move quickly; PRs that expand scope will be declined or redirected.
 
+## Privacy
+
+See [PRIVACY.md](PRIVACY.md). Short version: nothing leaves your machine except one weekly, unauthenticated GitHub API call for version checks, which you can disable with `SESSION_CONTINUITY_SKIP_UPDATE_CHECK=1`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
