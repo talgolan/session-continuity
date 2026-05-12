@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-05-12
+
+### Changed
+- **Files relocated:** `SESSION_PRIMER.md` and `LEARNINGS.md` now live at `.session-continuity/SESSION_PRIMER.md` and `.session-continuity/LEARNINGS.md` instead of under `docs/`. The dot-prefixed directory signals these are tooling-managed artifacts and frees the project's `docs/` directory for first-class project documentation. Slash commands, hooks, templates, `SKILL.md`, and the public README/CONTRIBUTING/PRIVACY prose are all updated to reflect the new canonical location.
+- **`/session-continuity:primer` gains a Migrate mode.** When the command detects files at the legacy `docs/` location and none at `.session-continuity/`, it runs `git mv` on both files (preserving git history), then falls through to refresh mode against the new path. Moves are staged but not committed — bundle them with your next substantive change. A new "Conflict mode" reports cleanly when files exist at both locations and exits without touching them.
+- **`/session-continuity:learning`** and **`/session-continuity:end-session`** preflight checks recognize the legacy `docs/` layout and tell the user to run `/session-continuity:primer` first to migrate, rather than failing with an unhelpful "file not found" message.
+- **Hooks transparently support both paths.** `hooks/session-start.sh` and `hooks/pre-commit-check.sh` look for the primer at `.session-continuity/` first, then fall back to `docs/`, so unmigrated repos keep getting the read-reminder and the `git commit` nudge while users migrate at their own pace. `pre-commit-check.sh` additionally excludes `.session-continuity/` from "code that warrants a primer-refresh nudge" — same treatment `docs/` already gets.
+- **`marketplace-submission.md`** version bumped to 0.5.0 and prose updated to reference the new paths.
+
+### Compatibility
+- Existing v0.4 projects do not break on upgrade. The hooks keep working at the legacy location; running `/session-continuity:primer` once is the only action needed to migrate. The `docs/` fallback in hooks is intentional and will be kept for the foreseeable future (a future v1.0.0 can drop it once most users have migrated).
+
 ## [0.4.1] — 2026-04-28
 
 ### Fixed

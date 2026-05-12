@@ -6,10 +6,12 @@
 # `if: "Bash(git commit *)"` filter, so Claude Code only spawns this script
 # when the user is about to run `git commit` — NOT on every ls/grep/cat.
 #
-# What it does: if the user's repo has docs/SESSION_PRIMER.md and the user
-# is committing code without also staging a primer refresh, nudge Claude to
-# consider staging one. The hook never blocks the commit — it only injects
-# a non-blocking reminder into Claude's additional context.
+# What it does: if the user's repo has a session-continuity primer (at
+# .session-continuity/SESSION_PRIMER.md for v0.5.0+ projects, or the legacy
+# docs/SESSION_PRIMER.md for v0.4-and-earlier) and the user is committing
+# code without also staging a primer refresh, nudge Claude to consider
+# staging one. The hook never blocks the commit — it only injects a
+# non-blocking reminder into Claude's additional context.
 #
 # Claude Code contract (this is the gotcha that cost us a session — see
 # LEARNINGS #1):
@@ -55,10 +57,17 @@ if [ -z "${cwd:-}" ] || [ ! -d "$cwd" ]; then
   exit 0
 fi
 
-primer="$cwd/docs/SESSION_PRIMER.md"
+# Prefer the v0.5.0+ canonical location (.session-continuity/); fall back to
+# the legacy docs/ path so unmigrated repos keep working. Whichever exists
+# is the path we'll nudge about (and check against the staged set).
+primer_new="$cwd/.session-continuity/SESSION_PRIMER.md"
+primer_old="$cwd/docs/SESSION_PRIMER.md"
 
-# Nothing to remind about if the project doesn't use session-continuity.
-if [ ! -f "$primer" ]; then
+if [ -f "$primer_new" ]; then
+  primer_rel=".session-continuity/SESSION_PRIMER.md"
+elif [ -f "$primer_old" ]; then
+  primer_rel="docs/SESSION_PRIMER.md"
+else
   exit 0
 fi
 
@@ -69,16 +78,17 @@ fi
 staged="$(git -C "$cwd" diff --cached --name-only 2>/dev/null || true)"
 
 # If the primer is already staged, nothing to remind about — the commit
-# will carry its refresh.
-if printf '%s\n' "$staged" | grep -Fxq "docs/SESSION_PRIMER.md"; then
+# will carry its refresh. Accept either path so a user mid-migration who
+# stages the move alongside code doesn't also get nudged.
+if printf '%s\n' "$staged" | grep -Fxq "$primer_rel"; then
   exit 0
 fi
 
 # Consider only "code" changes as worth reminding about. A commit whose
-# staged set is entirely docs/, README*, CHANGELOG*, LICENSE*, or (empty
-# line from grep's \n handling) probably doesn't change the primer's
-# reality — the user is already dealing with the docs layer.
-code_staged="$(printf '%s\n' "$staged" | grep -Ev '^(docs/|README|CHANGELOG|LICENSE|$)' || true)"
+# staged set is entirely docs/, .session-continuity/, README*, CHANGELOG*,
+# LICENSE*, or (empty line from grep's \n handling) probably doesn't change
+# the primer's reality — the user is already dealing with the docs layer.
+code_staged="$(printf '%s\n' "$staged" | grep -Ev '^(docs/|\.session-continuity/|README|CHANGELOG|LICENSE|$)' || true)"
 
 if [ -z "$code_staged" ]; then
   exit 0
@@ -87,8 +97,8 @@ fi
 # Emit the reminder as JSON. permissionDecision:"allow" keeps this
 # non-blocking; additionalContext is what Claude will actually see.
 # Docs: https://code.claude.com/docs/en/hooks.md#decision-control-with-json-output
-cat <<'EOF'
-{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","additionalContext":"⚠️ docs/SESSION_PRIMER.md is not staged for this commit, but code files are. Consider `git add docs/SESSION_PRIMER.md` if outstanding items or landed commits need an update. Skip if the primer is genuinely unaffected by this change."}}
+cat <<EOF
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","additionalContext":"⚠️ $primer_rel is not staged for this commit, but code files are. Consider \`git add $primer_rel\` if outstanding items or landed commits need an update. Skip if the primer is genuinely unaffected by this change."}}
 EOF
 
 exit 0

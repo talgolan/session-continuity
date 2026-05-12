@@ -46,7 +46,7 @@ The original awk range fails because the same pattern matches both the start and
 
 **Fix.** Tighten `commands/primer.md` Step 4/5 with an explicit fallback rule: *"For any `{{PLACEHOLDER}}` the user declines to fill in or hasn't answered, replace the token with `TBD` before staging. Never leave `{{...}}` syntax in a staged file."* The general lesson: any command that asks the user to supply values must define the fallback when the user skips — silence is a valid user response and the command needs to specify the resulting file state.
 
-**Diagnostic signal.** After init mode runs to completion, `grep -n '{{' docs/SESSION_PRIMER.md docs/LEARNINGS.md` should return nothing. If it does, the init-mode prose missed a fallback path.
+**Diagnostic signal.** After init mode runs to completion, `grep -n '{{' .session-continuity/SESSION_PRIMER.md .session-continuity/LEARNINGS.md` should return nothing. (On pre-v0.5.0 projects, the files live under `docs/`.) If it does, the init-mode prose missed a fallback path.
 
 ---
 

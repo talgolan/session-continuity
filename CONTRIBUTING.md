@@ -4,12 +4,12 @@ Thanks for thinking about contributing. This is a small, opinionated project wit
 
 ## Scope first
 
-This skill ships a specific pattern: two in-repo Markdown files (`docs/SESSION_PRIMER.md` and `docs/LEARNINGS.md`) with slash commands and hooks that make the habit of using them cheap. That's the whole scope.
+This skill ships a specific pattern: two in-repo Markdown files (`.session-continuity/SESSION_PRIMER.md` and `.session-continuity/LEARNINGS.md`) with slash commands and hooks that make the habit of using them cheap. That's the whole scope.
 
 **PRs that fit the existing shape move quickly.** Bug fixes, prose improvements to existing commands, small behavior refinements that sharpen the existing tools — all welcome.
 
 **PRs that expand scope will be declined or redirected.** Examples of scope expansion:
-- A third in-repo doc (e.g. `docs/DECISIONS.md`, `docs/ROADMAP.md`). The two-file split is load-bearing; see the README's "Two files, two questions" section.
+- A third in-repo doc (e.g. `.session-continuity/DECISIONS.md`, `.session-continuity/ROADMAP.md`). The two-file split is load-bearing; see the README's "Two files, two questions" section.
 - Integration with a specific memory server, vector database, or external storage. The point is plain files in git.
 - A plugin architecture, extension API, or configuration system. The slash commands and hooks are the interface.
 - Auto-commit, auto-push, or "just do it all for me" modes. Deliberate capture is a design choice, not an oversight.
@@ -19,9 +19,9 @@ If you're unsure whether your idea fits, open an issue first and describe what y
 ## Before you start
 
 1. Read the [README](README.md) for the user-facing view.
-2. Read `docs/SESSION_PRIMER.md` — it's the current-state snapshot for this very repo, maintained by the plugin's own commands.
-3. Skim `docs/LEARNINGS.md` — real bugs we've hit, grouped by layer. Useful context for hook/command work.
-4. Skim the most recent spec + plan in `meta/superpowers/` to see how changes are shaped before they become code. (`docs/` in this repo is intentionally limited to the two files the plugin ships — primer and LEARNINGS. Dev artifacts like specs, plans, and marketplace paperwork live under `meta/` so they don't pollute the plugin's public surface.)
+2. Read `.session-continuity/SESSION_PRIMER.md` — it's the current-state snapshot for this very repo, maintained by the plugin's own commands.
+3. Skim `.session-continuity/LEARNINGS.md` — real bugs we've hit, grouped by layer. Useful context for hook/command work.
+4. Skim the most recent spec + plan in `meta/superpowers/` to see how changes are shaped before they become code. (`.session-continuity/` in this repo is intentionally limited to the two files the plugin ships — primer and LEARNINGS. Dev artifacts like specs, plans, and marketplace paperwork live under `meta/` so they don't pollute the plugin's public surface.)
 
 ## Local development
 
@@ -95,7 +95,7 @@ session-continuity/
 │   ├── session-start.sh         # SessionStart event
 │   ├── pre-commit-check.sh      # PreToolUse event (Bash matcher + `if: Bash(git commit *)`)
 │   └── version-check.sh         # weekly freshness check (invoked by session-start.sh)
-├── docs/
+├── .session-continuity/
 │   ├── SESSION_PRIMER.md        # this repo's own primer (yes, we dogfood the pattern)
 │   └── LEARNINGS.md             # this repo's own LEARNINGS
 ├── meta/
@@ -112,7 +112,7 @@ session-continuity/
 └── LICENSE
 ```
 
-`docs/` is intentionally limited to the two files the plugin ships — primer and LEARNINGS — so it mirrors what users see in their own projects. Repo-specific dev artifacts (design specs, implementation plans, submission paperwork) live under `meta/` so they don't pollute the plugin's public surface.
+`.session-continuity/` is intentionally limited to the two files the plugin ships — primer and LEARNINGS — so it mirrors what users see in their own projects. Repo-specific dev artifacts (design specs, implementation plans, submission paperwork) live under `meta/` so they don't pollute the plugin's public surface.
 
 Files that change together live together. If you're adding a new slash command, you'll likely touch `commands/<name>.md`, the "three commands" paragraph in `skills/session-continuity/SKILL.md`, `README.md`, and `CHANGELOG.md`. If you're modifying a hook, you'll likely only touch `hooks/<name>.sh`.
 
@@ -241,7 +241,7 @@ Before opening an issue, run through this:
 
 - **Is it reproducible?** Include the exact commands, expected output, and actual output.
 - **Is it version-specific?** Include `cat .claude-plugin/plugin.json` output.
-- **Is it already known?** Search existing issues and `docs/LEARNINGS.md`.
+- **Is it already known?** Search existing issues and `.session-continuity/LEARNINGS.md`.
 - **Is it in scope?** Re-read the scope section at the top of this file.
 
 A good issue gives the maintainer enough information to reproduce and decide in under five minutes. A vague "it doesn't work" issue is worse than no issue, because it sits unresolved and signals the project has broken tooling when the real problem is missing information.

@@ -10,7 +10,7 @@ This skill takes a different route: plain Markdown files, committed to git, alon
 
 The choice buys three properties most AI memory systems lack. Humans and Claude read the same files, so there's no opaque layer between you and what's remembered. Every change is a git commit, so history is auditable and every edit has an author. The storage is plain text, so it's portable — any tool that reads Markdown can use it, including future LLMs that don't exist yet.
 
-There's a second reason, less obvious than the first: **shorter Claude Code sessions are better sessions**. Less accumulated context means lower cost per turn, better accuracy, and — critically — less context rot. Retrieval accuracy at large context sizes varies sharply by model: Sonnet 4.6 degrades earliest, Opus 4.7 is substantially worse than its predecessor at 1M tokens (roughly 32% vs. 78% retrieval accuracy in our testing), and Opus 4.6 holds up best. The practical consequence is that a workflow which lets you end a session and start a fresh one without losing context is not just a nice-to-have — it's how you keep Claude sharp across a long-running project. That's what `docs/SESSION_PRIMER.md` and `docs/LEARNINGS.md` buy you: the ability to close the laptop at any point, come back cold, and have a new Claude session up to speed in two file reads instead of rebuilding context by re-prompting.
+There's a second reason, less obvious than the first: **shorter Claude Code sessions are better sessions**. Less accumulated context means lower cost per turn, better accuracy, and — critically — less context rot. Retrieval accuracy at large context sizes varies sharply by model: Sonnet 4.6 degrades earliest, Opus 4.7 is substantially worse than its predecessor at 1M tokens (roughly 32% vs. 78% retrieval accuracy in our testing), and Opus 4.6 holds up best. The practical consequence is that a workflow which lets you end a session and start a fresh one without losing context is not just a nice-to-have — it's how you keep Claude sharp across a long-running project. That's what `.session-continuity/SESSION_PRIMER.md` and `.session-continuity/LEARNINGS.md` buy you: the ability to close the laptop at any point, come back cold, and have a new Claude session up to speed in two file reads instead of rebuilding context by re-prompting.
 
 ## Install
 
@@ -25,8 +25,8 @@ Run `/reload-plugins` once the install finishes. Once the plugin is live on the 
 
 ## What you get
 
-- **`docs/SESSION_PRIMER.md`** — current-state snapshot. Refreshed alongside substantive commits. The fastest path for a fresh session to get productive.
-- **`docs/LEARNINGS.md`** — append-only wisdom. Numbered entries for bugs that took 15+ minutes to diagnose. Graveyard of hard-won knowledge.
+- **`.session-continuity/SESSION_PRIMER.md`** — current-state snapshot. Refreshed alongside substantive commits. The fastest path for a fresh session to get productive.
+- **`.session-continuity/LEARNINGS.md`** — append-only wisdom. Numbered entries for bugs that took 15+ minutes to diagnose. Graveyard of hard-won knowledge.
 - **`/session-continuity:primer`** — init / refresh / check the primer. State-dispatching, never commits automatically.
 - **`/session-continuity:learning`** — append a new LEARNINGS entry interactively. Computes the next number, inserts at the top of the chosen section.
 - **`/session-continuity:end-session`** — close-out ritual. Refreshes the primer, surfaces LEARNINGS candidates from this session's context, and reports a ✓ / ⚠️ checklist of staged / unstaged / untracked / unpushed state with a suggested commit message. Never commits.
@@ -42,7 +42,7 @@ Run `/reload-plugins` once the install finishes. Once the plugin is live on the 
 /session-continuity:primer
 ```
 
-Detects no primer exists, copies templates into `docs/`, fills derivable placeholders, asks you for the rest, stages both files.
+Detects no primer exists, copies templates into `.session-continuity/`, fills derivable placeholders, asks you for the rest, stages both files. If the project still has files at the pre-v0.5.0 `docs/` location, this is also where they get migrated.
 
 **Before a commit:**
 
@@ -72,17 +72,17 @@ Refreshes the primer, asks whether anything from today is worth a LEARNINGS entr
 
 **Picking up an existing project:**
 
-The `SessionStart` hook reminds Claude to read `docs/SESSION_PRIMER.md` first. Follow its "First things first" list before touching anything.
+The `SessionStart` hook reminds Claude to read `.session-continuity/SESSION_PRIMER.md` first. Follow its "First things first" list before touching anything.
 
 ## What goes where
 
 | Observation | Where |
 |---|---|
-| "The latest commit is X" | `docs/SESSION_PRIMER.md` → Current state |
-| "We should refactor Y" | `docs/SESSION_PRIMER.md` → Outstanding items |
-| "Bun replaces the CA trust store" | `docs/LEARNINGS.md` → new numbered entry |
+| "The latest commit is X" | `.session-continuity/SESSION_PRIMER.md` → Current state |
+| "We should refactor Y" | `.session-continuity/SESSION_PRIMER.md` → Outstanding items |
+| "Bun replaces the CA trust store" | `.session-continuity/LEARNINGS.md` → new numbered entry |
 | "Always use Bun" | `CLAUDE.md` (durable project convention) |
-| "Last session tried X and rejected it" | `docs/LEARNINGS.md` → Anti-patterns |
+| "Last session tried X and rejected it" | `.session-continuity/LEARNINGS.md` → Anti-patterns |
 
 **Do not put in these files:** secrets (ever — use `<redacted>`), information trivially rederivable from code, narrative fluff.
 
@@ -110,7 +110,7 @@ Understanding what this skill deliberately avoids is as useful as understanding 
 
 **Not a replacement for `CLAUDE.md`, vector search, or MCP memory servers.** Each of those solves a different problem. `CLAUDE.md` is for durable project conventions ("always use Bun, never commit to main"). Vector search is for semantic retrieval across large unstructured corpora. MCP memory servers are for cross-project or cross-session context that needs rich querying. This skill is for *the two specific questions above*, in *a single project's repo*, with *plain text in git* as the storage. When one of the other tools fits your need better, use it instead.
 
-**Not an LLM-only tool.** Every file is human-readable and human-editable. You can open `docs/LEARNINGS.md` in any editor, add an entry by hand, and Claude will see it on the next session. The slash commands are conveniences, not gates.
+**Not an LLM-only tool.** Every file is human-readable and human-editable. You can open `.session-continuity/LEARNINGS.md` in any editor, add an entry by hand, and Claude will see it on the next session. The slash commands are conveniences, not gates.
 
 ## Updating
 
@@ -122,6 +122,10 @@ To pick up newer versions, refresh the marketplace and reload:
 ```
 
 The weekly freshness check in `SessionStart` will nudge you inside Claude when a new GitHub release ships. Opt out with `SESSION_CONTINUITY_SKIP_UPDATE_CHECK=1`.
+
+### Migrating from v0.4 to v0.5
+
+v0.5.0 relocated the two files from `docs/` to `.session-continuity/`. After upgrading, run `/session-continuity:primer` once in each project that still has files under `docs/`. The command detects the legacy layout, runs `git mv` on both files (preserving history), refreshes the primer's state block, and stages everything. Commit the moves alongside your next substantive change (or as a one-shot catch-up if no code change is imminent). The hooks support both paths during the transition, so nothing breaks if you delay the migration.
 
 ## Platform notes
 

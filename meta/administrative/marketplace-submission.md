@@ -4,7 +4,7 @@
 
 Claude Code sessions start cold — Claude doesn't remember yesterday's debugging, last week's refactor, or the three-hour bug you eventually cornered. Most fixes reach for clever infrastructure (vector databases, MCP memory servers, vendor-specific notes stores) that hides the knowledge outside the repo, away from human eyes.
 
-session-continuity takes a different route: plain Markdown files, committed to git, alongside the code they describe. `docs/SESSION_PRIMER.md` holds current state (the last five commits, what's outstanding, what's in flight) and refreshes with every substantive change. `docs/LEARNINGS.md` holds append-only wisdom — numbered entries for bugs that took 15+ minutes to diagnose, kept stable so cross-references don't rot.
+session-continuity takes a different route: plain Markdown files, committed to git, alongside the code they describe. `.session-continuity/SESSION_PRIMER.md` holds current state (the last five commits, what's outstanding, what's in flight) and refreshes with every substantive change. `.session-continuity/LEARNINGS.md` holds append-only wisdom — numbered entries for bugs that took 15+ minutes to diagnose, kept stable so cross-references don't rot.
 
 Three slash commands keep the habit cheap: `/session-continuity:primer` initializes, refreshes, or checks the primer; `/session-continuity:learning` appends a LEARNINGS entry interactively; `/session-continuity:end-session` runs a close-out ritual that refreshes the primer, surfaces LEARNINGS candidates from the session's context, and reports a checklist of staged / unstaged / untracked / unpushed state. Two hooks nudge when the habit slips — a `SessionStart` hook reminds Claude to read the primer on new sessions, and a non-blocking `PreToolUse` hook flags `git commit` calls that land without a primer refresh staged.
 
@@ -35,4 +35,4 @@ For reference, the form likely pulls these directly from the manifest:
 - **License:** MIT
 - **Homepage:** `https://github.com/talgolan/session-continuity`
 - **Keywords:** memory, session, handoff, continuity, documentation, onboarding, post-mortem
-- **Version at submission:** 0.4.1
+- **Version at submission:** 0.5.0

@@ -14,8 +14,8 @@ This file is the shortest path to productive context. Read it in order.
 
 1. **`CLAUDE.md`** at the repo root — project conventions, runtime
    choices, never-commit-secrets rules.
-2. **`docs/LEARNINGS.md`** — graveyard of subtle bugs, grouped by
-   layer. If you hit something weird, grep this file first.
+2. **`.session-continuity/LEARNINGS.md`** — graveyard of subtle bugs,
+   grouped by layer. If you hit something weird, grep this file first.
 3. **Session memory system** (MemPalace, or whatever the user has in
    place) — prior sessions may have left searchable context. Query
    before guessing.
@@ -98,8 +98,8 @@ When code review or the user flags a new follow-up, add it.
 
 - {{CONVENTION_1}}
 - {{CONVENTION_2}}
-- **Read `docs/LEARNINGS.md` before blaming the code.** Half the bugs
-  you hit are already documented there.
+- **Read `.session-continuity/LEARNINGS.md` before blaming the code.** Half
+  the bugs you hit are already documented there.
 - **Commit messages end with:**
   ```
   {{COMMIT_SIGNATURE}}
@@ -109,7 +109,7 @@ When code review or the user flags a new follow-up, add it.
 
 | Question | File |
 |---|---|
-| "Why does X work this way?" | `docs/LEARNINGS.md`, design docs |
+| "Why does X work this way?" | `.session-continuity/LEARNINGS.md`, design docs |
 | "What did the last session do?" | `git log`, session memory system |
 | "How do I configure Y?" | `.env.example`, `config.{{EXT}}` |
 | "How do I test Z?" | "Test expectations" section above |
@@ -120,7 +120,7 @@ When code review or the user flags a new follow-up, add it.
 
 In order of cost:
 
-1. Grep `docs/LEARNINGS.md` for your symptom.
+1. Grep `.session-continuity/LEARNINGS.md` for your symptom.
 2. Query the session memory system with your symptom.
 3. Check for stale state (processes, caches, lockfiles) before
    assuming a code bug.
@@ -154,6 +154,6 @@ particular: if you add or remove a test, bump the count so it matches
 your test runner output.
 
 When a bug takes more than 15 minutes to diagnose, update
-`docs/LEARNINGS.md` too (see that file's footer for numbering rules).
-The primer and LEARNINGS are complementary: primer is current-state,
-LEARNINGS is accumulated-wisdom.
+`.session-continuity/LEARNINGS.md` too (see that file's footer for
+numbering rules). The primer and LEARNINGS are complementary: primer is
+current-state, LEARNINGS is accumulated-wisdom.

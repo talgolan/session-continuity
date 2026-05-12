@@ -10,7 +10,7 @@ This plugin does not collect, transmit, or store personal data about you. All da
 
 ## What data the plugin handles
 
-- **File contents in your own repositories.** The slash commands (`/session-continuity:primer`, `/session-continuity:learning`, `/session-continuity:end-session`) read and write `docs/SESSION_PRIMER.md` and `docs/LEARNINGS.md` in the current git repository. These are ordinary files in your repo; the plugin stores nothing elsewhere.
+- **File contents in your own repositories.** The slash commands (`/session-continuity:primer`, `/session-continuity:learning`, `/session-continuity:end-session`) read and write `.session-continuity/SESSION_PRIMER.md` and `.session-continuity/LEARNINGS.md` in the current git repository (or the legacy `docs/` location on pre-v0.5.0 projects). These are ordinary files in your repo; the plugin stores nothing elsewhere.
 - **Git metadata.** The commands invoke `git log`, `git status`, `git diff --cached`, and similar read-only commands to populate the primer and checklist. This metadata is processed locally and written into the same two files; it is never transmitted.
 - **Hook payloads.** Claude Code passes the hook scripts a JSON payload containing the current working directory and the command being run. The scripts read these values locally to decide whether to emit a reminder. Nothing from the payload is transmitted or persisted outside the running session.
 

@@ -6,22 +6,29 @@ description: Refresh the primer, surface LEARNINGS candidates from this session,
 
 You are responding to the `/session-continuity:end-session` slash command.
 
-**Your job: run a close-out ritual that (1) refreshes `docs/SESSION_PRIMER.md`, (2) surfaces LEARNINGS candidates from this session's conversation, and (3) reports a structured ✓ / ⚠️ checklist of the repo's state so the user can walk away knowing nothing is forgotten.**
+**Your job: run a close-out ritual that (1) refreshes `.session-continuity/SESSION_PRIMER.md`, (2) surfaces LEARNINGS candidates from this session's conversation, and (3) reports a structured ✓ / ⚠️ checklist of the repo's state so the user can walk away knowing nothing is forgotten.**
 
 Zero arguments. Never commits. Never pushes.
 
 ## Step 0 — Preconditions
 
-Check both files exist:
+Check that both files exist at the canonical path:
 
-1. `docs/SESSION_PRIMER.md`
-2. `docs/LEARNINGS.md`
+1. `.session-continuity/SESSION_PRIMER.md`
+2. `.session-continuity/LEARNINGS.md`
 
-If either is missing, tell the user:
+If either is missing, check the pre-v0.5.0 legacy path (`docs/SESSION_PRIMER.md`, `docs/LEARNINGS.md`):
 
-> "No `docs/SESSION_PRIMER.md` (or `docs/LEARNINGS.md`) found. Run `/session-continuity:primer` first to initialize session-continuity in this project."
+- If either legacy file exists, tell the user:
 
-Exit. Do not proceed.
+  > "Found session-continuity files at `docs/` (the pre-v0.5.0 location). Run `/session-continuity:primer` first — it will migrate the files to `.session-continuity/`. Then re-run `/session-continuity:end-session`."
+
+  Exit.
+- Else tell the user:
+
+  > "No `.session-continuity/SESSION_PRIMER.md` (or `.session-continuity/LEARNINGS.md`) found. Run `/session-continuity:primer` first to initialize session-continuity in this project."
+
+  Exit. Do not proceed.
 
 ## Step 1 — Refresh the primer (drift-gated)
 
@@ -29,7 +36,7 @@ Before prompting the user for anything, run a drift check. The goal: if the prim
 
 ### Drift check (silent — no user prompt)
 
-Read `docs/SESSION_PRIMER.md` and compare its `git log --oneline -5` block to the actual output of `git log --oneline -5` against the primary branch. Two outcomes:
+Read `.session-continuity/SESSION_PRIMER.md` and compare its `git log --oneline -5` block to the actual output of `git log --oneline -5` against the primary branch. Two outcomes:
 
 - **Block matches.** Treat the primer as current. Do NOT prompt for outstanding-items changes. Skip the rest of Step 1. In Step 3's checklist, record the Primer refresh row as ✓ "Primer already current (no-op)".
 - **Block differs** (any line differs — subjects, hashes, or ordering). Enter the refresh flow below.
@@ -44,7 +51,7 @@ Follow the logic in **Step 3 of `commands/primer.md`** (refresh mode):
 2. If the primer has a test-counts section and the counts changed, update them to match current output.
 3. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?" **Wait for their answer before continuing.** Do not preemptively edit the list, clear items you interpret as "stale," or proceed with Step 4 based on your own reading.
 4. Apply the edits the user specified. If the user replied "nothing to change" (or similar), skip this step.
-5. Stage the updated primer: `git add docs/SESSION_PRIMER.md`.
+5. Stage the updated primer: `git add .session-continuity/SESSION_PRIMER.md`.
 
 **Do not** commit. Staging only.
 
@@ -86,7 +93,7 @@ For each candidate the user picks, compose the LEARNINGS entry following `comman
 - Choose section per **Step 3 of `commands/learning.md`**.
 - Compute the next number per **Step 4 of `commands/learning.md`**.
 - Insert at the top of the chosen section per **Step 5 of `commands/learning.md`**.
-- Stage per **Step 6 of `commands/learning.md`**: `git add docs/LEARNINGS.md`.
+- Stage per **Step 6 of `commands/learning.md`**: `git add .session-continuity/LEARNINGS.md`.
 
 If the user describes "another" candidate not on your list, treat that description as a pre-filled title and follow the same flow.
 
@@ -135,8 +142,8 @@ Output using this structure. Use ✓ (green), ⚠️ (yellow), or → (suggestio
 
 If files are staged, derive a commit message from the pattern:
 
-- Only `docs/` staged → `docs: update session continuity`.
-- `docs/LEARNINGS.md` is staged with code → pick the most prominent captured learning's title (or the primary code-change theme) and use conventional-commit style: `<type>(<scope>): <subject>`. Keep subject line ≤ 72 chars.
+- Only `.session-continuity/` staged → `docs: update session continuity`.
+- `.session-continuity/LEARNINGS.md` is staged with code → pick the most prominent captured learning's title (or the primary code-change theme) and use conventional-commit style: `<type>(<scope>): <subject>`. Keep subject line ≤ 72 chars.
 - Only code staged (no docs) → should not happen if Step 1 ran; if it does, suggest based on the file paths.
 
 Prefix with `→ Suggested:` and wrap in a fenced code block so the user can copy-paste.
@@ -146,7 +153,7 @@ Prefix with `→ Suggested:` and wrap in a fenced code block so the user can cop
 ```
 ✓ Primer refreshed and staged
 ✓ 1 LEARNINGS entry captured (#7, "awk range collapse on single-version CHANGELOG")
-✓ Staged: docs/SESSION_PRIMER.md, docs/LEARNINGS.md, .github/workflows/release.yml
+✓ Staged: .session-continuity/SESSION_PRIMER.md, .session-continuity/LEARNINGS.md, .github/workflows/release.yml
 ✓ No unstaged modifications
 ⚠️ 2 untracked files: scratch.md, tmp/debug.log — ignore, add, or delete?
 ⚠️ Branch "main" is 3 commits ahead of origin — push before closing?

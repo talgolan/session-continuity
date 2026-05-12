@@ -1,22 +1,30 @@
 ---
-description: Append a new entry to docs/LEARNINGS.md interactively. Takes next N+1 number, inserts at top of chosen section.
+description: Append a new entry to .session-continuity/LEARNINGS.md interactively. Takes next N+1 number, inserts at top of chosen section.
 ---
 
 # /session-continuity:learning $ARGUMENTS
 
 You are responding to the `/session-continuity:learning` slash command.
 
-**Your job: help the user append a properly-formatted entry to `docs/LEARNINGS.md`.**
+**Your job: help the user append a properly-formatted entry to `.session-continuity/LEARNINGS.md`.**
 
 If `$ARGUMENTS` is non-empty, use it as the pre-filled title.
 
 ## Step 1 — Preflight
 
-If `docs/LEARNINGS.md` does not exist, tell the user:
+Check both the canonical path and the legacy path:
 
-> "No `docs/LEARNINGS.md` found. Run `/session-continuity:primer` first to initialize session-continuity in this project."
+- If `.session-continuity/LEARNINGS.md` exists, use that path for the rest of this command.
+- Else if `docs/LEARNINGS.md` exists (pre-v0.5.0 layout), tell the user:
 
-Exit.
+  > "Found `docs/LEARNINGS.md` at the pre-v0.5.0 location. Run `/session-continuity:primer` first — it will migrate the files to `.session-continuity/`. Then re-run `/session-continuity:learning`."
+
+  Exit.
+- Else tell the user:
+
+  > "No `.session-continuity/LEARNINGS.md` (or legacy `docs/LEARNINGS.md`) found. Run `/session-continuity:primer` first to initialize session-continuity in this project."
+
+  Exit.
 
 ## Step 2 — Gather the recipe
 
@@ -30,7 +38,7 @@ Prompt the user for each field. Show examples inline.
 
 ## Step 3 — Choose section
 
-Read `docs/LEARNINGS.md`. List existing section headings (lines starting with `## ` but not `### `, excluding `## Security incidents`, `## Anti-patterns we were tempted by (and rejected)`, `## Checklist for a fresh dev-env setup` which are structural).
+Read `.session-continuity/LEARNINGS.md`. List existing section headings (lines starting with `## ` but not `### `, excluding `## Security incidents`, `## Anti-patterns we were tempted by (and rejected)`, `## Checklist for a fresh dev-env setup` which are structural).
 
 Ask the user:
 
@@ -46,7 +54,7 @@ If they pick "new section", prompt for the heading and insert it above the exist
 
 ## Step 4 — Compute next number
 
-Scan `docs/LEARNINGS.md` for all `### N.` headings (regex: `^### (\d+)\.`). Take the max, add 1. New entry gets that number.
+Scan `.session-continuity/LEARNINGS.md` for all `### N.` headings (regex: `^### (\d+)\.`). Take the max, add 1. New entry gets that number.
 
 ## Step 5 — Insert at top of chosen section
 
@@ -72,7 +80,7 @@ Insert immediately after the section heading (and any HTML comments that follow 
 
 ## Step 6 — Stage
 
-Run: `git add docs/LEARNINGS.md`
+Run: `git add .session-continuity/LEARNINGS.md`
 
 Tell the user: "Learning #<N> appended and staged. Commit when ready — typically alongside the fix or in its own commit if the fix already landed."
 
