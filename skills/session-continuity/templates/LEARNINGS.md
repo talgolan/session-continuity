@@ -76,8 +76,9 @@ within each group.
 
 ---
 
-*Last reviewed: {{DATE}}. Add new entries at the top of each section
-as they surface. Rule of thumb: if a bug takes more than 15 minutes
+*Last entry: {{DATE}} (#1). Add new entries at the top of each section
+as they surface. The `/session-continuity:learning` command bumps this
+line automatically. Rule of thumb: if a bug takes more than 15 minutes
 to diagnose, it goes here.*
 
 *Numbering note: new entries take the next available number (N+1) and

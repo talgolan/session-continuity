@@ -66,12 +66,37 @@ else
   exit 0
 fi
 
+# Compute a 4-line status line ("Check mode" output) so the user and
+# Claude both see at a glance how fresh the primer is. Every probe is
+# best-effort — any failure falls back to "?" so the reminder still
+# lands even on shallow clones, missing primers, etc.
+status_sha="$(cd "$cwd" 2>/dev/null && git rev-parse --short HEAD 2>/dev/null || echo '?')"
+status_mtime="$(stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$cwd/$primer_path" 2>/dev/null \
+  || stat -c '%y' "$cwd/$primer_path" 2>/dev/null \
+  || echo '?')"
+# Outstanding items: count top-level numbered lines (`^N. `) inside the
+# "Outstanding items" section. The awk block reads from the section
+# heading until the next `## ` heading.
+status_outstanding="$(awk '
+  /^## Outstanding items/ { inside=1; next }
+  inside && /^## / { exit }
+  inside && /^[0-9]+\. / { count++ }
+  END { print count+0 }
+' "$cwd/$primer_path" 2>/dev/null || echo '?')"
+status_learnings="$(grep -cE '^### [0-9]+\.' "$cwd/$learnings_path" 2>/dev/null || echo '0')"
+
 # Inject the reminder into Claude's SessionStart context. `<system-reminder>`
 # is the convention Claude Code uses for system-injected context that is
 # treated as non-user-originating guidance.
 cat <<EOF
 <system-reminder>
 This project has $primer_path. Read it before any work — it's the fastest path to context. Also check $learnings_path if anything surprises you.
+
+Primer status (auto):
+- HEAD: $status_sha
+- Last primer change: $status_mtime
+- Outstanding items: $status_outstanding
+- Learnings: $status_learnings
 </system-reminder>
 EOF
 

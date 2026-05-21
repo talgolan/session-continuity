@@ -52,9 +52,19 @@ Ask the user:
 
 If they pick "new section", prompt for the heading and insert it above the existing sections (not above Security/Anti-patterns/Checklist, which stay at the bottom).
 
-## Step 4 — Compute next number
+## Step 4 — Compute next number (with uniqueness guard)
 
-Scan `.session-continuity/LEARNINGS.md` for all `### N.` headings (regex: `^### (\d+)\.`). Take the max, add 1. New entry gets that number.
+Scan `.session-continuity/LEARNINGS.md` for **every** `### N.` heading (regex: `^### (\d+)\.`). Two operations:
+
+1. **Detect duplicates first.** Count occurrences of each number. If any number appears more than once, refuse to write and report:
+
+   > "LEARNINGS.md has duplicate entry numbers: #X (line A, line B), #Y (line C, line D). Fix the file before appending — pick which entry keeps the number and renumber the other (or merge them). Re-run `/session-continuity:learning` after."
+
+   Exit. Do not append on top of a corrupt file.
+
+2. **Compute next number across all entries.** Take the **true maximum** of the parsed numbers (not "next after the most recent" — that fails when an old entry was edited last). New entry gets `max + 1`.
+
+After computing, validate: the chosen number must not already appear in the file. If it does (race condition with manual edit during this command), bump again and re-validate.
 
 ## Step 5 — Insert at top of chosen section
 
@@ -78,7 +88,17 @@ Compose the entry:
 
 Insert immediately after the section heading (and any HTML comments that follow it). Keep a blank line between the heading and the new entry.
 
-## Step 6 — Stage
+## Step 6 — Bump the footer
+
+If the file has a footer line of the form `*Last reviewed: <date>...` or `*Last entry: <date> (#<N>)...`, update it in place:
+
+- Replace with `*Last entry: <today's-date> (#<N>). Add new entries at the top of each section`
+- Today's date: ISO format (`YYYY-MM-DD`) — derive from the system clock, not from session context.
+- `<N>` is the number assigned in Step 4.
+
+The rename from "Last reviewed" to "Last entry" reflects what the field actually tracks (the timestamp of the last *change*, not a manual review pass). If the footer doesn't exist, skip — don't synthesize one.
+
+## Step 7 — Stage
 
 Run: `git add .session-continuity/LEARNINGS.md`
 

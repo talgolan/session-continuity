@@ -19,16 +19,15 @@ Run these checks, in order:
 
 1. Do `.session-continuity/SESSION_PRIMER.md` and `.session-continuity/LEARNINGS.md` exist?
 2. Do `docs/SESSION_PRIMER.md` and/or `docs/LEARNINGS.md` exist?
-3. If a primer exists at the canonical location, does the `git log --oneline -5` block inside it match the actual output of `git log --oneline -5` for the primary branch?
-4. If yes to (3), is the primer file's mtime newer than HEAD's commit date?
-5. If yes to (4), does `git diff --cached --name-only` contain any file outside `docs/`, `.session-continuity/`, `README*`, `CHANGELOG*`, `LICENSE*`? (Code is staged and a commit is imminent — the primer will be stale the moment that commit lands.)
+3. If a primer exists at the canonical location, does the `git log --oneline -5` block inside it match the actual output of `git log --oneline -5` for the primary branch? (mtime is intentionally not checked — formatters, save-on-blur, and `cat | tee` all bump mtime without changing content. The log-block diff is the authoritative drift signal.)
+4. Does `git diff --cached --name-only` contain any file outside `docs/`, `.session-continuity/`, `README*`, `CHANGELOG*`, `LICENSE*`? (Code is staged and a commit is imminent — the primer will be stale the moment that commit lands.)
 
 Five states result:
 
 - **Legacy-only layout** (files exist under `docs/` but not under `.session-continuity/`) → migrate mode (Step 2)
 - **No primer anywhere** → init mode (Step 3)
 - **Conflicting layouts** (files exist at *both* old and new paths) → conflict mode (Step 4)
-- **Primer exists at canonical path but stale** (log block drifted, mtime older than HEAD, or code staged for commit) → refresh mode (Step 5)
+- **Primer exists at canonical path but stale** (log block drifted or code staged for commit) → refresh mode (Step 5)
 - **Primer exists at canonical path and current (nothing staged)** → check mode (Step 6)
 
 ## Step 2 — Migrate mode
@@ -76,11 +75,18 @@ Exit without making changes.
 
 1. Read the current `.session-continuity/SESSION_PRIMER.md`.
 2. Regenerate the `git log --oneline -5` block with current output.
-3. If the primer has a test-counts section, run the test command(s) found there and update the counts to match current output.
-4. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?"
-5. Apply the edits.
-6. Stage the updated primer: `git add .session-continuity/SESSION_PRIMER.md`.
-7. Tell the user: "Primer refreshed and staged. Include it in your next commit (same commit as the substantive change — do not primer-commit alone)."
+3. If the primer has a test-counts section, run the test command(s) found there. **Retry up to 3× when counts disagree across runs** before reporting drift; flaky suites can swing one or two pass/fail counts between runs and a single sample will produce false drift alarms. Pin to the highest stable count (the count seen in ≥2 of 3 runs). If all three runs disagree, surface the spread (`saw 1162 / 1161 / 1162 across 3 runs — using 1162; suite is unstable`) instead of silently picking one.
+4. **Surface activity since the last primer refresh.** Find the last commit that touched the primer with `git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md` (fall back to the legacy `docs/SESSION_PRIMER.md` path if needed). Run `git log <that-hash>..HEAD --oneline` and present the subject list to the user as candidate prompts:
+   > "Since the last primer refresh, these commits landed:
+   > - `<sha> <subject>`
+   > - …
+   >
+   > Any of these resolve outstanding items, or warrant a new LEARNINGS entry?"
+   This is a candidate list, not an auto-close. Do not modify outstanding items based on subject heuristics — wait for the user's answer.
+5. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?"
+6. Apply the edits.
+7. Stage the updated primer: `git add .session-continuity/SESSION_PRIMER.md`.
+8. Tell the user: "Primer refreshed and staged. Include it in your next commit (same commit as the substantive change — do not primer-commit alone)."
 
 ## Step 6 — Check mode
 

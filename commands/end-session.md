@@ -41,17 +41,18 @@ Read `.session-continuity/SESSION_PRIMER.md` and compare its `git log --oneline 
 - **Block matches.** Treat the primer as current. Do NOT prompt for outstanding-items changes. Skip the rest of Step 1. In Step 3's checklist, record the Primer refresh row as ✓ "Primer already current (no-op)".
 - **Block differs** (any line differs — subjects, hashes, or ordering). Enter the refresh flow below.
 
-If the primer has a test-counts section, optionally re-run the test command(s) to confirm the counts are still accurate. Count mismatches also count as drift.
+If the primer has a test-counts section, optionally re-run the test command(s) to confirm the counts are still accurate. **Retry flaky suites up to 3× before reporting drift** (per Step 5.3 of `commands/primer.md`); pin to the count seen in ≥2 of 3 runs and only flag drift if all three runs agree on a number that differs from the primer. Count mismatches that survive the retry count as drift.
 
 ### Refresh flow (runs only when drift was detected)
 
-Follow the logic in **Step 3 of `commands/primer.md`** (refresh mode):
+Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
 1. Regenerate the `git log --oneline -5` block with current output.
-2. If the primer has a test-counts section and the counts changed, update them to match current output.
-3. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?" **Wait for their answer before continuing.** Do not preemptively edit the list, clear items you interpret as "stale," or proceed with Step 4 based on your own reading.
-4. Apply the edits the user specified. If the user replied "nothing to change" (or similar), skip this step.
-5. Stage the updated primer: `git add .session-continuity/SESSION_PRIMER.md`.
+2. If the primer has a test-counts section and the counts changed (after the 3× retry), update them to match current output.
+3. Surface the commits since the last primer refresh as a candidate list (per Step 5.4 of `commands/primer.md`): run `git log <last-primer-commit>..HEAD --oneline` and present the subjects so the user can decide whether any close outstanding items or warrant a new LEARNINGS entry.
+4. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?" **Wait for their answer before continuing.** Do not preemptively edit the list, clear items you interpret as "stale," or proceed with Step 5 based on your own reading.
+5. Apply the edits the user specified. If the user replied "nothing to change" (or similar), skip this step.
+6. Stage the updated primer: `git add .session-continuity/SESSION_PRIMER.md`.
 
 **Do not** commit. Staging only.
 
