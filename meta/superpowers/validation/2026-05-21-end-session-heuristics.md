@@ -1,8 +1,8 @@
 # Validation log — end-session heuristic pass (v0.6.0)
 
 **Branch:** `feat/end-session-heuristics`
-**Spec:** `docs/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md`
-**Plan:** `docs/superpowers/plans/2026-05-21-end-session-heuristic-pass.md`
+**Spec:** `meta/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md`
+**Plan:** `meta/superpowers/plans/2026-05-21-end-session-heuristic-pass.md`
 
 This log records the manual validation matrix runs for the v0.6.0
 end-session heuristic pass. Each scenario is documented with: setup,

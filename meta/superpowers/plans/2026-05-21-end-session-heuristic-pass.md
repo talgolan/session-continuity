@@ -8,7 +8,7 @@
 
 **Tech Stack:** Markdown (skill body), Bash (validation), Git (commits). No code added — Claude executes heuristics by following skill prose at command-invocation time.
 
-**Spec:** `docs/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md`
+**Spec:** `meta/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md`
 
 ---
 
@@ -109,7 +109,7 @@ Stopwords + threshold defined inline in the skill body so each
 project can tune them without touching code. Refuses to auto-close;
 user confirms before any item is removed.
 
-Spec: docs/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md §1"
+Spec: meta/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md §1"
 ```
 
 ---
@@ -244,7 +244,7 @@ in heuristic evidence — never quote raw stdout/stderr.
 
 The four heuristics themselves land in the next commit.
 
-Spec: docs/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md §5"
+Spec: meta/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md §5"
 ```
 
 ---
@@ -392,7 +392,7 @@ Output is the union, deduplicated by title (>70% overlap), capped at
 5 candidates. Zero candidates is a valid outcome — prints a no-op
 message and proceeds to Step 3.
 
-Spec: docs/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md §5"
+Spec: meta/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md §5"
 ```
 
 ---
@@ -516,7 +516,7 @@ indented evidence bullets. Cap-overflow notice and context-window-
 mode caveat are explicit. Zero-candidates path prints an explicit
 no-op message rather than silently skipping.
 
-Spec: docs/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md §5"
+Spec: meta/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md §5"
 ```
 
 ---
@@ -595,7 +595,7 @@ LEARNINGS candidate surfacing to /session-continuity:end-session.
 Pure prose-skill addition — no new files, hooks, or schemas. Existing
 v0.5.x installs upgrade with no migration.
 
-Spec: docs/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md"
+Spec: meta/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md"
 ```
 
 ---
@@ -704,7 +704,7 @@ version reference. Trim §1 and §5 sub-bullets from the deferred
 recommendations list (now shipped) and add §3, §9.1, §9.5 from the
 recommendations doc that aren't planned for now.
 
-Spec: docs/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md"
+Spec: meta/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md"
 ```
 
 ---
@@ -747,8 +747,8 @@ Create `meta/superpowers/validation/2026-05-21-end-session-heuristics.md` with t
 # Validation log — end-session heuristic pass (v0.6.0)
 
 **Branch:** `feat/end-session-heuristics`
-**Spec:** `docs/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md`
-**Plan:** `docs/superpowers/plans/2026-05-21-end-session-heuristic-pass.md`
+**Spec:** `meta/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md`
+**Plan:** `meta/superpowers/plans/2026-05-21-end-session-heuristic-pass.md`
 
 This log records the manual validation matrix runs for the v0.6.0
 end-session heuristic pass. Each scenario is documented with: setup,
@@ -785,7 +785,7 @@ Initial validation log captures Scenario 1 (clean repo) setup +
 expected behavior. Subsequent tasks add scenarios 2-5 + dogfood
 results.
 
-Spec: docs/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md"
+Spec: meta/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md"
 ```
 
 ---
@@ -921,7 +921,7 @@ Mental simulation of the four remaining matrix scenarios:
 Each scenario documents setup, expected behavior, and a placeholder
 for actual run-time results captured during dogfood validation.
 
-Spec: docs/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md"
+Spec: meta/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md"
 ```
 
 ---
@@ -1043,7 +1043,7 @@ read-only Bash; no reverts, no fix-commits).
 
 Documents acceptance-gate verification against the spec criteria.
 
-Spec: docs/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md"
+Spec: meta/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md"
 ```
 
 ---
@@ -1058,7 +1058,7 @@ Spec: docs/superpowers/specs/2026-05-21-end-session-heuristic-pass-design.md"
 Run:
 
 ```bash
-grep -rn '{{' commands/ .session-continuity/ docs/superpowers/ meta/superpowers/validation/ CHANGELOG.md
+grep -rn '{{' commands/ .session-continuity/ meta/superpowers/ meta/superpowers/validation/ CHANGELOG.md
 ```
 
 Expected: only legitimate references to `{{...}}` syntax in `commands/primer.md` (which documents placeholder substitution as part of init mode prose). No actual unsubstituted placeholders.
