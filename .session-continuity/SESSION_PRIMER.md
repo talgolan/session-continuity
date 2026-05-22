@@ -87,11 +87,11 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+5e0edb6 docs(primer): update working-directory path after repo relocation
+492650f docs: capture v0.6.0 session learnings + close item #1
 7bc25c3 docs: project CLAUDE.md — agent artifacts under meta/superpowers/
 b938250 chore: relocate spec/plan from docs/superpowers/ to meta/superpowers/
 125087b docs(validation): dogfood test results
-8f2f931 docs(validation): scenarios 2-5 walkthrough
-6769cc9 docs(validation): scaffold validation log for v0.6.0
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.

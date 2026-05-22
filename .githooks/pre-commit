@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+#
+# pre-commit — version-sync guard for session-continuity plugin development.
+#
+# Blocks commits where .claude-plugin/plugin.json and
+# .claude-plugin/marketplace.json disagree on the plugin version. The two
+# files have drifted silently before (0.4.1 vs 0.6.0); this catches it at
+# commit time rather than at user-install time.
+#
+# Enable in a fresh clone with:
+#   git config core.hooksPath .githooks
+#
+# The hook is intentionally a tracked file rather than a sample under
+# .git/hooks/ so every contributor gets the same check after that one
+# config command.
+#
+# Bypass for unrelated commits: `git commit --no-verify` (don't habitually
+# do this — that's how the drift happened in the first place).
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+plugin_json="$repo_root/.claude-plugin/plugin.json"
+marketplace_json="$repo_root/.claude-plugin/marketplace.json"
+
+if [ ! -f "$plugin_json" ] || [ ! -f "$marketplace_json" ]; then
+  exit 0
+fi
+
+# Top-level "version" field of plugin.json. The first match in the file
+# is the plugin's own version (the file has no nested objects with a
+# "version" field today, but `head -1` defends against that future case).
+plugin_version="$(grep -oE '"version"[[:space:]]*:[[:space:]]*"[^"]+"' "$plugin_json" \
+  | head -1 \
+  | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' \
+  || true)"
+
+# Nested "version" inside plugins[0]. marketplace.json's structure is
+# `{ "plugins": [ { ..., "version": "X.Y.Z", ... } ] }`. Grab the first
+# "version" string in the file — there's only one plugin entry today,
+# and adding a second would warrant explicit hook updates anyway.
+marketplace_version="$(grep -oE '"version"[[:space:]]*:[[:space:]]*"[^"]+"' "$marketplace_json" \
+  | head -1 \
+  | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' \
+  || true)"
+
+if [ -z "$plugin_version" ] || [ -z "$marketplace_version" ]; then
+  echo "pre-commit: could not extract version from one of:" >&2
+  echo "  $plugin_json (got: '${plugin_version:-<empty>}')" >&2
+  echo "  $marketplace_json (got: '${marketplace_version:-<empty>}')" >&2
+  exit 1
+fi
+
+if [ "$plugin_version" != "$marketplace_version" ]; then
+  cat >&2 <<EOF
+pre-commit: plugin version mismatch — refusing commit.
+
+  .claude-plugin/plugin.json       version: $plugin_version
+  .claude-plugin/marketplace.json  version: $marketplace_version
+
+These two files must agree. plugin.json is the canonical version;
+marketplace.json's plugins[0].version field must match it.
+
+Fix:
+  - Open .claude-plugin/marketplace.json
+  - Set plugins[0].version to "$plugin_version"
+  - git add .claude-plugin/marketplace.json
+  - Re-run your commit.
+
+Bypass (not recommended): git commit --no-verify
+EOF
+  exit 1
+fi
+
+exit 0

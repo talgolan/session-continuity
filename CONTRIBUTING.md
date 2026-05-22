@@ -36,9 +36,12 @@ If you're unsure whether your idea fits, open an issue first and describe what y
 ```bash
 git clone https://github.com/talgolan/session-continuity
 cd session-continuity
+git config core.hooksPath .githooks
 ```
 
 There's no build step, no dependencies to install. Everything is Markdown, shell, and JSON.
+
+The `core.hooksPath` line enables the repo's tracked git hooks (currently a single pre-commit guard that blocks commits where `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` disagree on the version — the two files have drifted silently before). This is dev-only — end users installing the plugin via `/plugin marketplace add` never run these hooks.
 
 ### Run the plugin against a scratch repo
 
@@ -228,10 +231,11 @@ Only the maintainer tags releases, but the steps are public so PR authors know w
 
 1. Ensure `main` is green and the desired changes are merged.
 2. Bump `.claude-plugin/plugin.json` version following semver.
-3. Add a new `## [X.Y.Z] — YYYY-MM-DD` section to `CHANGELOG.md` with `### Added`, `### Changed`, `### Removed` subsections as needed. **This section must appear above the previous version's section.** The release workflow extracts the first section matching the tag.
-4. Commit with `chore: bump plugin.json to X.Y.Z` and `docs: add [X.Y.Z] to CHANGELOG`.
-5. Tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-6. The `.github/workflows/release.yml` workflow extracts the CHANGELOG section and publishes a GitHub Release.
+3. Bump `.claude-plugin/marketplace.json` `plugins[0].version` to the **same** value. The pre-commit hook (`.githooks/pre-commit`, enabled via `git config core.hooksPath .githooks`) will refuse the commit if these two disagree.
+4. Add a new `## [X.Y.Z] — YYYY-MM-DD` section to `CHANGELOG.md` with `### Added`, `### Changed`, `### Removed` subsections as needed. **This section must appear above the previous version's section.** The release workflow extracts the first section matching the tag.
+5. Commit with `chore: bump to X.Y.Z` (covers both manifest files) and `docs: add [X.Y.Z] to CHANGELOG` — or one combined commit, your call.
+6. Tag: `git tag vX.Y.Z && git push origin vX.Y.Z`. **The version-check hook polls GitHub Releases, not commits — without the tag and release, no user gets the upgrade nudge.**
+7. The `.github/workflows/release.yml` workflow extracts the CHANGELOG section and publishes a GitHub Release.
 
 If the release body comes back empty ("No CHANGELOG section for X.Y.Z"), the awk extraction matched the wrong range — see LEARNINGS #2.
 
