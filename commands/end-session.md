@@ -219,18 +219,47 @@ top 5 and append:
 
 ### Presentation
 
-Show candidates as a numbered menu:
+Render candidates as a numbered list with `[heuristic-id]` annotations
+and indented evidence bullets. Format:
 
 ```
-A few things from this session looked like LEARNINGS candidates:
+LEARNINGS candidates from this session:
 
-1. <one-line description of candidate 1>
-2. <one-line description of candidate 2>
+1. [retry-burst] `<command>` — investigated for N retries.
+   Evidence:
+   - Bash @ HH:MM → exit 1 ("<paraphrased error>")
+   - Bash @ HH:MM → exit 1 ("<paraphrased error>")
+   - Bash @ HH:MM → exit 0 (after <paraphrased fix>)
 
-Capture any of these? (1, 2, both, none, or describe another)
+2. [error-recurrence] "<normalized error string>" — recurred N times over M minutes.
+   Evidence: N Bash invocations across <paraphrased context>; resolved by <paraphrased fix>.
+
+3. [revert] Reverted approach: "<commit subject>" (commit <sha> → git reset --hard).
+   Evidence: <paraphrased justification>.
+
+Capture any? (1, 2, 3, all, none, or describe another)
 ```
 
-If you find **zero** candidates, skip the prompt and note "no new learnings" in Step 3's checklist.
+The `[heuristic-id]` tag is one of: `retry-burst`, `revert`,
+`error-recurrence`, `fix-burst`. Always include it — it tells the
+user which signal triggered the candidate.
+
+If the cap fired (more than 5 triggered), append after the list:
+
+```
++N more candidates not shown — capture these first, then re-run /session-continuity:end-session.
+```
+
+If you find **zero** candidates, skip the prompt entirely and print
+`No LEARNINGS candidates surfaced from this session — Step 2 is a no-op.`
+to the user, then note "no new learnings" in Step 3's checklist.
+
+If the input source was context-window (transcript file unavailable),
+append a single line under the list:
+
+```
+Note: session context may be compacted; some early-session events may not have surfaced.
+```
 
 ### Capture flow for each accepted candidate
 
