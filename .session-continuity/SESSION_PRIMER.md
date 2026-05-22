@@ -87,18 +87,18 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+6be47ea chore: add version-sync pre-commit guard, sync marketplace.json to 0.6.0
 5e0edb6 docs(primer): update working-directory path after repo relocation
 492650f docs: capture v0.6.0 session learnings + close item #1
 7bc25c3 docs: project CLAUDE.md — agent artifacts under meta/superpowers/
 b938250 chore: relocate spec/plan from docs/superpowers/ to meta/superpowers/
-125087b docs(validation): dogfood test results
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
 
 ## Outstanding items (explicitly deferred — not bugs, decisions)
 
-1. **Submit to the Anthropic marketplace.** Form answers in `meta/administrative/marketplace-submission.md`. Bump the "Version at submission" field in that file to 0.6.0 before submitting.
+1. **Submit to the Anthropic marketplace.** Form answers in `meta/administrative/marketplace-submission.md` (version field synced to 0.6.0 in the docs sweep on 2026-05-22).
 
 2. **Deferred recommendations from `meta/superpowers/recommendations/improvements_20260521.md`** (rejected or not-yet-prioritized — v0.5.1 + v0.6.0 shipped the items deemed high-value):
    - §2 branch-aware primer-only rule (rejected: edge case, current escape hatch sufficient).

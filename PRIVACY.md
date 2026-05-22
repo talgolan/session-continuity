@@ -2,7 +2,7 @@
 
 **Plugin:** `session-continuity`
 **Maintainer:** Tal Golan ([github.com/talgolan](https://github.com/talgolan))
-**Last updated:** 2026-04-28
+**Last updated:** 2026-05-22
 
 ## Short version
 
