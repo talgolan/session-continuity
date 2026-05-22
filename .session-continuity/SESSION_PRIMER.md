@@ -72,8 +72,9 @@ No external credentials or costs.
 
 ## Current state
 
-- v0.5.1 staged on `feat/primer-improvements` — quick-win refinements distilled from the `meta/superpowers/recommendations/improvements_20260521.md` feedback doc. Five changes: drop the mtime drift check, retry flaky test counts up to 3× before reporting drift, surface `git log <last-primer>..HEAD` as candidate prompts during refresh, harden `learning` skill numbering (uniqueness guard + max-across-all + auto-bumped footer), and emit a 4-line status block from the `SessionStart` hook. See the v0.5.1 CHANGELOG entry for the full diff.
-- v0.5.0 (committed in `aff74c3`) relocated the two files from `docs/` to `.session-continuity/` with auto-migration support. v0.5.1 makes no path or schema changes — pure refinements.
+- v0.6.0 staged on `feat/end-session-heuristics` — adds the §1 outstanding-items overlay and §5 four-heuristic LEARNINGS candidate surfacing to `/session-continuity:end-session`. Pure prose-skill addition; no new files, hooks, or schemas. See the v0.6.0 CHANGELOG entry for the full diff.
+- v0.5.1 (commit `f5013e1`) shipped quick-win refinements: drop the mtime drift check, 3× test-flake retry, `git log <last-primer>..HEAD` candidate surfacing, hardened `learning` numbering, and a 4-line `SessionStart` status block.
+- v0.5.0 (commit `aff74c3`) relocated the two files from `docs/` to `.session-continuity/` with auto-migration support.
 - Three slash commands are stable (`primer`, `learning`, `end-session`).
 - `hooks/hooks.json` uses `if: "Bash(git commit *)"` to scope the `PreToolUse` hook; it does not fire on every Bash call.
 - `.claude-plugin/marketplace.json` present so the repo is installable via `/plugin marketplace add talgolan/session-continuity`.
@@ -83,31 +84,32 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-aff74c3 feat!: relocate session-continuity files to .session-continuity/
-94a6c90 docs: add PRIVACY.md for marketplace submission
-5cf4be8 docs(v0.4.1): consistency pass — version anchors and install form
-dadb393 fix: v0.4.1 — prevent placeholder leakage and premature outstanding-items edits
-90d9d18 docs(primer): refresh for v0.4.0 — update git log block and outstanding items
+9625fd7 chore: bump to v0.6.0 + CHANGELOG entry
+9a9261d feat(end-session): heuristic-annotated candidate presentation
+be4a449 feat(end-session): four LEARNINGS-candidate heuristics
+2144abc feat(end-session): transcript-resolution preamble for Step 2
+2930de0 feat(end-session): outstanding-items overlay in Step 1
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
 
 ## Outstanding items (explicitly deferred — not bugs, decisions)
 
-1. **Land v0.5.1 on `main` and tag.** Merge `feat/primer-improvements` into `main`, then `git tag v0.5.1 && git push origin v0.5.1` to fire the release workflow. v0.5.0 still untagged — the same release pass should cover v0.5.0 + v0.5.1 (or land v0.5.1 directly and skip the v0.5.0 tag, since they ship together to npm/marketplace).
+1. **Land v0.6.0 on `main` and tag.** Merge `feat/end-session-heuristics` into `main`, then `git tag v0.6.0 && git push origin v0.6.0` to fire the release workflow.
 
-2. **Submit to the Anthropic marketplace.** Form answers in `meta/administrative/marketplace-submission.md`. Bump the "Version at submission" field in that file to 0.5.1 before submitting.
+2. **Submit to the Anthropic marketplace.** Form answers in `meta/administrative/marketplace-submission.md`. Bump the "Version at submission" field in that file to 0.6.0 before submitting.
 
-3. **Deferred recommendations from `meta/superpowers/recommendations/improvements_20260521.md`** (rejected or not-yet-prioritized — see commit `<v0.5.1-sha>` for rationale):
+3. **Deferred recommendations from `meta/superpowers/recommendations/improvements_20260521.md`** (rejected or not-yet-prioritized — v0.5.1 + v0.6.0 shipped the items deemed high-value):
    - §2 branch-aware primer-only rule (rejected: edge case, current escape hatch sufficient).
+   - §3 init-mode auto-derivation (deferred — friction is real but bounded).
    - §4.2 slug-based cross-refs `[[name]]` in LEARNINGS (defer until cross-ref count >20).
    - §4.3 auto-generated symptoms index at top of LEARNINGS (defer; symptom grep already works).
    - §6 split primer into volatile/stable halves (rejected: doubles maintenance, "one file = one mental model").
    - §7 JSON sidecar lock for primer fields (rejected: kills `vim docs/SESSION_PRIMER.md` flow).
    - §8 caveman/cavecrew cross-plugin integration (skip; presumes §6).
+   - §9.1 merge primer with auto-memory `MEMORY.md` (deferred — separate-systems boundary worth keeping).
+   - §9.5 outstanding-items as YAML (deferred — markdown sub-bullets work today).
    - §9.6 dev-mode plugin install template-path fallback (low priority bug, one-line fix when it bites).
-   - §1 outstanding-items state machine + auto-close from commit subjects (research arc; for now v0.5.1 surfaces candidates only).
-   - §5 end-session auto-trigger heuristics (research arc; manual `/end-session` covers the half that works).
 
 4. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The auto-migration code path in primer's Migrate mode and the new `learning`-skill duplicate-detection guard are good candidates.
 
