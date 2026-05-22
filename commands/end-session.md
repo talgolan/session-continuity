@@ -49,7 +49,25 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
 1. Regenerate the `git log --oneline -5` block with current output.
 2. If the primer has a test-counts section and the counts changed (after the 3× retry), update them to match current output.
-3. Surface the commits since the last primer refresh as a candidate list (per Step 5.4 of `commands/primer.md`): run `git log <last-primer-commit>..HEAD --oneline` and present the subjects so the user can decide whether any close outstanding items or warrant a new LEARNINGS entry.
+3. **Surface commits since the last primer refresh, with outstanding-items overlay.** Run `git log <last-primer-commit>..HEAD --oneline` (where `<last-primer-commit>` is the output of `git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md`, falling back to `docs/SESSION_PRIMER.md` for legacy repos). Present the subject list as candidate prompts.
+
+   Then compute an **outstanding-items overlay** for each subject:
+
+   - Tokenize the subject: lowercase, split on non-alphanumeric, drop tokens of length <3, drop the stopword list below.
+   - For each top-level numbered item under the primer's `## Outstanding items` heading: tokenize the item text the same way, capped at the first 200 characters of the item (numbered line plus indented continuation lines until the next top-level number; sub-bullets roll up to their parent item).
+   - Match if the intersection of subject tokens and item tokens has cardinality ≥ 3.
+
+   **Stopwords** (extend per project as needed):
+
+   ```
+   the and for fix add update from with into feat chore docs primer learnings session continuity tag version release
+   ```
+
+   **Presentation.** When matches exist, append a "May close outstanding items" block under the raw subject list, citing each `<sha> → item #<N> ("<first 60 chars of item>")`. When no matches exist, omit the block entirely (do not print an empty section). Then ask: "Any of these resolve outstanding items, or warrant a new LEARNINGS entry?"
+
+   **Refusal.** Never close an outstanding item without explicit user confirmation. The overlay is a candidate list, not an auto-close.
+
+   **Skip conditions.** If the primer lacks an `^## Outstanding items` heading (custom-modified primer), skip the overlay silently — the raw subject list still appears.
 4. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?" **Wait for their answer before continuing.** Do not preemptively edit the list, clear items you interpret as "stale," or proceed with Step 5 based on your own reading.
 5. Apply the edits the user specified. If the user replied "nothing to change" (or similar), skip this step.
 6. Stage the updated primer: `git add .session-continuity/SESSION_PRIMER.md`.
