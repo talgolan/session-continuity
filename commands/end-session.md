@@ -122,8 +122,100 @@ doubt, paraphrase.
 
 ### Heuristics
 
-(Tasks 2 of this plan inserts the preamble; Task 3 inserts the four
-heuristic specs that follow this anchor in subsequent edits.)
+Apply each heuristic to the resolved input source (transcript file or
+context window). Each heuristic emits zero-or-more candidates with a
+title and supporting evidence (1-3 bullet citations).
+
+#### Heuristic A — retry burst
+
+Group consecutive Bash tool calls by **normalized command**:
+
+- Strip arguments after the first newline (heredocs collapse to their
+  command head).
+- Collapse runs of whitespace to single spaces.
+- Drop pure-read commands: `cat`, `ls`, `grep`, `find`, `stat`,
+  `pwd`, `which`, `echo`. (These are noise — not investigatory
+  retries.)
+
+**Trigger:** the same normalized command appears ≥3 times in the
+session.
+
+**Candidate title:** `<command> — investigated for N retries.`
+
+**Evidence:** up to 3 of the invocation timestamps + exit codes
+(redact stdout/stderr beyond the first error line).
+
+#### Heuristic B — revert / reset
+
+**Trigger:** any Bash invocation matching one of:
+
+- `git reset --hard`
+- `git checkout -- <path>`
+- `git revert`
+- `git restore`
+- `rm -rf <path>` where `<path>` appears in `git ls-files` output
+  (i.e. a tracked file, not a tmp directory).
+
+**Candidate title:** `Reverted approach: <commit subject of reverted
+commit if available, else 'unrecorded'>.`
+
+**Evidence:** the offending Bash invocation + the commit being
+reverted (look up `git show <reverted-sha> --format=%s` if known).
+
+#### Heuristic C — error recurrence
+
+For each tool result with non-empty stderr OR a tool output line
+prefixed `Error:`, extract the **error string**:
+
+- First non-empty line of stderr, or
+- The `Error:`-prefixed line, whichever appears first.
+
+**Normalize the error string:**
+
+- Strip absolute paths to basenames.
+- Strip line:column references (e.g. `:42:7`).
+- Strip ISO-8601 and `HH:MM:SS` timestamps.
+- Strip hex addresses (`0x[0-9a-f]+`).
+
+**Trigger:** the same normalized error string appears ≥3 times AND
+the first and last occurrences span ≥15 minutes (use timestamps from
+the JSONL `timestamp` field; in context-window fallback skip the
+wall-clock gate and trigger on count alone).
+
+**Candidate title:** `<error string> — recurred N times over M minutes.`
+
+**Evidence:** up to 3 invocation citations spanning the timeline.
+
+#### Heuristic D — fix burst
+
+**Trigger:** a commit with subject matching `^fix(\(.+\))?: ` (Bash
+invocation matching `git commit -m "fix...` or `git commit ... -m`
+with such a subject) preceded by ≥10 Bash tool calls within the prior
+30 minutes (count both successful and failing invocations; use
+JSONL timestamps; in fallback mode use ordinal proximity rather than
+wall-clock).
+
+**Candidate title:** `<commit subject> — fix preceded by N-action investigation.`
+
+**Evidence:** the commit invocation + a representative sample of the
+preceding burst (3 citations, evenly spaced through the 30-minute
+window).
+
+### Output
+
+Compute the **union** of triggers from all four heuristics.
+Deduplicate by title (case-insensitive substring match — if two
+candidates share a >70% title overlap, keep the one with more
+evidence). Sort by evidence-bullet count, descending.
+
+**Cap:** present at most 5 candidates. If more triggered, show the
+top 5 and append:
+
+```
++N more candidates not shown — capture these first, then re-run /session-continuity:end-session.
+```
+
+**Zero candidates:** print `No LEARNINGS candidates surfaced from this session — Step 2 is a no-op.` and proceed directly to Step 3.
 
 ### Presentation
 
