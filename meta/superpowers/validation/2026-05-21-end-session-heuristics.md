@@ -33,3 +33,71 @@ No "may close outstanding items" block appears.
 **Actual.** _(filled in at validation time by walking through the skill prose against actual repo state)_
 
 **Result.** _(pass / fail / note)_
+
+---
+
+## Scenario 2 — commits without matches
+
+**Setup.** Branch state after Tasks 1–5 + 6 commits, with primer
+outstanding items as updated in Task 6.
+
+**Expected.** Step 1 surfaces the raw subject list of all commits
+since the primer's referenced log block. The §1 overlay computes
+stem-intersection for each subject against each outstanding item;
+all intersections are <3 because the commit subjects share at most
+2 stems with any item ("end, session" with item #1; nothing with
+items #2, #3). No "may close outstanding items" block appears.
+
+**Actual.** _(filled in at validation time)_
+
+**Result.** _(pass / fail / note)_
+
+---
+
+## Scenario 3 — commit with stem-intersection match
+
+**Setup.** Hypothetical synthetic commit subject:
+`feat(release): merge feat/end-session-heuristics into main`.
+Tokenized + stopword-filtered, this yields
+`{merge, end, session, heuristics, main}`. Outstanding item #1's
+text yields `{land, main, merge, end, session, heuristics, then, git, fire, workflow}`. Intersection cardinality = 5 ≥ 3.
+
+**Expected.** Step 1 surfaces the subject in the raw list AND
+appends a "May close outstanding items" block citing
+`<sha> → item #1 ("Land v0.6.0 on main and tag")`.
+
+**Actual.** _(filled in at validation time)_
+
+**Result.** _(pass / fail / note)_
+
+---
+
+## Scenario 4 — retry burst (Heuristic A)
+
+**Setup.** Hypothetical session with 4 invocations of
+`bun run smoke-test` over a 30-minute window.
+
+**Expected.** Heuristic A normalizes the command (no transformation
+needed — it's already canonical), counts 4 occurrences ≥ 3, fires
+with title `bun run smoke-test — investigated for 4 retries.`
+Evidence bullets cite the four timestamps + exit codes.
+
+**Actual.** _(filled in at validation time)_
+
+**Result.** _(pass / fail / note)_
+
+---
+
+## Scenario 5 — revert / reset (Heuristic B)
+
+**Setup.** Hypothetical session with one `git reset --hard HEAD~1`
+invocation following a commit subject `feat: try X for Y`.
+
+**Expected.** Heuristic B fires with title
+`Reverted approach: feat: try X for Y.` (the abandoned commit's
+subject). Evidence cites the reset invocation and the reverted
+commit's SHA.
+
+**Actual.** _(filled in at validation time)_
+
+**Result.** _(pass / fail / note)_
