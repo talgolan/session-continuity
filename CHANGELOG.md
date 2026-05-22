@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] — 2026-05-21
+
+### Added
+- **§1 outstanding-items overlay in `/session-continuity:end-session` Step 1.** v0.5.1 surfaces commit subjects since the last primer refresh; v0.6.0 adds an overlay that flags subjects sharing ≥3 token stems with an open outstanding item ("may close item #N"). Stopwords and threshold are documented inline in the skill body so projects can tune them. Strictly a candidate list — never auto-closes.
+- **§5 four LEARNINGS-candidate heuristics in `/session-continuity:end-session` Step 2.** Replaces the prose criteria from earlier versions with deterministic detectors:
+  - **Heuristic A — retry burst:** ≥3 identical normalized Bash commands (excluding pure-read commands like `cat`/`ls`/`grep`).
+  - **Heuristic B — revert / reset:** any of `git reset --hard`, `git checkout -- <path>`, `git revert`, `git restore`, or `rm -rf` against a tracked file.
+  - **Heuristic C — error recurrence:** the same normalized error string ≥3 times across ≥15 minutes (timestamps from JSONL; falls back to count-only in context-window mode).
+  - **Heuristic D — fix burst:** a `fix(...): ` commit preceded by ≥10 Bash calls within the prior 30 minutes.
+- **Transcript-file input source for Step 2 heuristics.** Step 2 now prefers the session transcript at `~/.claude/projects/<url-encoded-cwd>/<session-id>.jsonl` when resolvable, falling back to context-window mode on any failure (missing dir, stale mtime, encoding mismatch). The fallback prints a "session context may be compacted" caveat under the candidate list so the user knows the recall is bounded.
+
+### Changed
+- **Step 2 presentation format.** Candidates now carry a `[heuristic-id]` tag and indented evidence bullets. The cap is 5 candidates per invocation — additional triggers print a "+N more not shown" line and ask the user to capture these first and re-run.
+- **Privacy guidance.** Step 2's preamble now says explicitly: heuristic evidence paraphrases tool inputs and never quotes raw stdout/stderr beyond the first error line of a failing call.
+
+### Compatibility
+- Pure prose-skill addition. No new files, hooks, schemas, or path changes. Existing v0.5.x installs upgrade with no migration. Old primers without an `^## Outstanding items` heading silently skip the §1 overlay; the raw subject list (v0.5.1 behavior) still appears.
+
 ## [0.5.1] — 2026-05-21
 
 ### Changed
