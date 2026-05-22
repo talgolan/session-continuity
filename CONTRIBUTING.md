@@ -83,6 +83,8 @@ session-continuity/
 ├── .claude-plugin/
 │   ├── plugin.json              # manifest — name, version, keywords
 │   └── marketplace.json         # catalog that lets users install this repo via /plugin marketplace add
+├── .githooks/
+│   └── pre-commit               # version-sync guard (dev-only; activated via `git config core.hooksPath .githooks`)
 ├── skills/
 │   └── session-continuity/
 │       ├── SKILL.md             # main skill description (shown in marketplace)
@@ -139,7 +141,7 @@ Conventional commits format. The `type(scope): subject` pattern matches the exis
 feat(end-session): support stash detection in checklist
 fix(hooks): handle detached HEAD in pre-commit-check
 docs(readme): clarify the marketplace submission status
-chore: bump plugin.json to 0.4.1
+chore: bump to 0.6.0
 ```
 
 Subject line ≤ 72 chars. Body is optional but encouraged for anything non-obvious — explain the *why*, not the *what* (the diff shows the what).
