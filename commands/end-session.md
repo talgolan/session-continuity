@@ -76,17 +76,54 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
 ## Step 2 — Session reflection for learnings
 
-Review this session's conversation context and surface candidates for new LEARNINGS entries.
+Apply four explicit heuristics to surface LEARNINGS candidates from
+this session. Each heuristic emits zero-or-more candidates; the union
+is presented to the user, deduplicated by title, capped at 5.
 
-**A candidate is worth surfacing when:**
-- A problem took multiple attempts or involved a wrong theory before the right fix landed.
-- A platform or tool quirk surprised us (hook behavior, CLI defaults, API shape).
-- The final code relies on a workaround whose reasoning isn't obvious from reading it.
+### Input source
 
-**Not candidates:**
-- Routine implementation ("wrote the endpoint, tests passed first try").
-- Decisions that are already captured in commit messages or spec docs.
-- Things the user already knew going in.
+Prefer the session transcript file when accessible; fall back to the
+context window when not. Transcript file location:
+
+```
+~/.claude/projects/<url-encoded-cwd>/<session-id>.jsonl
+```
+
+URL-encoding rule: `/` → `-`, leading `/` becomes leading `-`. Example
+cwd `/Users/tal.golan/repo` → directory `-Users-tal-golan-repo`.
+
+**Resolution order:**
+
+1. Compute the expected directory from `pwd` using the encoding rule.
+2. If the directory exists, pick the `.jsonl` file with the most
+   recent mtime — this is assumed to be the live session.
+3. Fall back to context-window mode if any of: the directory does not
+   exist, no `.jsonl` files inside, or the most-recent file's mtime
+   is older than 5 minutes (stale, probably the wrong session).
+4. Best-effort. Any failure falls through to context-window mode
+   without error.
+
+When in transcript-file mode, prefer `grep`/`wc`/`jq` via Bash to
+filter relevant entries (Bash tool calls, errors, commits) before
+pulling raw JSON into context. JSONL files for long sessions can be
+megabytes — do not Read the whole file into context.
+
+When in context-window mode, note the limitation in the candidate
+output: "session context may be compacted; some early-session events
+may not have surfaced." Do not pretend to have full visibility.
+
+### Privacy
+
+Heuristic candidates' "evidence" bullets paraphrase tool inputs; they
+never quote raw stdout/stderr beyond the first error line of any
+failing tool call. Never include full prompt text, full command
+output, or any value that could plausibly be a secret. When in
+doubt, paraphrase.
+
+### Heuristics
+
+(Tasks 2 of this plan inserts the preamble; Task 3 inserts the four
+heuristic specs that follow this anchor in subsequent edits.)
 
 ### Presentation
 
