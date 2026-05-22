@@ -42,8 +42,10 @@ No build step. Everything is Markdown and shell scripts. Install via (from insid
 ## Working directory
 
 ```
-/Users/tal.golan/.claude/skills/session-continuity
+/Users/tal.golan/active_development/TG/session-continuity-plugin
 ```
+
+The repo also lives at `/Users/tal.golan/.claude/skills/session-continuity` as a symlink → `~/active_development/TG/session-continuity-plugin`. The symlink keeps the dev plugin auto-loaded by Claude Code while source-of-truth lives in the active_development tree. Edit either path; they resolve to the same files.
 
 ## The packages / modules
 
