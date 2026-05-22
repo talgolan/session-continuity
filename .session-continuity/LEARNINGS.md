@@ -38,6 +38,30 @@ The original awk range fails because the same pattern matches both the start and
 
 ## Slash command skill authoring
 
+### 6. Stale path references in slash-command bodies survive plugin path migrations
+
+**The trap.** v0.5.0 relocated `docs/SESSION_PRIMER.md` + `docs/LEARNINGS.md` to `.session-continuity/`. The hooks (`session-start.sh`, `pre-commit-check.sh`), templates, top-level `SKILL.md`, and `commands/primer.md` were all updated. `commands/end-session.md` was *partly* updated — but its first paragraph still introduces the command as refreshing "`docs/SESSION_PRIMER.md`," its Step 0 preflight checks `docs/LEARNINGS.md`, its Step 1.5 stages `docs/SESSION_PRIMER.md`, its Step 2 capture flow stages `docs/LEARNINGS.md`, and its Suggested-commit pattern still says "Only `docs/` staged →." The slash command kept working because Claude reads the *actual* file via the `.session-continuity/` Step-0 heuristic added later — but the body's prose is misleading and the suggested-commit path rule is wrong for any v0.5.0+ install.
+
+**Symptom.** Discovered when `/session-continuity:end-session` was invoked on this v0.6.0 session. The system-reminder injected by the slash-command hook contained the original (pre-v0.5.0) prose verbatim — `"Your job: run a close-out ritual that (1) refreshes docs/SESSION_PRIMER.md..."` — even though the on-disk `commands/end-session.md` was supposedly updated. Investigating revealed the v0.5.0 migration patched the *Step* references but not the introduction, summary, or path-pattern rules.
+
+**Fix.** Grep every command-body file for the legacy path *as a substring*, not just the file references that look like file references. `git grep -n 'docs/SESSION_PRIMER\\|docs/LEARNINGS' commands/` should return zero matches in a fully-migrated repo. Update all hits to `.session-continuity/SESSION_PRIMER.md` / `.session-continuity/LEARNINGS.md`. The pre-v0.5.0 fallback for migration-detection lives only in `commands/primer.md` (Migrate mode) — every other reference should be canonical.
+
+**Diagnostic signal.** Run `git grep -n 'docs/SESSION_PRIMER\\|docs/LEARNINGS' commands/`. If it returns hits outside `commands/primer.md`'s Step 2 (Migrate mode), the migration is incomplete.
+
+---
+
+### 5. Superpowers-style upstream skills hardcode `docs/superpowers/{specs,plans}/` and silently re-create deleted directories
+
+**The trap.** The `superpowers:brainstorming` and `superpowers:writing-plans` skills both default their output paths to `docs/superpowers/specs/YYYY-MM-DD-*.md` and `docs/superpowers/plans/YYYY-MM-DD-*.md`. Their skill bodies say "User preferences for spec location override this default" — but that override has to live somewhere Claude actually reads at every brainstorming invocation. A project that *moved* its agent meta-artifacts (e.g., to `meta/superpowers/`) and deleted the `docs/superpowers/` directory will have it silently re-created by the next brainstorming session, producing a duplicate-tree pair.
+
+**Symptom.** This repo moved everything to `meta/superpowers/` in v0.3 (per CHANGELOG: "Repo layout: `docs/administrative/` and `docs/superpowers/` moved under a new top-level `meta/` directory"). Today's session ran `superpowers:brainstorming` followed by `superpowers:writing-plans`. Both wrote their artifacts to `docs/superpowers/specs/` and `docs/superpowers/plans/` — re-creating the deleted directory tree. Discovered when the user asked "why do we have 2 superpowers directories?" mid-PR-review.
+
+**Fix.** Add a project-local `CLAUDE.md` at the repo root with an explicit override section. Example: a "Project conventions" section that lists the canonical paths (`meta/superpowers/specs/`, `meta/superpowers/plans/`, etc.) and tells Claude to redirect any `docs/superpowers/<x>/` suggestion to `meta/superpowers/<x>/` before creating the file. CLAUDE.md is loaded into context every session, so the redirect happens *before* the brainstorming/writing-plans skill defaults take effect.
+
+**Diagnostic signal.** `find . -type d -name superpowers -not -path './node_modules/*'` should return exactly one path on a clean repo. Two paths means a brainstorming/writing-plans invocation defaulted past the project's CLAUDE.md override.
+
+---
+
 ### 4. Init-mode commits can leak `{{PLACEHOLDER}}` tokens when the user skips ahead
 
 **The trap.** The primer command's init mode copies templates, fills in derivable fields, and "asks the user for the blanks." Reads fine. But the command prose doesn't say what Claude should do if the user *never answers* — pastes a `git commit` command or says "commit it" before filling in the blanks. Claude's default is to stage and proceed with the placeholders still present, so the committed file ends up containing literal `{{PACKAGE_1}}`, `{{ITEM_1_BODY}}`, etc.
@@ -120,9 +144,10 @@ and explains why it loses. -->
 
 ---
 
-*Last reviewed: 2026-04-28. Add new entries at the top of each section
-as they surface. Rule of thumb: if a bug takes more than 15 minutes to
-diagnose, it goes here.*
+*Last entry: 2026-05-21 (#6). Add new entries at the top of each section
+as they surface. The `/session-continuity:learning` command bumps this
+line automatically (v0.5.1+). Rule of thumb: if a bug takes more than
+15 minutes to diagnose, it goes here.*
 
 *Numbering note: new entries take the next available number (N+1) and
 are placed at the top of their section. Old entries keep their numbers

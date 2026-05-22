@@ -72,7 +72,8 @@ No external credentials or costs.
 
 ## Current state
 
-- v0.6.0 staged on `feat/end-session-heuristics` — adds the §1 outstanding-items overlay and §5 four-heuristic LEARNINGS candidate surfacing to `/session-continuity:end-session`. Pure prose-skill addition; no new files, hooks, or schemas. See the v0.6.0 CHANGELOG entry for the full diff.
+- v0.6.0 shipped (merged to `main` as `7bc25c3`, tag `v0.6.0` pushed; PR #1 closed). Adds the §1 outstanding-items overlay and §5 four-heuristic LEARNINGS candidate surfacing to `/session-continuity:end-session`. Pure prose-skill addition; no new files, hooks, or schemas. See the v0.6.0 CHANGELOG entry for the full diff.
+- New project-local `CLAUDE.md` redirects superpowers skills' default `docs/superpowers/{specs,plans}/` paths to `meta/superpowers/`, matching the v0.3 layout. Added after the brainstorming-skill default re-introduced the duplicate `docs/superpowers/` directory.
 - v0.5.1 (commit `f5013e1`) shipped quick-win refinements: drop the mtime drift check, 3× test-flake retry, `git log <last-primer>..HEAD` candidate surfacing, hardened `learning` numbering, and a 4-line `SessionStart` status block.
 - v0.5.0 (commit `aff74c3`) relocated the two files from `docs/` to `.session-continuity/` with auto-migration support.
 - Three slash commands are stable (`primer`, `learning`, `end-session`).
@@ -84,22 +85,20 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-9625fd7 chore: bump to v0.6.0 + CHANGELOG entry
-9a9261d feat(end-session): heuristic-annotated candidate presentation
-be4a449 feat(end-session): four LEARNINGS-candidate heuristics
-2144abc feat(end-session): transcript-resolution preamble for Step 2
-2930de0 feat(end-session): outstanding-items overlay in Step 1
+7bc25c3 docs: project CLAUDE.md — agent artifacts under meta/superpowers/
+b938250 chore: relocate spec/plan from docs/superpowers/ to meta/superpowers/
+125087b docs(validation): dogfood test results
+8f2f931 docs(validation): scenarios 2-5 walkthrough
+6769cc9 docs(validation): scaffold validation log for v0.6.0
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
 
 ## Outstanding items (explicitly deferred — not bugs, decisions)
 
-1. **Land v0.6.0 on `main` and tag.** Merge `feat/end-session-heuristics` into `main`, then `git tag v0.6.0 && git push origin v0.6.0` to fire the release workflow.
+1. **Submit to the Anthropic marketplace.** Form answers in `meta/administrative/marketplace-submission.md`. Bump the "Version at submission" field in that file to 0.6.0 before submitting.
 
-2. **Submit to the Anthropic marketplace.** Form answers in `meta/administrative/marketplace-submission.md`. Bump the "Version at submission" field in that file to 0.6.0 before submitting.
-
-3. **Deferred recommendations from `meta/superpowers/recommendations/improvements_20260521.md`** (rejected or not-yet-prioritized — v0.5.1 + v0.6.0 shipped the items deemed high-value):
+2. **Deferred recommendations from `meta/superpowers/recommendations/improvements_20260521.md`** (rejected or not-yet-prioritized — v0.5.1 + v0.6.0 shipped the items deemed high-value):
    - §2 branch-aware primer-only rule (rejected: edge case, current escape hatch sufficient).
    - §3 init-mode auto-derivation (deferred — friction is real but bounded).
    - §4.2 slug-based cross-refs `[[name]]` in LEARNINGS (defer until cross-ref count >20).
@@ -111,11 +110,11 @@ Regenerate this block whenever you commit — see "Primer maintenance" below.
    - §9.5 outstanding-items as YAML (deferred — markdown sub-bullets work today).
    - §9.6 dev-mode plugin install template-path fallback (low priority bug, one-line fix when it bites).
 
-4. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The auto-migration code path in primer's Migrate mode and the new `learning`-skill duplicate-detection guard are good candidates.
+3. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The auto-migration code path in primer's Migrate mode and the new `learning`-skill duplicate-detection guard are good candidates.
 
-5. **Plan to drop the `docs/` fallback in hooks.** v0.5.0 keeps dual-path support indefinitely. A future v1.0.0 can remove the fallback once the auto-migration has had time to land in every user's repo.
+4. **Plan to drop the `docs/` fallback in hooks.** v0.5.0 keeps dual-path support indefinitely. A future v1.0.0 can remove the fallback once the auto-migration has had time to land in every user's repo.
 
-6. **Add captured learnings from the v0.4.0 session.** Three candidates still open (install-command-form verification via WebFetch, pipefail+grep/head/sed regression, `.claude/settings.json` auto-population hygiene, `GITHUB_REF_NAME` awk injection) — worth a `/session-continuity:learning` pass each. Placeholder-leakage already captured as LEARNINGS #4.
+5. **Add captured learnings from the v0.4.0 session.** Three candidates still open (install-command-form verification via WebFetch, pipefail+grep/head/sed regression, `.claude/settings.json` auto-population hygiene, `GITHUB_REF_NAME` awk injection) — worth a `/session-continuity:learning` pass each. Placeholder-leakage already captured as LEARNINGS #4.
 
 ## Workflow conventions
 
