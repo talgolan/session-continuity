@@ -63,13 +63,17 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
    the and for fix add update from with into feat chore docs primer learnings session continuity tag version release
    ```
 
-   **Presentation.** When matches exist, append a "May close outstanding items" block under the raw subject list, citing each `<sha> → item #<N> ("<first 60 chars of item>")`. When no matches exist, omit the block entirely (do not print an empty section). Then ask: "Any of these resolve outstanding items, or warrant a new LEARNINGS entry?"
+   **Presentation.** When matches exist, append a "May close outstanding items" block under the raw subject list, citing each `<sha> → item #<N> ("<first 60 chars of item>")`. When no matches exist, omit the block entirely (do not print an empty section).
 
    **Refusal.** Never close an outstanding item without explicit user confirmation. The overlay is a candidate list, not an auto-close.
 
    **Skip conditions.** If the primer lacks an `^## Outstanding items` heading (custom-modified primer), skip the overlay silently — the raw subject list still appears.
-4. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?" **Wait for their answer before continuing.** Do not preemptively edit the list, clear items you interpret as "stale," or proceed with Step 5 based on your own reading.
-5. Apply the edits the user specified. If the user replied "nothing to change" (or similar), skip this step.
+4. **Single combined prompt.** After printing the subject list (and overlay block if any), ask the user one question covering both close-candidates and free-form edits:
+
+   > "Outstanding items — close any from the overlay, add new follow-ups, or no changes?"
+
+   **Wait for the answer before continuing.** Do not preemptively edit the list, clear items you interpret as "stale," or proceed based on your own reading. Do not split this into two sequential prompts — one prompt covers the same answer space.
+5. Apply the edits the user specified. If the user replied "no changes" (or similar), skip this step.
 6. Stage the updated primer: `git add .session-continuity/SESSION_PRIMER.md`.
 
 **Do not** commit. Staging only.
@@ -261,18 +265,26 @@ append a single line under the list:
 Note: session context may be compacted; some early-session events may not have surfaced.
 ```
 
-### Capture flow for each accepted candidate
+### Capture flow — batch presentation, single confirm
 
-For each candidate the user picks, compose the LEARNINGS entry following `commands/learning.md`'s structure. Replace its Step 2 (field-by-field prompting) with pre-drafting:
+For every candidate the user picked (e.g. "1, 3" or "all"), pre-draft the full LEARNINGS entry up front. Compose each per `commands/learning.md`'s structure:
 
 - Pre-fill the **Title** from the candidate description.
-- Pre-draft **The trap**, **Symptom**, **Fix**, and **Diagnostic signal** from session context where you can, then present the full draft to the user in one go for confirmation / revision. Do not invent details the session does not support — leave a field blank and ask if unclear.
+- Pre-draft **The trap**, **Symptom**, **Fix**, and **Diagnostic signal** from session context. Do not invent details the session does not support — leave a field blank rather than fabricating.
 - Choose section per **Step 3 of `commands/learning.md`**.
-- Compute the next number per **Step 4 of `commands/learning.md`**.
-- Insert at the top of the chosen section per **Step 5 of `commands/learning.md`**.
-- Stage per **Step 6 of `commands/learning.md`**: `git add .session-continuity/LEARNINGS.md`.
+- Compute the next number per **Step 4 of `commands/learning.md`** (number entries sequentially within the chosen section).
 
-If the user describes "another" candidate not on your list, treat that description as a pre-filled title and follow the same flow.
+If the user describes "another" candidate not on your list, treat that description as a pre-filled title and draft alongside the others.
+
+**Single confirm prompt.** Present every pre-drafted entry together in one rendered block (numbered, full body, target section labeled). Then ask one question:
+
+> "Stage all N entries as drafted, revise specific ones, or skip any?"
+
+Possible replies you must handle: "all" / "stage" → stage every draft; "revise N" → loop into edit-draft-N flow then re-present; "skip N" → drop draft N from the batch; "none" → stage nothing.
+
+Once the user confirms, insert each accepted draft at the top of its chosen section per **Step 5 of `commands/learning.md`** and stage per **Step 6**: `git add .session-continuity/LEARNINGS.md`.
+
+Do not loop one-prompt-per-candidate. The batch is the unit.
 
 **Do not** commit. Staging only.
 
@@ -338,6 +350,26 @@ Prefix with `→ Suggested:` and wrap in a fenced code block so the user can cop
     git commit -m "fix(ci): extract CHANGELOG section with proper awk range"
 ```
 
+## Step 4 — Terminal sign-off (always)
+
+After the checklist (and suggested-commit block, if any), emit a final closing line so the user knows the ritual completed and they are not blocked waiting for further prompts.
+
+**Always emit one of these two lines, exactly:**
+
+- If every checklist row was ✓ (no ⚠️ anywhere):
+
+  ```
+  ✅ Session complete. Safe to close.
+  ```
+
+- If any checklist row had ⚠️:
+
+  ```
+  ✅ Session complete. Safe to close. (Warnings above are advisory — review before closing if relevant.)
+  ```
+
+**Required.** Print this line on its own, after the checklist and any suggested-commit block. Never omit it. Never replace it with paraphrased prose. Never ask follow-up questions after this line — the line marks the end of the ritual. If the user wants to act on a warning, they will reply on their own.
+
 ## Notes
 
 - **Never commit automatically.** Stage only, across both Step 1 and Step 2.
@@ -346,3 +378,5 @@ Prefix with `→ Suggested:` and wrap in a fenced code block so the user can cop
 - **Reflection is bounded by the current session.** Step 2 looks only at this conversation's context. Bugs from prior sessions, parallel worktrees, or separate Claude instances (subagents, different windows) aren't visible and won't be proposed. For those, the user should invoke `/session-continuity:learning` directly.
 - **Respect the primer-only-commit rule.** If the user, after seeing the checklist, commits only the primer, the `PreToolUse` hook's nudge still applies — nothing to do here.
 - **Zero arguments.** If the user passed text after `/session-continuity:end-session`, ignore it — session reflection provides all context needed.
+- **Bound the prompt count.** The whole ritual must fit ≤2 user prompts in the common case: one combined prompt in Step 1 (only when drift exists), one batch confirm in Step 2 (only when candidates surface). Drift-clean + zero candidates = zero prompts. Never split Step 1's combined question into two sequential asks. Never loop one-prompt-per-candidate in Step 2.
+- **Always sign off.** Step 4's terminal line is non-negotiable — the user invoked an explicit close-out and must not be left ambiguous about whether the ritual is done.

@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] — 2026-05-23
+
+### Changed
+- **`/session-continuity:end-session` prompt budget bounded.** End-of-session ritual now caps at ≤2 user prompts in the common case (one in Step 1 if drift exists, one in Step 2 if candidates surface). Previous flow could hit 3+N prompts on sessions with N captured learnings, fighting the user's explicit close-out intent.
+  - **Step 1 single combined prompt.** The overlay "any close items?" question and the outstanding-items "anything to remove/add?" question are merged into one prompt covering both close-candidates and free-form edits. Same answer space — no information loss, half the round-trips.
+  - **Step 2 batch confirm.** Pre-drafted LEARNINGS entries are presented together in one rendered block with one "stage all / revise N / skip N" prompt, replacing the per-candidate confirmation loop.
+
+### Added
+- **Step 4 terminal sign-off.** `/session-continuity:end-session` now always emits `✅ Session complete. Safe to close.` (or the `(Warnings above are advisory…)` variant if any ⚠️ appeared in the checklist) as the final line of the ritual. The user invoked an explicit close-out and must not be left ambiguous about whether the ritual is done. Required, non-omittable, never replaced with paraphrased prose.
+
+### Compatibility
+- Pure prose-skill changes. No new files, hooks, schemas, or path changes. Existing v0.6.x installs upgrade with no migration.
+
 ## [0.6.0] — 2026-05-21
 
 ### Added

@@ -74,6 +74,7 @@ No external credentials or costs.
 
 ## Current state
 
+- v0.7.0 staged (not yet committed). Bounds `/session-continuity:end-session` prompt count to ≤2 in the common case: merges Step 1's overlay+outstanding-items prompts into a single combined ask, batches Step 2 candidate confirmation into one prompt instead of looping per-candidate. Adds Step 4 terminal sign-off (`✅ Session complete. Safe to close.`) so the user is never left ambiguous after invoking an explicit close-out. Pure prose-skill change; no new files, hooks, or schemas. See v0.7.0 CHANGELOG entry.
 - v0.6.0 shipped (merged to `main` as `7bc25c3`, tag `v0.6.0` pushed; PR #1 closed). Adds the §1 outstanding-items overlay and §5 four-heuristic LEARNINGS candidate surfacing to `/session-continuity:end-session`. Pure prose-skill addition; no new files, hooks, or schemas. See the v0.6.0 CHANGELOG entry for the full diff.
 - New project-local `CLAUDE.md` redirects superpowers skills' default `docs/superpowers/{specs,plans}/` paths to `meta/superpowers/`, matching the v0.3 layout. Added after the brainstorming-skill default re-introduced the duplicate `docs/superpowers/` directory.
 - v0.5.1 (commit `f5013e1`) shipped quick-win refinements: drop the mtime drift check, 3× test-flake retry, `git log <last-primer>..HEAD` candidate surfacing, hardened `learning` numbering, and a 4-line `SessionStart` status block.
@@ -87,11 +88,11 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+b1c7d45 docs(primer): refresh log block after PR #2 merge
 f77a22a docs: comprehensive review sweep — sync stale version refs and tree (#2)
 6be47ea chore: add version-sync pre-commit guard, sync marketplace.json to 0.6.0
 5e0edb6 docs(primer): update working-directory path after repo relocation
 492650f docs: capture v0.6.0 session learnings + close item #1
-7bc25c3 docs: project CLAUDE.md — agent artifacts under meta/superpowers/
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
