@@ -87,11 +87,11 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+f77a22a docs: comprehensive review sweep — sync stale version refs and tree (#2)
 6be47ea chore: add version-sync pre-commit guard, sync marketplace.json to 0.6.0
 5e0edb6 docs(primer): update working-directory path after repo relocation
 492650f docs: capture v0.6.0 session learnings + close item #1
 7bc25c3 docs: project CLAUDE.md — agent artifacts under meta/superpowers/
-b938250 chore: relocate spec/plan from docs/superpowers/ to meta/superpowers/
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
