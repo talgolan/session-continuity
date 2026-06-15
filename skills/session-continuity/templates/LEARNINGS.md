@@ -18,6 +18,10 @@ within each group.
 -->
 
 ### 1. {{ENTRY_TITLE}}
+<!-- Optional: a Trigger line resurfaces this entry BEFORE a matching action runs
+     (via the learnings-surface hook). Form: Trigger: <tool> /<regex>/  where
+     <tool> is Bash | Write | Edit | *. Delete if no mechanical trigger fits.
+     Example:  Trigger: Bash /smoke|run\.zsh/  -->
 
 **The trap.** {{WHAT_YOU_TRIED_THAT_SEEMED_REASONABLE}}
 
