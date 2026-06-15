@@ -96,7 +96,21 @@ Applies generally: any time command prose tells Claude to produce an inventory f
 
 ## Hook scripting (SessionStart / PreToolUse)
 
+### 7. A grep-based gate cannot reliably scan a plan that documents the gate's own syntax
+Trigger: Write /smoke-gate|plans/.*\.md/
+
+**The trap.** The `smoke-gate` hook blocks plan writes whose smoke task is tagged optional/deferred, and offers a `Smoke: N/A — <reason>` escape hatch. Natural assumption: run the gate against this very plan as a dogfood check and expect a clean MANDATORY-smoke pass. But a plan that *documents the gate* contains the gate's own trigger strings — both the weak-smoke fixtures (`smoke runner (optional, after merge)`) and the literal `Smoke: N/A — <reason>` hatch text appear in the prose.
+
+**Symptom.** The self-gate check returned rc=0 (allowed) — but via the escape hatch matching the documented `Smoke: N/A — <reason>` string, NOT via the plan's MANDATORY marker. Absent that incidental hatch match, the same plan would have been DENIED on its documented weak-smoke fixtures. A green result that means the opposite of what it looks like.
+
+**Fix.** Accept that grep gates are fooled only by meta-documents (plans *about* the gate). Real engine/feature plans contain neither weak-smoke fixtures nor hatch-prose, so the gate is correct there (proven by the hermetic runner, 12/12). Do NOT tighten the hatch to line-start anchoring to "fix" the meta-plan — that flips it to a false-positive deny, blocking legit work over documentation noise. The loose hatch is the right trade: an accidental opt-out requires writing the literal declaration string, which doesn't happen outside meta-docs. Verify gate behavior with the hermetic fixture runner, not by self-scanning a plan that quotes the gate.
+
+**Diagnostic signal** *(optional)*. A self-referential gate check passes "for free" — re-read WHY it passed (which branch fired), don't trust the rc.
+
+---
+
 ### 1. PreToolUse hooks must emit JSON to reach Claude's context
+Trigger: Write /hooks/.*\.sh|hooks\.json/
 
 **The trap.** `SessionStart` hooks inject plain stdout into Claude's context — that's documented, straightforward, and works on the first try. When writing a `PreToolUse` hook, it's natural to reach for the same pattern: print a `<system-reminder>` block to stdout, exit 0. Bash-level smoke tests show the reminder firing. Looks done.
 
@@ -144,7 +158,7 @@ and explains why it loses. -->
 
 ---
 
-*Last entry: 2026-05-21 (#6). Add new entries at the top of each section
+*Last entry: 2026-06-15 (#7). Add new entries at the top of each section
 as they surface. The `/session-continuity:learning` command bumps this
 line automatically (v0.5.1+). Rule of thumb: if a bug takes more than
 15 minutes to diagnose, it goes here.*

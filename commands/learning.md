@@ -35,6 +35,7 @@ Prompt the user for each field. Show examples inline.
 3. **Symptom** (what was observed, including misleading errors): 1-3 sentences.
 4. **Fix** (what actually works): 1-3 sentences + optional code block.
 5. **Diagnostic signal** (optional — how to recognize this next time): one sentence. Skip if user has nothing.
+6. **Trigger** (optional — how this entry resurfaces *before* the action): a tool + regex that the `learnings-surface` hook matches against the imminent command or file. Form: `<tool> /<regex>/` where `<tool>` is `Bash`, `Write`, `Edit`, or `*`. E.g. `Bash /smoke|run\.zsh/` to resurface a smoke-runner trap before a smoke run. Skip if no mechanical trigger fits.
 
 ## Step 3 — Choose section
 
@@ -72,6 +73,7 @@ Compose the entry:
 
 ```markdown
 ### <N>. <Title>
+Trigger: <tool> /<regex>/      ← include ONLY if the user supplied a trigger; omit the whole line otherwise
 
 **The trap.** <trap text>
 
@@ -85,6 +87,8 @@ Compose the entry:
 
 ---
 ```
+
+The `Trigger:` line, when present, must sit on the line directly below the `### N.` heading (no blank line between) so the `learnings-surface` hook's parser associates it with the entry.
 
 Insert immediately after the section heading (and any HTML comments that follow it). Keep a blank line between the heading and the new entry.
 

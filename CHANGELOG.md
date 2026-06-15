@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-06-15
+
+### Added
+- **Fire-before-action PreToolUse gates.** Two new hooks make known guidance surface *before* an action, not after a symptom.
+  - **`learnings-surface.sh` (Bash + Write|Edit).** A LEARNINGS entry may carry an optional `Trigger: <tool> /<regex>/` line directly below its `### N.` heading. When the imminent Bash command (or Write/Edit path + content) matches the regex, the hook injects a non-blocking reminder naming the entry, so the relevant hard-won lesson is read before the action runs. Entries with no `Trigger:` line never fire — zero noise.
+  - **`smoke-gate.sh` (Write|Edit, plan files only).** Blocks writing a plan that mentions binary/engine/container work but either marks its smoke task optional/deferred/after-merge or has no smoke task at all. Override with an explicit `Smoke: N/A — <reason>` line. Enforces "every engine/binary feature needs a MANDATORY smoke task" mechanically, where a passive note had failed twice.
+- **`/session-continuity:learning` optional Trigger field.** The command prompts for an optional trigger and emits the `Trigger:` line when supplied.
+
+### Compatibility
+- Additive. Existing LEARNINGS entries without `Trigger:` lines are unaffected; the smoke-gate only acts on plan-file writes. No migration. Upgrading installs gain the gates on next session.
+
 ## [0.7.0] — 2026-05-23
 
 ### Changed

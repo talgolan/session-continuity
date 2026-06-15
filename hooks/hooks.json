@@ -15,6 +15,23 @@
             "type": "command",
             "if": "Bash(git commit *)",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/pre-commit-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/learnings-surface.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/learnings-surface.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/smoke-gate.sh"
           }
         ]
       }
