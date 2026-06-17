@@ -86,6 +86,7 @@ The hooks are bash scripts wired through `hooks/hooks.json`. They split into two
 
 - **Action-keyed retrieval** (`learnings-surface`, `PreToolUse` on Bash/Write/Edit) is the mechanism that turns LEARNINGS from a read-after-symptom file into a read-before-action gate. When a LEARNINGS entry carries a `Trigger: <tool> /<regex>/` line and the command you're about to run (or the file you're about to write) matches that regex, the hook names the relevant entry so you read it *before* repeating the mistake. Entries without a trigger never fire, so there's zero cost to omitting one.
 - **Smoke gate** (`smoke-gate`, `PreToolUse` on Write/Edit, plan files only) blocks writing a plan that touches binary/engine/container work but marks its smoke task optional or omits it entirely. Override with an explicit `Smoke: N/A — <reason>` line. It enforces mechanically what a passive note kept failing to enforce.
+- **Proven gate** (`proven-gate`, `PreToolUse` on Write/Edit, spec/plan files only) blocks writing a spec or plan that makes a "proven / verified / spike conclusive" claim unless the same content carries `Real path:` + `Stubbed:` fields naming what actually ran versus what was a stand-in. Claim-words match on word boundaries (`unproven`/`improven`/`confirmed` do not trigger). Override with `Proven-gate: N/A — <reason>` for quoting, a glossary, or a doc about the gate.
 
 **Stay fresh:**
 

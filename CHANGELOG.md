@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] — 2026-06-17
+
+### Added
+- **`proven-gate.sh` (Write|Edit, spec/plan files only).** Blocks writing a spec or plan that makes a "proven / verified / spike conclusive" claim unless the same content names, in two fields, what was actually tested: `Real path: <production code path that ran>` and `Stubbed: <what stood in — or "nothing">`. The `Stubbed:` field forces a stand-in into the open, where a no-auth stub standing in for the feature under test becomes visible to author and reviewer. Claim-words match on word boundaries (`unproven`/`improven`/`confirmed` do not trigger). Override with `Proven-gate: N/A — <reason>` for quoting, a glossary, or a doc about the gate. Turns the passive "prove the mechanism first" lesson into a mechanical gate.
+
+### Compatibility
+- Additive. Only acts on `*/specs/*.md` and `*/plans/*.md` writes; all other files unaffected. No migration. Upgrading installs gain the gate on next session.
+
 ## [0.8.0] — 2026-06-15
 
 ### Added
