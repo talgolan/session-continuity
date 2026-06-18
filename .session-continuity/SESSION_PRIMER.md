@@ -91,11 +91,11 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+0f71ab3 chore(release): v0.10.0 — occurrence-gate + spike-check + learning fields
 8997fa5 feat(spike-check): add /spike-check stand-in checklist command (change-the-odds #3c)
 0b789c5 feat(learning): offer occurrence-count + invariant fields so /learning authors gate-compliant entries
 1323fd1 feat(occurrence-gate): block 2nd-occurrence LEARNINGS entries lacking an invariant (change-the-odds #2)
 f6ca94e docs(plan): occurrence-counter gate + spike-check command (change-the-odds #2 + #3c)
-6506e4c docs(spec): occurrence-counter gate + spike-check command (change-the-odds #2 + #3c)
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
