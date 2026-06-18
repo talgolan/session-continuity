@@ -74,7 +74,7 @@ No external credentials or costs.
 
 ## Current state
 
-- v0.9.0 in progress on `feat/proven-gate` (not yet merged). Adds `hooks/proven-gate.sh`: a `PreToolUse` Write|Edit gate scoped to `*/specs/*.md` + `*/plans/*.md` that denies a "proven/verified/spike conclusive" claim unless the same content carries adjacent `Real path:` + `Stubbed:` fields. Whole-word claim match (`unproven`/`improven`/`confirmed` do not trigger). Escape hatch `Proven-gate: N/A — <reason>`. Hermetic fixture runner (`meta/superpowers/validation/2026-06-17-proven-gate-smoke.zsh`) 12/12; shellcheck clean. Wired as 3rd entry in `hooks.json` Write|Edit block. Mirrors `smoke-gate.sh` skeleton; sole deviation is the word-boundary match. Spec + plan: `meta/superpowers/{specs,plans}/2026-06-17-proven-gate*`.
+- v0.9.0 shipped (squash-merged to `main` as `9de77fb`, PR #6 closed, tag `v0.9.0` pushed). Adds `hooks/proven-gate.sh`: a `PreToolUse` Write|Edit gate scoped to `*/specs/*.md` + `*/plans/*.md` that denies a "proven/verified/spike conclusive" claim unless the same content carries adjacent `Real path:` + `Stubbed:` fields. Whole-word claim match (`unproven`/`improven`/`confirmed` do not trigger). Escape hatch `Proven-gate: N/A — <reason>`. Hermetic fixture runner (`meta/superpowers/validation/2026-06-17-proven-gate-smoke.zsh`) 12/12; shellcheck clean. Wired as 3rd entry in `hooks.json` Write|Edit block. Mirrors `smoke-gate.sh` skeleton; sole deviation is the word-boundary match. Spec + plan: `meta/superpowers/{specs,plans}/2026-06-17-proven-gate*`.
 - v0.8.0 shipped: two fire-before-action gates (`learnings-surface.sh`, `smoke-gate.sh`) + `/learning` optional Trigger field.
 - v0.7.0 shipped (commit `9172667` on `main`, tag `v0.7.0` pushed). Bounds `/session-continuity:end-session` prompt count to ≤2 in the common case: merges Step 1's overlay+outstanding-items prompts into a single combined ask, batches Step 2 candidate confirmation into one prompt instead of looping per-candidate. Adds Step 4 terminal sign-off (`✅ Session complete. Safe to close.`) so the user is never left ambiguous after invoking an explicit close-out. Pure prose-skill change; no new files, hooks, or schemas. See v0.7.0 CHANGELOG entry.
 - v0.6.0 shipped (merged to `main` as `7bc25c3`, tag `v0.6.0` pushed; PR #1 closed). Adds the §1 outstanding-items overlay and §5 four-heuristic LEARNINGS candidate surfacing to `/session-continuity:end-session`. Pure prose-skill addition; no new files, hooks, or schemas. See the v0.6.0 CHANGELOG entry for the full diff.
@@ -90,11 +90,11 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+9de77fb feat(proven-gate): gate 'proven' claims in specs/plans (change-the-odds #1) (#6)
+12a463d chore: remove per-repo marketplace.json — catalog moved to talgolan/claude-plugins
+af46784 docs: expand README feature coverage, drop migration content (#4)
+845f18e feat: fire-before-action gates (v0.8.0) (#3)
 9172667 feat(end-session): bound prompt count + add terminal sign-off
-b1c7d45 docs(primer): refresh log block after PR #2 merge
-f77a22a docs: comprehensive review sweep — sync stale version refs and tree (#2)
-6be47ea chore: add version-sync pre-commit guard, sync marketplace.json to 0.6.0
-5e0edb6 docs(primer): update working-directory path after repo relocation
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
