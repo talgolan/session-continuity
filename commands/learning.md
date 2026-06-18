@@ -36,6 +36,8 @@ Prompt the user for each field. Show examples inline.
 4. **Fix** (what actually works): 1-3 sentences + optional code block.
 5. **Diagnostic signal** (optional — how to recognize this next time): one sentence. Skip if user has nothing.
 6. **Trigger** (optional — how this entry resurfaces *before* the action): a tool + regex that the `learnings-surface` hook matches against the imminent command or file. Form: `<tool> /<regex>/` where `<tool>` is `Bash`, `Write`, `Edit`, or `*`. E.g. `Bash /smoke|run\.zsh/` to resurface a smoke-runner trap before a smoke run. Skip if no mechanical trigger fits.
+7. **Occurrence count** (optional — recurrence tracking): Is this the Nth time this *class* of bug has bitten? Enter `N of M` (e.g. `2 of 2`). Skip for a first-occurrence entry. If the user enters N ≥ 2, item 8 below becomes REQUIRED.
+8. **Invariant** (REQUIRED when occurrence N ≥ 2; otherwise skip): the END-STATE that, enforced at the reconciler/entry gate, makes the whole class impossible on EVERY path — not another trigger-patch. CLAUDE.md rule 4. E.g. "a host-global port implies a host-global secret." The `occurrence-gate` hook will block a 2nd-occurrence entry that lacks this line.
 
 ## Step 3 — Choose section
 
@@ -74,6 +76,8 @@ Compose the entry:
 ```markdown
 ### <N>. <Title>
 Trigger: <tool> /<regex>/      ← include ONLY if the user supplied a trigger; omit the whole line otherwise
+Occurrence count: <N of M>     ← include ONLY if supplied; omit otherwise
+Invariant: <end-state>          ← include ONLY when occurrence N >= 2; omit otherwise
 
 **The trap.** <trap text>
 
@@ -89,6 +93,8 @@ Trigger: <tool> /<regex>/      ← include ONLY if the user supplied a trigger; 
 ```
 
 The `Trigger:` line, when present, must sit on the line directly below the `### N.` heading (no blank line between) so the `learnings-surface` hook's parser associates it with the entry.
+
+When present, `Occurrence count:` and `Invariant:` sit on their own lines in the metadata block directly under the heading (after `Trigger:` if it exists), each before the blank line that precedes `**The trap.**`. Omit any of the three metadata lines that has no value — never write an empty label.
 
 Insert immediately after the section heading (and any HTML comments that follow it). Keep a blank line between the heading and the new entry.
 
