@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] — 2026-06-17
+
+### Added
+- **`occurrence-gate` PreToolUse hook (change-the-odds #2).** Blocks a `Write`/`Edit` to a `LEARNINGS.md` that records the 2nd-or-later occurrence of a mistake-class (`Occurrence count: N of M`, N ≥ 2) without also naming an end-state `Invariant:` line. Enforces CLAUDE.md rule 4 — a class fixed across 2+ attempts must name its invariant, not ship another trigger-patch. Escape hatch: `Occurrence-gate: N/A — <reason>`.
+- **`/session-continuity:spike-check` command (change-the-odds #3c).** Emits a five-question stand-in checklist at spike start so a spike is designed to exercise the real binary + auth/lifecycle/fixed-port path. Proactive complement to the `proven-gate` hook.
+- **`/learning` occurrence-count + invariant fields.** The command now offers an `Occurrence count:` field and, when N ≥ 2, requires an `Invariant:` line — so entries are authored gate-compliant by construction.
+
+### Compatibility
+- Additive. The occurrence-gate only acts on `LEARNINGS.md` writes under a `.session-continuity/` or `docs/` path; all other files unaffected. Existing entries without an `Occurrence count:` line never trigger it. No migration. Upgrading installs gain the gate and command on next session.
+
 ## [0.9.0] — 2026-06-17
 
 ### Added

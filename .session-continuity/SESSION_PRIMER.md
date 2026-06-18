@@ -74,6 +74,7 @@ No external credentials or costs.
 
 ## Current state
 
+- v0.10.0 in progress on `feat/change-the-odds-2-3c` (change-the-odds #2 + #3c, one PR). Adds `hooks/occurrence-gate.sh`: a `PreToolUse` Write|Edit gate scoped to `LEARNINGS.md` under `*/.session-continuity/*` or `*/docs/*` that denies an entry recording `Occurrence count: N of M` (N≥2) unless the same content names a non-empty `Invariant:` line (CLAUDE.md rule 4 → executable gate). Escape hatch `Occurrence-gate: N/A — <reason>`. Largest-N-wins coarse scan. Wired as 4th entry in `hooks.json` Write|Edit block. Mirrors `proven-gate.sh` skeleton — sole deviation from the literal plan code: `deny()` is called inside an `if` (not unconditionally) so the trailing `exit 0` stays reachable / shellcheck-clean (matches proven-gate). Hermetic runner `meta/superpowers/validation/2026-06-17-occurrence-gate-smoke.zsh` 12/12; shellcheck clean. Also: `/learning` gains optional `Occurrence count:` + (N≥2) `Invariant:` fields (gate-compliant by construction); new `/session-continuity:spike-check` command (5-question stand-in checklist, proactive complement to proven-gate). Spec + plan: `meta/superpowers/{specs,plans}/2026-06-17-occurrence-counter-and-spike-check*`.
 - v0.9.0 shipped (squash-merged to `main` as `9de77fb`, PR #6 closed, tag `v0.9.0` pushed). Adds `hooks/proven-gate.sh`: a `PreToolUse` Write|Edit gate scoped to `*/specs/*.md` + `*/plans/*.md` that denies a "proven/verified/spike conclusive" claim unless the same content carries adjacent `Real path:` + `Stubbed:` fields. Whole-word claim match (`unproven`/`improven`/`confirmed` do not trigger). Escape hatch `Proven-gate: N/A — <reason>`. Hermetic fixture runner (`meta/superpowers/validation/2026-06-17-proven-gate-smoke.zsh`) 12/12; shellcheck clean. Wired as 3rd entry in `hooks.json` Write|Edit block. Mirrors `smoke-gate.sh` skeleton; sole deviation is the word-boundary match. Spec + plan: `meta/superpowers/{specs,plans}/2026-06-17-proven-gate*`.
 - v0.8.0 shipped: two fire-before-action gates (`learnings-surface.sh`, `smoke-gate.sh`) + `/learning` optional Trigger field.
 - v0.7.0 shipped (commit `9172667` on `main`, tag `v0.7.0` pushed). Bounds `/session-continuity:end-session` prompt count to ≤2 in the common case: merges Step 1's overlay+outstanding-items prompts into a single combined ask, batches Step 2 candidate confirmation into one prompt instead of looping per-candidate. Adds Step 4 terminal sign-off (`✅ Session complete. Safe to close.`) so the user is never left ambiguous after invoking an explicit close-out. Pure prose-skill change; no new files, hooks, or schemas. See v0.7.0 CHANGELOG entry.
@@ -90,11 +91,11 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-9de77fb feat(proven-gate): gate 'proven' claims in specs/plans (change-the-odds #1) (#6)
-12a463d chore: remove per-repo marketplace.json — catalog moved to talgolan/claude-plugins
-af46784 docs: expand README feature coverage, drop migration content (#4)
-845f18e feat: fire-before-action gates (v0.8.0) (#3)
-9172667 feat(end-session): bound prompt count + add terminal sign-off
+8997fa5 feat(spike-check): add /spike-check stand-in checklist command (change-the-odds #3c)
+0b789c5 feat(learning): offer occurrence-count + invariant fields so /learning authors gate-compliant entries
+1323fd1 feat(occurrence-gate): block 2nd-occurrence LEARNINGS entries lacking an invariant (change-the-odds #2)
+f6ca94e docs(plan): occurrence-counter gate + spike-check command (change-the-odds #2 + #3c)
+6506e4c docs(spec): occurrence-counter gate + spike-check command (change-the-odds #2 + #3c)
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.

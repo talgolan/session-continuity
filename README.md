@@ -22,7 +22,8 @@ There's a second reason, less obvious than the first: **shorter Claude Code sess
 | **`/session-continuity:primer`** | Init, refresh, or check the primer. State-dispatching. |
 | **`/session-continuity:learning`** | Append a new LEARNINGS entry interactively, with stable numbering. |
 | **`/session-continuity:end-session`** | Close-out ritual: refresh the primer, mine this session for new learnings, and print a state checklist. |
-| **Session hooks** | A SessionStart reminder, a non-blocking commit nudge, an action-keyed retrieval gate, a smoke-task gate for plan files, and a weekly freshness check. |
+| **`/session-continuity:spike-check`** | Emit the stand-in spike checklist before a spike, so it's designed to hit the real binary + auth/lifecycle/fixed-port path. |
+| **Session hooks** | A SessionStart reminder, a non-blocking commit nudge, an action-keyed retrieval gate, a smoke-task gate for plan files, a proven-claim gate for specs/plans, an occurrence-counter gate for LEARNINGS, and a weekly freshness check. |
 
 Nothing here writes a file behind your back. Commands stage, they never commit. Hooks remind or gate, they never edit your files.
 
@@ -73,6 +74,10 @@ The close-out ritual, bounded to at most two prompts in the common case:
 
 It never commits and never pushes. The checklist flags what's outstanding; you decide.
 
+### `/session-continuity:spike-check`
+
+Emits a five-question stand-in checklist *before* a spike is built, so the spike is designed to exercise the real binary and the real auth/lifecycle/fixed-port path rather than a hand-rolled stand-in that passes cleanly and proves nothing. It is the proactive complement to the proven gate: answers 2 and 5 become the `Real path:` and `Stubbed:` fields the proven gate requires at claim-time. Pass an optional one-line spike description to frame each question.
+
 ## The hooks
 
 The hooks are bash scripts wired through `hooks/hooks.json`. They split into two philosophies.
@@ -87,6 +92,7 @@ The hooks are bash scripts wired through `hooks/hooks.json`. They split into two
 - **Action-keyed retrieval** (`learnings-surface`, `PreToolUse` on Bash/Write/Edit) is the mechanism that turns LEARNINGS from a read-after-symptom file into a read-before-action gate. When a LEARNINGS entry carries a `Trigger: <tool> /<regex>/` line and the command you're about to run (or the file you're about to write) matches that regex, the hook names the relevant entry so you read it *before* repeating the mistake. Entries without a trigger never fire, so there's zero cost to omitting one.
 - **Smoke gate** (`smoke-gate`, `PreToolUse` on Write/Edit, plan files only) blocks writing a plan that touches binary/engine/container work but marks its smoke task optional or omits it entirely. Override with an explicit `Smoke: N/A — <reason>` line. It enforces mechanically what a passive note kept failing to enforce.
 - **Proven gate** (`proven-gate`, `PreToolUse` on Write/Edit, spec/plan files only) blocks writing a spec or plan that makes a "proven / verified / spike conclusive" claim unless the same content carries `Real path:` + `Stubbed:` fields naming what actually ran versus what was a stand-in. Claim-words match on word boundaries (`unproven`/`improven`/`confirmed` do not trigger). Override with `Proven-gate: N/A — <reason>` for quoting, a glossary, or a doc about the gate.
+- **Occurrence gate** (`occurrence-gate`, `PreToolUse` on Write/Edit, `LEARNINGS.md` only) blocks a LEARNINGS entry that records the 2nd-or-later occurrence of a mistake-class (`Occurrence count: N of M`, N ≥ 2) unless the same content names an end-state `Invariant:` line — the thing that, enforced at the reconciler/entry gate, makes the whole class impossible rather than patching one more trigger. A first occurrence (or no count) never fires. Override with `Occurrence-gate: N/A — <reason>`.
 
 **Stay fresh:**
 
