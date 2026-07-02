@@ -18,6 +18,11 @@
           },
           {
             "type": "command",
+            "if": "Bash(git commit *)",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/flaky-gate.sh"
+          },
+          {
+            "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/learnings-surface.sh"
           }
         ]
@@ -40,6 +45,18 @@
           {
             "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/occurrence-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/evidence-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/flaky-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/backend-parity-gate.sh"
           }
         ]
       }

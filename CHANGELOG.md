@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] — 2026-07-01
+
+### Added
+- **`evidence-gate.sh` (Write|Edit, spec/plan files only).** Blocks a spec/plan write that mentions `smoke` and (a) mentions teardown/cleanup without stating the failure diagnostic is captured BEFORE that teardown runs, or (b) mentions a poll/wait loop without stating it watches both a success AND a failure signal. Enforces "never guess; preserve evidence" mechanically — teardown-on-fail and success-only polling both destroy the evidence a diagnosis needs. Override with `Evidence-gate: N/A — <reason>`.
+- **`flaky-gate.sh` (Bash `git commit *`, and Write|Edit on `LEARNINGS.md`).** Blocks a commit message or LEARNINGS entry that calls a failure "flaky" / "transient" / a "CDN blip" without also naming the deterministic cause in a `Mechanism:` line. Enforces CLAUDE.md rule 1 — "an intermittent failure has a deterministic cause... never label a failure 'flaky' and move on." Override with `Flaky-gate: N/A — <reason>`.
+- **`backend-parity-gate.sh` (Write|Edit, plan files only).** Blocks a plan write that frames its smoke coverage as multi-backend (mentions "backend"/"backends") but names fewer than two concrete backends (from a generic engine-name list: docker, apple, podman, containerd, colima, kata, lima, orbstack). Enforces "smoke must cover BOTH backends" — a runner proven on only one backend has an unverified half. Override with `Backend-parity: N/A — <reason>`.
+
+### Compatibility
+- Additive. `evidence-gate`/`backend-parity-gate` only act on `*/specs/*.md` + `*/plans/*.md` writes that already mention the relevant keyword (`smoke` / `backend(s)`); plans that never use those words are unaffected. `flaky-gate` only acts on `git commit` invocations and `LEARNINGS.md` writes that already say "flaky"/"transient"/"CDN blip". No migration. Upgrading installs gain all three gates on next session.
+
 ## [0.10.0] — 2026-06-17
 
 ### Added
