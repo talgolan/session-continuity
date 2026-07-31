@@ -132,7 +132,7 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
    token-overlap matches from commit subjects OR `appears-DONE` items from the
    Outstanding-items verification sub-block above exist. Cite each candidate:
    commit-subject matches as `<sha> → item #<N>`, verification candidates as
-   `item #<N> (<cited code evidence>)`. Omit the block only when BOTH sources
+   `item #<N> (<cited code evidence>)`. Dedupe by item number: an item that is both a commit-subject match and an `appears-DONE` candidate appears once, on a single line carrying both the `<sha>` and the code-evidence citation. Omit the block only when BOTH sources
    are empty (do not print an empty section).
 
    **Refusal.** Never close an outstanding item without explicit user confirmation. The overlay is a candidate list, not an auto-close.
@@ -436,6 +436,8 @@ Prefix with `→ Suggested:` and wrap in a fenced code block so the user can cop
 → Suggested:
     git commit -m "fix(ci): extract CHANGELOG section with proper awk range"
 ```
+
+*(Illustrative only — the real Outstanding-items row reflects the current primer; e.g. item #4's `docs/` fallback is still present today, so it reads `still-open`, not `appears-DONE`.)*
 
 ## Step 4 — Terminal sign-off (always)
 
