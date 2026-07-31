@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0]
+
+### Added
+- `/session-continuity:end-session` now verifies the primer's outstanding items
+  against actual repo state. Each item is classified code-verifiable or not;
+  code items get an evidence-gated `grep`/`glob`/file-exists check with a
+  `still-open` / `appears-DONE` / `manual` verdict. `appears-DONE` items surface
+  as close-candidates at Step 1's existing combined prompt (when drift fires) or
+  as a standing warning in the new Step 3 checklist row (when drift-clean).
+  Verdicts never auto-close an item — removal always requires explicit user
+  confirmation.
+
 ## [0.11.0] — 2026-07-01
 
 ### Added

@@ -375,6 +375,11 @@ git rev-parse --abbrev-ref @{u} 2>/dev/null  # upstream branch, or empty if none
 git rev-list --count @{u}..HEAD 2>/dev/null  # unpushed commits, empty if no upstream
 ```
 
+- **Outstanding-items verdicts** — reuse the per-item verdicts from Step 1's
+  verification sub-block; re-read the primer's `## Outstanding items` section to
+  get the post-edit item set. No new git command — the evidence was already
+  gathered in Step 1.
+
 Handle these edge cases explicitly:
 
 - **Not a git repo.** If `git rev-parse` fails, the precondition in Step 0 should have caught this, but belt-and-suspenders: report "⚠️ not inside a git repo" once and skip git-dependent rows.
@@ -391,11 +396,22 @@ Output using this structure. Use ✓ (green), ⚠️ (yellow), or → (suggestio
 |---|---|---|
 | Primer refresh | ✓ | "Primer refreshed and staged" OR "Primer already current (no-op)" |
 | New learnings | ✓ | "N LEARNINGS entry/entries captured (#X, \"<title>\" …)" OR "No new learnings" |
+| Outstanding items | checkmark if none stale, else warning | "N tracked — <k> appears-DONE (#X, evidence), <m> still-open (#…), <j> manual (#…)" OR "none tracked" |
 | Staged files | ✓ | "Staged: <file1>, <file2>, …" OR "Nothing staged" |
 | Unstaged modifications | ✓ if none, else ⚠️ | "No unstaged modifications" OR "⚠️ Unstaged: <file1>, <file2>, …" |
 | Untracked files | ✓ if none, else ⚠️ | "No untracked files" OR "⚠️ N untracked: <file1>, <file2>, … — ignore, add, or delete?" |
 | Unpushed commits | ✓ / ⚠️ | "Up to date with origin/<branch>" OR "⚠️ Branch <name> is N commits ahead of origin — push before closing?" OR the detached-HEAD / no-upstream variants |
 | Suggested commit | → | Derived from staged files + captured learnings. Omit row entirely if nothing is staged. |
+
+**Outstanding-items row — re-derive, do not cache.** Step 3 re-reads the
+`## Outstanding items` section from the primer AFTER any Step 1 closures the
+user confirmed. The *set* of items and the counts are recomputed against the
+post-edit primer; only the per-item verdicts (`still-open` / `appears-DONE` /
+`manual`) computed in Step 1 are reused. If the user closed an item at the Step
+1 prompt, it is gone from the primer and absent from this row. Marker: ✓ if
+every remaining item is `still-open` or `manual` (nothing stale lingering);
+⚠️ if any remaining item is `appears-DONE` (a resolved item still listed).
+Cite the evidence for each `appears-DONE` item inline.
 
 ### Suggested commit message
 
@@ -412,6 +428,7 @@ Prefix with `→ Suggested:` and wrap in a fenced code block so the user can cop
 ```
 ✓ Primer refreshed and staged
 ✓ 1 LEARNINGS entry captured (#7, "awk range collapse on single-version CHANGELOG")
+⚠️ Outstanding items: 5 tracked — 1 appears-DONE (#4, "drop docs/ fallback": grep hooks/ for 'docs/' → 0 hits after removal), 1 still-open (#3), 3 manual (#1, #2, #5)
 ✓ Staged: .session-continuity/SESSION_PRIMER.md, .session-continuity/LEARNINGS.md, .github/workflows/release.yml
 ✓ No unstaged modifications
 ⚠️ 2 untracked files: scratch.md, tmp/debug.log — ignore, add, or delete?
@@ -450,3 +467,7 @@ After the checklist (and suggested-commit block, if any), emit a final closing l
 - **Zero arguments.** If the user passed text after `/session-continuity:end-session`, ignore it — session reflection provides all context needed.
 - **Bound the prompt count.** The whole ritual must fit ≤2 user prompts in the common case: one combined prompt in Step 1 (only when drift exists), one batch confirm in Step 2 (only when candidates surface). Drift-clean + zero candidates = zero prompts. Never split Step 1's combined question into two sequential asks. Never loop one-prompt-per-candidate in Step 2.
 - **Always sign off.** Step 4's terminal line is non-negotiable — the user invoked an explicit close-out and must not be left ambiguous about whether the ritual is done.
+- **Outstanding-items verdicts never mutate the primer.** The verification in
+  Step 1 only classifies and reports; an `appears-DONE` item is removed only if
+  the user confirms it at the Step 1 prompt. A drift-clean session surfaces a
+  stale item as a standing ⚠️ in the checklist, never as a silent deletion.
