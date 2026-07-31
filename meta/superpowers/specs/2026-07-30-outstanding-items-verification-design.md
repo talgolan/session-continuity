@@ -34,7 +34,13 @@ code-shaped items, and mark the rest `manual` rather than assert anything.
 
 1. **Classify, verify only code ones.** Each item is tagged code-verifiable or
    not. Non-code items are reported `manual — not auto-verifiable`, never
-   asserted done or open.
+   asserted done or open. Classification is binary — an item is code-verifiable
+   if a `grep`/`glob`/file-exists check *could* speak to it. Low-confidence
+   code items (a grep exists but the match is ambiguous — e.g. item 5's "grep
+   LEARNINGS titles") still classify AS code-verifiable; they simply resolve to
+   `manual` under the evidence rule below when the evidence is insufficient.
+   The `⚠️` marker in the constraint table means "code-verifiable but
+   low-confidence," not a third class.
 2. **LLM-derived check, evidence-gated.** No structured `Verify:` field is
    added to items (zero schema change). end-session reads each item, derives a
    `grep`/`glob`/file-exists check, and reports a verdict **only with cited
@@ -59,8 +65,10 @@ Per top-level item under the primer's `## Outstanding items` heading:
 - **`still-open`** — artifact absent as expected. Cite the negative check
   (e.g. "no `*.bats` and no `test/` dir → item 3 still open").
 - **`appears-DONE`** — artifact present/absent in a way that proves resolution
-  (e.g. "grep `hooks/` for `docs/` → 0 hits → item 4 resolved"). Cited
-  evidence required. **Close-candidate — never auto-removed.**
+  (e.g. once item 4 is actually done, "grep `hooks/` for `docs/` → 0 hits →
+  fallback removed"; note today that grep returns >0, so item 4 is currently
+  `still-open`). Cited evidence required. **Close-candidate — never
+  auto-removed.**
 - **`manual`** — non-code item (external action / decision), OR a code item
   where no unambiguous evidence was found. Printed as
   `manual — not auto-verifiable`. Never asserted done or open.
@@ -70,31 +78,46 @@ cited artifact (`file:line`, grep count, or glob result). Absent evidence
 downgrades to `manual`. This is the same gate the plugin enforces on "proven"
 claims elsewhere.
 
-## Placement — inside Step 1, reported in Step 3 (no standalone step)
+## Placement — runs in Step 1 (above the drift branch), reported in Step 3
 
-Verification is NOT a new standalone step. It splits across the two existing
-touch-points so it adds zero prompts and needs no reordering:
+Verification is NOT a new standalone step, but it must NOT live inside the
+refresh flow — that flow is skipped when the primer is drift-clean, and
+verification does not depend on drift. Instead:
 
-- **Runs inside Step 1's refresh flow.** After the drift check enters the
-  refresh flow, classify + verify each outstanding item. Any `appears-DONE`
-  candidate is appended to the existing outstanding-items overlay and surfaced
-  at Step 1's single combined prompt ("close any from the overlay, add new
-  follow-ups, or no changes?"). One reply closes it.
-  - **Drift-clean case:** when the drift check finds the primer already
-    current, Step 1's refresh flow is skipped entirely. Verification still runs
-    (it does not depend on drift) but produces no prompt — its results flow
-    only to the Step 3 row. This keeps the "drift-clean + zero candidates =
-    zero prompts" guarantee: a stale outstanding item surfaces as a ⚠️ in the
-    checklist, not as a blocking prompt.
-- **Reported in Step 3.** A new `Outstanding items` checklist row reports the
-  post-edit state (after any Step 1 closures the user confirmed):
+- **Runs at the top of Step 1, before the drift branch.** Immediately after the
+  primer is read (which Step 1 already does for the drift check), classify +
+  verify each outstanding item. This runs unconditionally — drift-clean or not.
+  The verdicts are computed once, here, and held for both downstream consumers.
+- **DONE candidates route to the prompt only when a prompt already fires.**
+  - **Drift detected → refresh flow runs.** Append every `appears-DONE`
+    candidate to the existing outstanding-items overlay so it surfaces at Step
+    1's single combined prompt ("close any from the overlay, add new follow-ups,
+    or no changes?"). One reply closes it.
+  - **Drift-clean → refresh flow skipped, no prompt.** A stale `appears-DONE`
+    item does NOT force a prompt — that would break the "drift-clean + zero
+    candidates = zero prompts" guarantee. It surfaces only as a ⚠️ in the Step 3
+    checklist row. **Consequence, accepted:** across repeated drift-clean
+    sessions the same stale item re-flags every time until the next
+    drift-bearing session (or a manual `/primer` refresh) gives the user a
+    prompt to close it. This is intentional — the ⚠️ is a standing reminder, not
+    a nag, and closing it is never blocked, just deferred to the next prompt
+    the ritual would fire anyway.
+- **Reported in Step 3.** A new `Outstanding items` checklist row. Step 3
+  **re-derives the item list from the primer after any Step 1 edits** — it does
+  NOT reuse the pre-edit verdict counts. If the user closed #4 at the Step 1
+  prompt, #4 is gone from the primer and the row reflects the shrunken list.
+  Only the per-item verdicts (still-open / appears-DONE / manual) computed at
+  the top of Step 1 are reused; the *set* of items and the counts are recomputed
+  against the post-edit primer.
 
   ```
   ⚠️ Outstanding items: 5 tracked — 1 appears DONE (#4, "drop docs/ fallback":
-     grep hooks/ for 'docs/' → 0 hits), 2 still-open (#3, #5), 2 manual (#1, #2)
+     grep hooks/ for 'docs/' → 0 hits after removal), 1 still-open (#3),
+     3 manual (#1, #2, #5)
   ```
 
-  Marker: ✓ if every item is `still-open` or `manual` (nothing stale lingering);
+  (Illustrative counts only — the real row reflects the current primer.) Marker:
+  ✓ if every item is `still-open` or `manual` (nothing stale lingering);
   ⚠️ if any item is `appears-DONE` (a resolved item still listed).
 
 ## Edge cases
@@ -121,6 +144,14 @@ touch-points so it adds zero prompts and needs no reordering:
 
 Hermetic fixture: a primer with known-state outstanding items (one provably
 DONE, one provably open, one non-code) in a scratch repo; assert the
-classification + verdicts + Step 3 row marker. Manual: run end-session in this
-repo and confirm item #4 (`docs/` fallback) verdict matches an actual
-`grep hooks/` result.
+classification + verdicts + Step 3 row marker.
+
+**Never-auto-close case (guards decision #3, the whole point).** With an
+`appears-DONE` item present, simulate the user replying "no changes" at the
+Step 1 prompt; assert the item is STILL present in the primer afterward and the
+Step 3 row still marks it ⚠️ `appears-DONE`. A verdict must never mutate the
+primer on its own.
+
+Manual: run end-session in this repo and confirm item #4 (`docs/` fallback)
+verdict matches an actual `grep hooks/` result (expected `still-open` today,
+since the fallback is deliberately kept until v1.0.0).
