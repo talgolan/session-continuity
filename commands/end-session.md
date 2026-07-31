@@ -32,7 +32,72 @@ If either is missing, check the pre-v0.5.0 legacy path (`docs/SESSION_PRIMER.md`
 
 ## Step 1 — Refresh the primer (drift-gated)
 
-Before prompting the user for anything, run a drift check. The goal: if the primer is already in sync with the repo, do nothing and record a no-op. Only enter the refresh flow when something actually changed.
+Before prompting the user for anything, first verify the primer's outstanding
+items against code (below), then run a drift check. The goal: if the primer is
+already in sync with the repo, do nothing and record a no-op. Only enter the
+refresh flow when something actually changed.
+
+### Outstanding-items verification (runs first, unconditionally)
+
+Before the drift check, verify the primer's outstanding items against actual
+repo state. This runs on EVERY invocation — drift-clean or not — because a
+stale item can outlive a drift-clean primer. Compute each verdict once here;
+Step 3 reuses these verdicts.
+
+**Skip conditions.** Same as the overlay's existing skip clause (the "Skip
+conditions" bullet in the Refresh flow): if the primer has no
+`^## Outstanding items` heading (custom-modified primer), skip verification
+silently. Additionally, when skipped, the Step 3 row reads
+`Outstanding items: none tracked`. Likewise skip if the section is present but
+empty.
+
+**For each top-level numbered item** under `## Outstanding items` (scope the
+item exactly as the overlay does: the numbered line plus indented continuation
+lines until the next top-level number; sub-bullets roll up to their parent):
+
+1. **Classify — code-verifiable or not.** An item is code-verifiable if a
+   `grep`/`glob`/file-exists check *could* speak to it (it names a file, a
+   hook path, a test harness, a LEARNINGS title, a code construct).
+   Classification is binary: low-confidence code items (a grep exists but the
+   match may be ambiguous) still classify AS code-verifiable — they resolve to
+   `manual` below when evidence is insufficient. Items naming an external
+   action or a parked decision (marketplace submission, rejected
+   recommendations) are non-code.
+
+2. **Verify code items** with a derived `grep`/`glob`/file-exists check via
+   Bash. Assign one verdict:
+   - **`still-open`** — the artifact is absent as the item expects. Cite the
+     negative check (e.g. "no `*.bats` and no `test/` dir → item still open").
+   - **`appears-DONE`** — the artifact is present/absent in a way that proves
+     resolution. Cite the artifact (`file:line`, grep count, glob result).
+   - **`manual`** — no unambiguous evidence found (ambiguous grep — a match
+     inside a comment or a doc reference rather than a live code path). **Bias
+     toward `manual` over a false `appears-DONE`.**
+
+3. **Non-code items** → verdict `manual`, printed as
+   `manual — not auto-verifiable`. Never assert done or open.
+
+**Evidence rule.** A `still-open` or `appears-DONE` verdict MUST carry a cited
+artifact. Absent evidence downgrades the verdict to `manual`. This is the same
+gate the plugin enforces on "proven" claims elsewhere.
+
+**Routing `appears-DONE` candidates.** These are close-candidates — **never
+auto-removed**.
+
+- **When the drift check below enters the refresh flow** (drift detected):
+  append every `appears-DONE` item to the existing outstanding-items overlay
+  candidate list, so it surfaces at Step 1's single combined prompt. One reply
+  closes it. Cite the evidence beside the candidate.
+- **When the primer is drift-clean** (refresh flow skipped, no prompt fires):
+  do NOT force a prompt — that would break the "drift-clean + zero candidates =
+  zero prompts" guarantee. The `appears-DONE` item surfaces only as a ⚠️ in the
+  Step 3 checklist row. Across repeated drift-clean sessions the same item
+  re-flags every time until a drift-bearing session (or a manual `/primer`
+  refresh) gives the user a prompt to close it — intentional; the ⚠️ is a
+  standing reminder, and closing is deferred, never blocked.
+
+Removal of any item always requires explicit user confirmation. A verdict never
+mutates the primer on its own.
 
 ### Drift check (silent — no user prompt)
 
@@ -63,7 +128,12 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
    the and for fix add update from with into feat chore docs primer learnings session continuity tag version release
    ```
 
-   **Presentation.** When matches exist, append a "May close outstanding items" block under the raw subject list, citing each `<sha> → item #<N> ("<first 60 chars of item>")`. When no matches exist, omit the block entirely (do not print an empty section).
+   **Presentation.** Render the "May close outstanding items" block when EITHER
+   token-overlap matches from commit subjects OR `appears-DONE` items from the
+   Outstanding-items verification sub-block above exist. Cite each candidate:
+   commit-subject matches as `<sha> → item #<N>`, verification candidates as
+   `item #<N> (<cited code evidence>)`. Omit the block only when BOTH sources
+   are empty (do not print an empty section).
 
    **Refusal.** Never close an outstanding item without explicit user confirmation. The overlay is a candidate list, not an auto-close.
 
