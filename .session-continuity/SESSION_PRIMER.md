@@ -74,9 +74,9 @@ No external credentials or costs.
 
 ## Current state
 
-- **v0.11.0 in progress (uncommitted, no branch yet).** Adds 3 more executable
-  gates, closing the remaining gap the user identified when asked "what must
-  never be ignored" beyond CLAUDE.md's 4 core rules — 5 memory-logged feedback
+- **v0.11.0 shipped** (squash-merged to `main` as `3941f55`, PR #8). Adds 3 more
+  executable gates, closing the remaining gap the user identified when asked "what
+  must never be ignored" beyond CLAUDE.md's 4 core rules — 5 memory-logged feedback
   rules also demanded gates; 2 (`proven-gate`, `smoke-gate`) already existed,
   these 3 close the rest:
   - `hooks/evidence-gate.sh` (Write|Edit, spec/plan) — blocks a smoke-mentioning
@@ -99,19 +99,13 @@ No external credentials or costs.
   flaky-gate + backend-parity-gate appended to the Write|Edit block;
   flaky-gate also appended to the Bash `git commit *` block alongside
   pre-commit-check.sh). `plugin.json` bumped 0.10.0→0.11.0; CHANGELOG.md
-  entry added. **Deliberately NOT gated by this batch** (per the reinstall-
+  entry added. Manual install-and-fire validation of the 3 new hooks completed
+  before merge. **Deliberately NOT gated by this batch** (per the reinstall-
   PATH-binary memory's own admission): a "PATH binary reinstalled" claim —
   hooks fire on tool-call payloads (Write/Edit/Bash), not on prose sentences
   in Claude's response, so there's no artifact to grep for that claim itself;
   would need a different mechanism (e.g. gating on `git commit`/`gh pr merge`
-  checking a hash match, proposed but not built this session). **Remaining
-  before this is "done": no branch created, no commit made, no PR opened, no
-  install-in-a-scratch-project verification run** (this plugin's own "Test
-  expectations" section above says validation is install + exercise each
-  slash command / hook manually — that hasn't happened for these 3 new
-  hooks beyond the hermetic fixture runner). Next session or later this
-  session: decide branch/commit strategy with the user, then do the manual
-  install-and-fire smoke pass before calling v0.11.0 shipped.
+  checking a hash match, proposed but not built).
 - v0.10.0 shipped, squash-merged to `main` on `feat/change-the-odds-2-3c` (change-the-odds #2 + #3c, one PR). Adds `hooks/occurrence-gate.sh`: a `PreToolUse` Write|Edit gate scoped to `LEARNINGS.md` under `*/.session-continuity/*` or `*/docs/*` that denies an entry recording `Occurrence count: N of M` (N≥2) unless the same content names a non-empty `Invariant:` line (CLAUDE.md rule 4 → executable gate). Escape hatch `Occurrence-gate: N/A — <reason>`. Largest-N-wins coarse scan. Wired as 4th entry in `hooks.json` Write|Edit block. Mirrors `proven-gate.sh` skeleton — sole deviation from the literal plan code: `deny()` is called inside an `if` (not unconditionally) so the trailing `exit 0` stays reachable / shellcheck-clean (matches proven-gate). Hermetic runner `meta/superpowers/validation/2026-06-17-occurrence-gate-smoke.zsh` 12/12; shellcheck clean. Also: `/learning` gains optional `Occurrence count:` + (N≥2) `Invariant:` fields (gate-compliant by construction); new `/session-continuity:spike-check` command (5-question stand-in checklist, proactive complement to proven-gate). Spec + plan: `meta/superpowers/{specs,plans}/2026-06-17-occurrence-counter-and-spike-check*`.
 - v0.9.0 shipped (squash-merged to `main` as `9de77fb`, PR #6 closed, tag `v0.9.0` pushed). Adds `hooks/proven-gate.sh`: a `PreToolUse` Write|Edit gate scoped to `*/specs/*.md` + `*/plans/*.md` that denies a "proven/verified/spike conclusive" claim unless the same content carries adjacent `Real path:` + `Stubbed:` fields. Whole-word claim match (`unproven`/`improven`/`confirmed` do not trigger). Escape hatch `Proven-gate: N/A — <reason>`. Hermetic fixture runner (`meta/superpowers/validation/2026-06-17-proven-gate-smoke.zsh`) 12/12; shellcheck clean. Wired as 3rd entry in `hooks.json` Write|Edit block. Mirrors `smoke-gate.sh` skeleton; sole deviation is the word-boundary match. Spec + plan: `meta/superpowers/{specs,plans}/2026-06-17-proven-gate*`.
 - v0.8.0 shipped: two fire-before-action gates (`learnings-surface.sh`, `smoke-gate.sh`) + `/learning` optional Trigger field.
@@ -129,11 +123,11 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-0f71ab3 chore(release): v0.10.0 — occurrence-gate + spike-check + learning fields
-8997fa5 feat(spike-check): add /spike-check stand-in checklist command (change-the-odds #3c)
-0b789c5 feat(learning): offer occurrence-count + invariant fields so /learning authors gate-compliant entries
-1323fd1 feat(occurrence-gate): block 2nd-occurrence LEARNINGS entries lacking an invariant (change-the-odds #2)
-f6ca94e docs(plan): occurrence-counter gate + spike-check command (change-the-odds #2 + #3c)
+3941f55 feat: evidence, flaky, and backend-parity gates (v0.11.0) (#8)
+f71eac1 feat: occurrence-gate + spike-check (change-the-odds #2 + #3c) (#7)
+9de77fb feat(proven-gate): gate 'proven' claims in specs/plans (change-the-odds #1) (#6)
+12a463d chore: remove per-repo marketplace.json — catalog moved to talgolan/claude-plugins
+af46784 docs: expand README feature coverage, drop migration content (#4)
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
