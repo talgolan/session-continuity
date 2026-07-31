@@ -74,6 +74,19 @@ No external credentials or costs.
 
 ## Current state
 
+- **v0.12.0 shipped** (branch `feat/outstanding-items-verification`, commits
+  `dd59d4a` + `986b22a`). Adds outstanding-items verification to
+  `/session-continuity:end-session`: Step 1 now verifies each primer outstanding
+  item against actual repo state (grep/glob/file-exists checks) before the drift
+  check runs, computing a verdict (`still-open` / `appears-DONE` / `manual`) with
+  cited evidence. `appears-DONE` candidates route to the existing combined prompt
+  when drift exists (Case A), or surface as a standing ⚠️ in the Step 3 checklist
+  when drift-clean (Case D). Removal always requires explicit user confirmation —
+  a verdict never mutates the primer on its own. Step 3's Outstanding-items row
+  re-derives post-edit and reports per-item verdicts with inline evidence.
+  Validation matrix: `meta/superpowers/validation/2026-07-30-outstanding-items-verification.md`
+  (8 scenarios covering Cases A–D, never-auto-close invariant, edge cases). Pure
+  prose-skill change; no new files, hooks, or schemas.
 - **v0.11.0 shipped** (squash-merged to `main` as `3941f55`, PR #8). Adds 3 more
   executable gates, closing the remaining gap the user identified when asked "what
   must never be ignored" beyond CLAUDE.md's 4 core rules — 5 memory-logged feedback
@@ -123,11 +136,11 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-3941f55 feat: evidence, flaky, and backend-parity gates (v0.11.0) (#8)
-f71eac1 feat: occurrence-gate + spike-check (change-the-odds #2 + #3c) (#7)
-9de77fb feat(proven-gate): gate 'proven' claims in specs/plans (change-the-odds #1) (#6)
-12a463d chore: remove per-repo marketplace.json — catalog moved to talgolan/claude-plugins
-af46784 docs: expand README feature coverage, drop migration content (#4)
+986b22a feat(end-session): report outstanding-items verdicts in Step 3 checklist
+dd59d4a feat(end-session): verify outstanding items against code (Step 1)
+a822087 docs(plan): address review of outstanding-items verification plan
+eb4e7ba docs(plan): outstanding-items verification implementation plan
+1e8944e docs(spec): address review of outstanding-items verification
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
