@@ -67,7 +67,16 @@ Read the current `commands/end-session.md` Step 1 (lines 33–79). Confirm there
 
 - [ ] **Step 3: Write the verification sub-block**
 
-Insert immediately after the Step 1 heading and its one-line intro, before `### Drift check`:
+First, amend the Step 1 intro line (currently `commands/end-session.md:35`: *"Before prompting the user for anything, run a drift check…"*) so the order-of-operations prose matches the new first-runs sub-block. Replace it with:
+
+```markdown
+Before prompting the user for anything, first verify the primer's outstanding
+items against code (below), then run a drift check. The goal: if the primer is
+already in sync with the repo, do nothing and record a no-op. Only enter the
+refresh flow when something actually changed.
+```
+
+Then insert the sub-block immediately after that intro, before `### Drift check`:
 
 ````markdown
 ### Outstanding-items verification (runs first, unconditionally)
@@ -77,9 +86,12 @@ repo state. This runs on EVERY invocation — drift-clean or not — because a
 stale item can outlive a drift-clean primer. Compute each verdict once here;
 Step 3 reuses these verdicts.
 
-**Skip conditions.** If the primer has no `^## Outstanding items` heading
-(custom-modified primer), skip verification silently — the Step 3 row will
-read `Outstanding items: none tracked`. Likewise if the section is empty.
+**Skip conditions.** Same as the overlay's existing skip clause (the "Skip
+conditions" bullet in the Refresh flow): if the primer has no
+`^## Outstanding items` heading (custom-modified primer), skip verification
+silently. Additionally, when skipped, the Step 3 row reads
+`Outstanding items: none tracked`. Likewise skip if the section is present but
+empty.
 
 **For each top-level numbered item** under `## Outstanding items` (scope the
 item exactly as the overlay does: the numbered line plus indented continuation
@@ -130,13 +142,18 @@ Removal of any item always requires explicit user confirmation. A verdict never
 mutates the primer on its own.
 ````
 
-Then, in the existing `### Refresh flow` overlay step (currently line ~52–70, the "Surface commits since the last primer refresh, with outstanding-items overlay" bullet), add one sentence so the two candidate sources are unified:
+Then, in the existing `### Refresh flow` overlay step (currently line ~52–70, the "Surface commits since the last primer refresh, with outstanding-items overlay" bullet), amend the **Presentation** clause (currently line ~66: *"When no matches exist, omit the block entirely"*) so the block also renders for verification candidates. Replace that clause with:
 
 ```markdown
-   In addition to token-overlap matches from commit subjects, include any
-   `appears-DONE` items from the Outstanding-items verification sub-block above
-   as close-candidates in this same overlay (cite their code evidence).
+   **Presentation.** Render the "May close outstanding items" block when EITHER
+   token-overlap matches from commit subjects OR `appears-DONE` items from the
+   Outstanding-items verification sub-block above exist. Cite each candidate:
+   commit-subject matches as `<sha> → item #<N>`, verification candidates as
+   `item #<N> (<cited code evidence>)`. Omit the block only when BOTH sources
+   are empty (do not print an empty section).
 ```
+
+**Why this override matters:** the current clause omits the block "when no matches exist" — meaning an `appears-DONE` item with zero commit-token overlap would be silently dropped from the prompt. The amended clause makes the block render whenever verification produces a candidate, independent of commit-subject matching.
 
 - [ ] **Step 4: Verify it passes (walkthrough)**
 
@@ -167,6 +184,8 @@ Add the `Outstanding items` reporting row to the Final checklist, update the che
 **Interfaces:**
 - Consumes: the per-item verdicts computed in Task 1's Step 1 sub-block; the post-edit primer (after any Step 1 closures the user confirmed).
 - Produces: one new checklist row with a ✓/⚠️ marker and per-item verdict summary.
+
+**Step 4 sign-off — no edit needed (verified).** The new ⚠️ Outstanding-items row can flip a previously all-✓ session to the warning state (e.g. a drift-clean session with a stale `appears-DONE` item). This requires NO change to Step 4: its logic already branches on "any ⚠️ row" generically (`If every checklist row was ✓` vs `If any checklist row had ⚠️`), so the new row is picked up automatically. This task deliberately does not touch Step 4 — noting it here so a reviewer doesn't flag the omission as a gap.
 
 - [ ] **Step 1: Write the failing check (validation case)**
 
@@ -220,7 +239,7 @@ In the "Gather the facts" list (line ~299), add a note that the outstanding-item
 
 - [ ] **Step 5: Update the Example output**
 
-Replace the existing example block (lines ~342–351) so it includes the new row (self-consistent counts: 5 tracked, one appears-DONE lingering under drift-clean):
+Replace the existing example block (lines ~342–351) so it includes the new row. **Scenario for this example: drift was detected (so "Primer refreshed and staged"), the `appears-DONE` #4 was offered at the Step 1 prompt, and the user declined to close it — so it lingers as ⚠️.** This is the only scenario where "refreshed" and a lingering ⚠️ coexist; a drift-clean session would instead show `Primer already current (no-op)`. Counts are self-consistent (5 tracked = 1 appears-DONE + 1 still-open + 3 manual):
 
 ````markdown
 ```
@@ -251,33 +270,52 @@ Add one bullet to the Step 4 Notes list (line ~373+):
 
 Walk Case C: 5 items, close #4 at prompt → Step 3 re-reads primer → 4 items, checkmark. Walk Case D: 5 items, drift-clean, #4 appears-DONE → row shows 5 items, warning. Both hold against the edited prose.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 8: Bump version + CHANGELOG (same commit as this, the last feature-code change)**
+
+The Global Constraint requires the version bump + CHANGELOG block to land in the SAME commit as the feature. Task 2 is the last commit that touches feature code (`commands/end-session.md`), so the bump rides here — NOT in Task 3 (which is validation + primer only).
+
+Edit `plugin.json`: `"version": "0.11.0"` → `"0.12.0"`. Add a `CHANGELOG.md` `[0.12.0]` block:
+
+```markdown
+## [0.12.0]
+
+### Added
+- `/session-continuity:end-session` now verifies the primer's outstanding items
+  against actual repo state. Each item is classified code-verifiable or not;
+  code items get an evidence-gated `grep`/`glob`/file-exists check with a
+  `still-open` / `appears-DONE` / `manual` verdict. `appears-DONE` items surface
+  as close-candidates at Step 1's existing combined prompt (when drift fires) or
+  as a standing warning in the new Step 3 checklist row (when drift-clean).
+  Verdicts never auto-close an item — removal always requires explicit user
+  confirmation.
+```
+
+- [ ] **Step 9: Commit (feature + version bump together)**
 
 ```bash
-git add commands/end-session.md
+git add commands/end-session.md plugin.json CHANGELOG.md
 git commit -m "feat(end-session): report outstanding-items verdicts in Step 3 checklist
 
 Add an Outstanding-items row to the Final checklist. Re-derives the item set
 from the post-edit primer (reusing Step 1 verdicts, not cached counts);
 checkmark when nothing stale, warning when an appears-DONE item still lists.
-Updates the worked example and Notes."
+Updates the worked example and Notes. Bumps plugin.json 0.11.0 -> 0.12.0 and
+adds the CHANGELOG [0.12.0] block (same commit as the feature per convention)."
 ```
 
 ---
 
-## Task 3: Validation matrix + version bump + primer refresh
+## Task 3: Validation matrix + primer refresh
 
-Write the manual validation log, bump the version, add the CHANGELOG block, refresh the primer, and run the in-repo manual check. This is the deliverable that proves the feature holds end-to-end.
+Write the manual validation log, refresh the primer, and run the in-repo manual check. This is the deliverable that proves the feature holds end-to-end. (Version bump + CHANGELOG already landed in Task 2's commit alongside the feature code — do NOT re-bump here.)
 
 **Files:**
 - Create: `meta/superpowers/validation/2026-07-30-outstanding-items-verification.md`
-- Modify: `plugin.json` (`0.11.0` → `0.12.0`)
-- Modify: `CHANGELOG.md` (add `[0.12.0]` block)
 - Modify: `.session-continuity/SESSION_PRIMER.md` (refresh current-state + log block)
 
 **Interfaces:**
-- Consumes: the edited `commands/end-session.md` from Tasks 1–2.
-- Produces: a filled validation matrix covering Cases A–D plus the never-auto-close invariant case; a shipped v0.12.0.
+- Consumes: the edited `commands/end-session.md` from Tasks 1–2; the v0.12.0 bump already committed in Task 2.
+- Produces: a filled validation matrix covering Cases A–D plus the never-auto-close invariant case.
 
 - [ ] **Step 1: Write the validation matrix log**
 
@@ -306,40 +344,25 @@ grep -rn 'docs/' hooks/ | wc -l
 
 Expected: `>0` (the `docs/` fallback is deliberately kept until v1.0.0) → item 4 verdict is `still-open` today, NOT `appears-DONE`. Record the actual count in the matrix.
 
-- [ ] **Step 3: Bump version + CHANGELOG**
+- [ ] **Step 3: Refresh the primer**
 
-Edit `plugin.json`: `"version": "0.11.0"` → `"0.12.0"`. Add a `CHANGELOG.md` `[0.12.0]` block:
+Update `.session-continuity/SESSION_PRIMER.md`: regenerate the `git log --oneline -5` block against the current branch (it will now include Task 2's feature+bump commit), and add a v0.12.0 current-state bullet describing this feature as shipped.
 
-```markdown
-## [0.12.0]
-
-### Added
-- `/session-continuity:end-session` now verifies the primer's outstanding items
-  against actual repo state. Each item is classified code-verifiable or not;
-  code items get an evidence-gated `grep`/`glob`/file-exists check with a
-  `still-open` / `appears-DONE` / `manual` verdict. `appears-DONE` items surface
-  as close-candidates at Step 1's existing combined prompt (when drift fires) or
-  as a standing warning in the new Step 3 checklist row (when drift-clean).
-  Verdicts never auto-close an item — removal always requires explicit user
-  confirmation.
-```
-
-- [ ] **Step 4: Refresh the primer**
-
-Update `.session-continuity/SESSION_PRIMER.md`: regenerate the `git log --oneline -5` block against the current branch, and add a v0.12.0 current-state bullet describing this feature as shipped. Stage it to ride with this commit (never a primer-only commit).
-
-- [ ] **Step 5: Verify (self-review the matrix against the edited skill)**
+- [ ] **Step 4: Verify (self-review the matrix against the edited skill)**
 
 Re-read Tasks 1–2 prose and confirm every Scenario 1–8 Expected is actually produced by the prose. Any mismatch → fix the prose (loop back to the relevant task), not the matrix.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
+
+This commit carries the validation matrix (a substantive artifact) plus the primer refresh riding alongside it — not a primer-only commit.
 
 ```bash
-git add plugin.json CHANGELOG.md meta/superpowers/validation/2026-07-30-outstanding-items-verification.md .session-continuity/SESSION_PRIMER.md
-git commit -m "docs: v0.12.0 validation matrix + version bump for outstanding-items verification
+git add meta/superpowers/validation/2026-07-30-outstanding-items-verification.md .session-continuity/SESSION_PRIMER.md
+git commit -m "docs: validation matrix + primer refresh for outstanding-items verification
 
-Manual validation matrix (8 scenarios incl. never-auto-close invariant),
-plugin.json 0.11.0 -> 0.12.0, CHANGELOG [0.12.0] block, primer refresh."
+Manual validation matrix (8 scenarios incl. never-auto-close invariant) and
+primer refresh. Version bump + CHANGELOG landed with the feature in the prior
+commit."
 ```
 
 ---
@@ -357,7 +380,8 @@ plugin.json 0.11.0 -> 0.12.0, CHANGELOG [0.12.0] block, primer refresh."
 | Placement above drift branch | Task 1 Step 3 (sub-block placement) |
 | Drift-clean → no prompt, standing warning | Task 1 Step 3 (routing) + Task 3 Scenario 4 |
 | Step 3 re-derives post-edit | Task 2 Step 3 |
-| New checklist row + marker | Task 2 Step 3 + Step 5 |
+| New checklist row + marker | Task 2 Step 3 + Step 5 (example) |
+| Version bump + CHANGELOG in feature commit | Task 2 Step 8–9 |
 | Edge: no heading / zero items | Task 1 Step 3 (skip conditions) + Task 3 Scenario 8 |
 | Edge: sub-bullet scoping | Task 1 Step 3 (scope rule) |
 | Edge: ambiguous grep → manual | Task 1 Step 3 (bias rule) + Task 3 Scenario 7 |
@@ -367,7 +391,7 @@ No gaps.
 
 **2. Placeholder scan:** The validation log's `Actual/Result` fields are deliberate `_(filled at validation time)_` markers matching the established precedent — these are runtime-recorded, not plan placeholders. All prose inserts contain the actual verbatim text to add. No "TBD"/"handle edge cases"/"similar to Task N".
 
-**3. Type consistency:** Verdict labels `still-open` / `appears-DONE` / `manual` are spelled identically in Task 1 (definition), Task 2 (row + example), and Task 3 (scenarios). "Outstanding-items verification" sub-block name is consistent across Task 1 and Task 2's cross-references. Version `0.11.0 → 0.12.0` consistent in Task 3 Steps 3–6.
+**3. Type consistency:** Verdict labels `still-open` / `appears-DONE` / `manual` are spelled identically in Task 1 (definition), Task 2 (row + example), and Task 3 (scenarios). "Outstanding-items verification" sub-block name is consistent across Task 1 and Task 2's cross-references. Version `0.11.0 → 0.12.0` appears once, in Task 2 Step 8 (the feature commit) — Task 3 no longer re-bumps.
 
 ---
 
