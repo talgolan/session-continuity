@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.1] — 2026-08-06
+
+### Fixed
+- **`smoke-gate.sh` line-level false positive.** The weak-smoke branch treated
+  any co-occurrence of `smoke` and a weak-word (`optional`/`deferred`/
+  `after-merge`/`nice-to-have`) on one line as a disqualifying "smoke task is
+  optional" — even when the weak-word modified something unrelated in the same
+  long sentence, or negated it ("smoke is MANDATORY — never deferred"). That
+  blocked legitimate plan writes with a message that named no offending line.
+  Three-part fix: (1) an explicit `MANDATORY` co-occurring with `smoke` on a
+  line now passes the gate unconditionally, checked before the weak-smoke
+  branch; (2) a weak-word only disqualifies when it sits adjacent to `smoke`
+  (within ~20 non-period chars, either order), so incidental prose no longer
+  trips it; (3) the deny reason now echoes the matched line so the trigger is
+  diagnosable. Escape hatch (`Smoke: N/A — <reason>`), the no-smoke branch,
+  plan-file self-scoping, and the output contract are unchanged.
+
+### Compatibility
+- Additive/behavioral bugfix. Plans previously blocked by incidental
+  co-occurrence now pass; genuinely optional/deferred smoke tasks are still
+  denied. No migration. Upgrading installs gain the fix on next session.
+
 ## [0.12.0] — 2026-07-30
 
 ### Added

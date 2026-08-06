@@ -74,6 +74,20 @@ No external credentials or costs.
 
 ## Current state
 
+- **v0.12.1 shipped** (branch `fix/smoke-gate-false-positive`). Fixes a
+  line-level false positive in `hooks/smoke-gate.sh`: the weak-smoke branch
+  denied any line where `smoke` co-occurred with a weak-word
+  (`optional`/`deferred`/`after-merge`/`nice-to-have`), even when the weak-word
+  modified something unrelated in the same sentence or negated it ("smoke is
+  MANDATORY — never deferred"). Three-part fix: (1) explicit `MANDATORY`
+  co-occurring with `smoke` on a line passes unconditionally, checked before the
+  weak-smoke branch; (2) weak-word only disqualifies when adjacent to `smoke`
+  (`smoke[^.]{0,20}(weak)` or reverse); (3) deny reason echoes the matched line.
+  Escape hatch, no-smoke branch, plan self-scoping, output contract all
+  preserved. New hermetic runner
+  `meta/superpowers/validation/2026-08-06-smoke-gate-smoke.zsh` 13/13; full
+  validation suite 85/85 green. Diagnosis report lived in the sibling
+  smoke-test-plugin (`SMOKE_GATE_FALSE_POSITIVE.md`). `plugin.json` 0.12.0→0.12.1.
 - **v0.12.0 shipped** (branch `feat/outstanding-items-verification`, commits
   `dd59d4a` + `986b22a`). Adds outstanding-items verification to
   `/session-continuity:end-session`: Step 1 now verifies each primer outstanding

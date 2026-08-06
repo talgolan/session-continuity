@@ -76,6 +76,14 @@ printf '{"tool_input":{"command":"git commit -m test"},"cwd":"/tmp/sc-dev"}' | \
 
 Hook output validates as JSON (for `pre-commit-check.sh`) or plain text (for `session-start.sh`). See the existing scripts for the expected shape.
 
+The PreToolUse gate hooks (`proven-gate`, `evidence-gate`, `smoke-gate`, …) each
+have a hermetic zsh smoke runner under `meta/superpowers/validation/`. Run one
+before and after changing its hook:
+
+```bash
+zsh meta/superpowers/validation/2026-08-06-smoke-gate-smoke.zsh
+```
+
 ## Project structure
 
 ```
