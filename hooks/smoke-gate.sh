@@ -73,13 +73,33 @@ deny() {
   exit 0
 }
 
+# Explicit-MANDATORY pass: if any line has "smoke" and the word MANDATORY
+# co-occurring (either order), the author has affirmatively declared the smoke
+# task mandatory — pass unconditionally. This must run BEFORE the weak-smoke
+# branch, so a "Smoke: MANDATORY" declaration is never overridden by an
+# incidental weak-word elsewhere, and a negation line ("smoke is MANDATORY —
+# never deferred/after-merge") is honored, not punished.
+if printf '%s' "$content" \
+     | grep -Eiq 'smoke.*\bMANDATORY\b|\bMANDATORY\b.*smoke'; then
+  exit 0
+fi
+
 mentions_smoke="$(printf '%s' "$content" | grep -ci 'smoke' || true)"
 
-# (1) weak-smoke
+# (1) weak-smoke — only when a weak-word sits ADJACENT to "smoke" (within ~20
+# non-period chars, either order), so it actually modifies the smoke task.
+# Line-scoped co-occurrence is not enough: prose routinely pairs "smoke" with
+# an unrelated "optional"/"deferred" on one long sentence. grep runs per line,
+# so the period-stop ([^.]) keeps the match inside one sentence.
+weak='optional|deferred|after.?merge|nice.?to.?have'
 if [ "${mentions_smoke:-0}" -gt 0 ]; then
-  if printf '%s' "$content" | grep -i 'smoke' \
-       | grep -Eiq 'optional|deferred|after.?merge|nice.?to.?have'; then
-    deny "Smoke task is marked optional/deferred. Engine/binary features need a MANDATORY smoke task — part of done, never deferred/after-merge. Re-mark it MANDATORY, or add a line: Smoke: N/A — <reason> if this plan genuinely touches no binary/engine."
+  offender="$(printf '%s' "$content" \
+    | grep -Ei "smoke[^.]{0,20}($weak)|($weak)[^.]{0,20}smoke" \
+    | head -1)"
+  if [ -n "$offender" ]; then
+    # JSON-escape the captured line: backslash first, then double-quote.
+    offender_esc="$(printf '%s' "$offender" | sed -E 's/\\/\\\\/g; s/"/\\"/g')"
+    deny "Smoke task looks optional/deferred (matched: \"${offender_esc}\"). If this is incidental prose, reword; if the smoke task is truly mandatory, add the word MANDATORY on a smoke line, or add a line: Smoke: N/A — <reason> if this plan genuinely touches no binary/engine."
   fi
   exit 0
 fi
