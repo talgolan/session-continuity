@@ -11,6 +11,7 @@ within each group.
 ## Claude Code plugin mechanics
 
 ### 2. awk CHANGELOG range collapses on single-version files
+Trigger: * /release\.yml/
 
 **The trap.** In the release workflow, extracting one version's CHANGELOG section with `awk "/^## \[${version}\]/,/^## \[/"` looks right — "print from the version header to the next version header." It works fine on multi-version files, so it's easy to ship.
 
@@ -39,6 +40,7 @@ The original awk range fails because the same pattern matches both the start and
 ## Slash command skill authoring
 
 ### 6. Stale path references in slash-command bodies survive plugin path migrations
+Trigger: * /docs\/SESSION_PRIMER\.md|docs\/LEARNINGS\.md/
 
 **The trap.** v0.5.0 relocated `docs/SESSION_PRIMER.md` + `docs/LEARNINGS.md` to `.session-continuity/`. The hooks (`session-start.sh`, `pre-commit-check.sh`), templates, top-level `SKILL.md`, and `commands/primer.md` were all updated. `commands/end-session.md` was *partly* updated — but its first paragraph still introduces the command as refreshing "`docs/SESSION_PRIMER.md`," its Step 0 preflight checks `docs/LEARNINGS.md`, its Step 1.5 stages `docs/SESSION_PRIMER.md`, its Step 2 capture flow stages `docs/LEARNINGS.md`, and its Suggested-commit pattern still says "Only `docs/` staged →." The slash command kept working because Claude reads the *actual* file via the `.session-continuity/` Step-0 heuristic added later — but the body's prose is misleading and the suggested-commit path rule is wrong for any v0.5.0+ install.
 
@@ -51,6 +53,7 @@ The original awk range fails because the same pattern matches both the start and
 ---
 
 ### 5. Superpowers-style upstream skills hardcode `docs/superpowers/{specs,plans}/` and silently re-create deleted directories
+Trigger: Write /docs\/superpowers\//
 
 **The trap.** The `superpowers:brainstorming` and `superpowers:writing-plans` skills both default their output paths to `docs/superpowers/specs/YYYY-MM-DD-*.md` and `docs/superpowers/plans/YYYY-MM-DD-*.md`. Their skill bodies say "User preferences for spec location override this default" — but that override has to live somewhere Claude actually reads at every brainstorming invocation. A project that *moved* its agent meta-artifacts (e.g., to `meta/superpowers/`) and deleted the `docs/superpowers/` directory will have it silently re-created by the next brainstorming session, producing a duplicate-tree pair.
 
@@ -63,6 +66,7 @@ The original awk range fails because the same pattern matches both the start and
 ---
 
 ### 4. Init-mode commits can leak `{{PLACEHOLDER}}` tokens when the user skips ahead
+Trigger: Bash /git commit/
 
 **The trap.** The primer command's init mode copies templates, fills in derivable fields, and "asks the user for the blanks." Reads fine. But the command prose doesn't say what Claude should do if the user *never answers* — pastes a `git commit` command or says "commit it" before filling in the blanks. Claude's default is to stage and proceed with the placeholders still present, so the committed file ends up containing literal `{{PACKAGE_1}}`, `{{ITEM_1_BODY}}`, etc.
 
@@ -75,6 +79,7 @@ The original awk range fails because the same pattern matches both the start and
 ---
 
 ### 3. Checklist-style prose needs an explicit "enumerate, don't summarize" rule
+Trigger: Write /commands\/.*\.md/
 
 **The trap.** A slash command that instructs Claude to "emit a ✓ / ⚠️ checklist of the staged files from `git diff --cached --name-only`" reads like a complete instruction. It isn't. Claude's default is to *summarize* tool output when embedding it in a response — so if `git diff --cached` returns two files, the checklist row might still list only the "most relevant" one.
 

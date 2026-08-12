@@ -179,8 +179,6 @@ Regenerate this block whenever you commit — see "Primer maintenance" below.
 
 4. **Plan to drop the `docs/` fallback in hooks.** v0.5.0 keeps dual-path support indefinitely. A future v1.0.0 can remove the fallback once the auto-migration has had time to land in every user's repo.
 
-5. **Add captured learnings from the v0.4.0 session.** Three candidates still open (install-command-form verification via WebFetch, pipefail+grep/head/sed regression, `.claude/settings.json` auto-population hygiene, `GITHUB_REF_NAME` awk injection) — worth a `/session-continuity:learning` pass each. Placeholder-leakage already captured as LEARNINGS #4.
-
 ## Workflow conventions
 
 - **Bun is the runtime** for any JS/TS tooling added to this repo.
