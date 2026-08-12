@@ -74,8 +74,19 @@ if printf '%s' "$content" | grep -Eiq 'Evidence-gate:[[:space:]]*N/A[[:space:]]*
   exit 0
 fi
 
+# Escape a value for embedding in a JSON string literal. Backslash first, then
+# double-quote — the reverse order re-escapes the backslashes the quote rule
+# just inserted. Raw control characters are illegal inside a JSON string
+# (RFC 8259) and make the payload unparseable, so every C0 byte (0x00-0x1F —
+# tab and newline are the ones a grep capture is likely to carry, but the
+# fold covers the whole range, not just those) collapses to a space.
+json_escape() {
+  printf '%s' "$1" | sed -E 's/\\/\\\\/g; s/"/\\"/g' | tr '\000-\037' ' '
+}
+
 deny() {
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$1"
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' \
+    "$(json_escape "$1")"
   exit 0
 }
 

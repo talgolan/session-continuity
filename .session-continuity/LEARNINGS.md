@@ -127,6 +127,27 @@ exit 0
 
 Plain stdout from `PreToolUse` is written only to debug logs, never injected. Source: https://code.claude.com/docs/en/hooks.md (sections "stdout Context Injection" and "Decision Control with JSON Output").
 
+**Second trap — valid shape, invalid JSON (2026-08-12).** Emitting the right
+keys is not the same as emitting parseable JSON. `proven-gate` and `smoke-gate`
+built the object with `printf` and interpolated a reason containing a literal
+`"` — `Stubbed: <what stood in, or \"nothing\">` in one, a `\"${offender}\"`
+wrapper around a captured line in the other. The string terminates early, the
+payload does not parse, and the author sees a parse error where the reason
+should be. The gate still blocks, so nothing unsafe is written; it is
+undiagnosable, which reads as a broken tool.
+
+Both hooks' runners were green throughout, because they assert with
+`[[ "$out" == *deny* ]]`. The substring `deny` is present in malformed output
+too, so the assert measures a proxy, not the invariant. The smoke-gate case
+arrived in v0.12.1 — in the change whose stated purpose was to make denials
+diagnosable by echoing the matched line.
+
+**Invariant:** every JSON object a hook writes parses. Enforced in
+`meta/superpowers/validation/2026-08-12-hook-json-contract-smoke.zsh`, which
+pipes each gate's deny output through a real parser and fails when a
+`hooks/*-gate.sh` has no fixture. When you add a gate, add a fixture. Assert on
+parsed structure, never on a substring of serialized output.
+
 **Diagnostic signal.** If a hook's bash smoke tests emit text correctly but Claude ignores it in a live session, the hook's event type probably has a different contract than `SessionStart`. Check the hooks.md matrix before assuming plain stdout works.
 
 ---

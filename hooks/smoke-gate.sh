@@ -68,8 +68,19 @@ if printf '%s' "$content" | grep -Eiq 'Smoke:[[:space:]]*N/A[[:space:]]*(—|--)
   exit 0
 fi
 
+# Escape a value for embedding in a JSON string literal. Backslash first, then
+# double-quote — the reverse order re-escapes the backslashes the quote rule
+# just inserted. Raw control characters are illegal inside a JSON string
+# (RFC 8259) and make the payload unparseable, so every C0 byte (0x00-0x1F —
+# tab and newline are the ones a grep capture is likely to carry, but the
+# fold covers the whole range, not just those) collapses to a space.
+json_escape() {
+  printf '%s' "$1" | sed -E 's/\\/\\\\/g; s/"/\\"/g' | tr '\000-\037' ' '
+}
+
 deny() {
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$1"
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' \
+    "$(json_escape "$1")"
   exit 0
 }
 
@@ -97,9 +108,7 @@ if [ "${mentions_smoke:-0}" -gt 0 ]; then
     | grep -Ei "smoke[^.]{0,20}($weak)|($weak)[^.]{0,20}smoke" \
     | head -1)"
   if [ -n "$offender" ]; then
-    # JSON-escape the captured line: backslash first, then double-quote.
-    offender_esc="$(printf '%s' "$offender" | sed -E 's/\\/\\\\/g; s/"/\\"/g')"
-    deny "Smoke task looks optional/deferred (matched: \"${offender_esc}\"). If this is incidental prose, reword; if the smoke task is truly mandatory, add the word MANDATORY on a smoke line, or add a line: Smoke: N/A — <reason> if this plan genuinely touches no binary/engine."
+    deny "Smoke task looks optional/deferred (matched: \"${offender}\"). If this is incidental prose, reword; if the smoke task is truly mandatory, add the word MANDATORY on a smoke line, or add a line: Smoke: N/A — <reason> if this plan genuinely touches no binary/engine."
   fi
   exit 0
 fi
