@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.2] — 2026-08-12
+
+### Fixed
+- **Unreadable blocks from `proven-gate` and `smoke-gate`.** Both built their
+  deny payload by interpolating the reason into a hand-written JSON string, so
+  a reason containing a double quote terminated the string early and the object
+  did not parse. `proven-gate` hit this on every block (its reason quotes the
+  word `"nothing"`); `smoke-gate` hit it on the weak-word branch added in
+  0.12.1, which wraps the matched line in quotes. The gate still blocked, but
+  the reason never reached the author, so there was no way to see which field
+  was missing or which escape hatch applied. `deny()` now JSON-escapes its
+  argument in all six gates — backslash before quote, with every C0 control
+  byte (0x00-0x1F, not just tab/newline/CR) folded to a space, since raw
+  control characters are illegal inside a JSON string. Gate behaviour (what
+  denies, what passes) is unchanged.
+
+### Added
+- **`2026-08-12-hook-json-contract-smoke.zsh`.** Pipes every gate's deny output
+  through a real JSON parser instead of substring-matching it, which is why the
+  defect above shipped green, and fails when a `hooks/*-gate.sh` has no fixture
+  so new gates cannot skip the check.
+
 ## [0.12.1] — 2026-08-06
 
 ### Fixed
