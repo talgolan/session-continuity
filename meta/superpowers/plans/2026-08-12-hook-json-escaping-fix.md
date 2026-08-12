@@ -62,7 +62,7 @@ Every JSON object any hook in this plugin writes to stdout parses as JSON, for e
 - **Artifact paths:** validation → `meta/superpowers/validation/`, plans → `meta/superpowers/plans/` (CLAUDE.md). Not `docs/`.
 - **Output contract (LEARNINGS #1):** deny is `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"…"}}` + `exit 0`. Silent allow is bare `exit 0`. This plan does not change the contract, only the encoding of the reason.
 - **Escape order matters:** backslash first, then double-quote. Reversing it re-escapes the backslashes the quote rule just inserted.
-- **Control characters:** raw tab, newline, and CR are illegal inside a JSON string (RFC 8259) and `json.load` rejects them. `smoke-gate` interpolates a line captured by `grep`, which can carry a tab.
+- **Control characters:** any raw C0 control byte (`0x00`–`0x1F` — tab, newline, CR, and the rest) is illegal inside a JSON string (RFC 8259) and `json.load` rejects it. `smoke-gate` interpolates a line captured by `grep`, which can carry a tab; fold the whole C0 range, not just `\n\t\r`, so the invariant holds for any control byte a future capture might carry, not only the three seen so far.
 - **Self-reference trap (LEARNINGS #7):** verify only through the fixture runner. Never self-scan a real spec or plan to check a gate.
 - **Sandbox artifact, not a repo bug:** `learnings-surface.sh:87` (`done <<< "$entries"`) and `occurrence-gate.sh:83` (`done <<EOF`) need a temp file for the here-document. Under a restricted sandbox that write is denied, and `2026-06-15-fire-before-action-smoke.zsh` reports 9/3 and `2026-06-17-occurrence-gate-smoke.zsh` reports 5/7 for that reason alone. Run the suite in a normal shell, where all seven runners are expected green before you start. If they are not, stop — that is a different problem than this one.
 - **Working tree:** `main` currently carries an unstaged `.session-continuity/SESSION_PRIMER.md` and an untracked `.itb.json`. Neither belongs to this fix. Branch off, and stage files by explicit path — never `git add -A`.
@@ -142,9 +142,19 @@ parses "occurrence-gate: repeat, no invariant" \
 # Adversarial reasons: a captured line carrying the characters that break a
 # hand-built JSON string. smoke-gate echoes the matched line into its reason,
 # so these exercise the interpolation path end to end.
+#
+# Both fixture strings are pre-encoded as if they were already valid JSON
+# content (this repo's hooks read tool_input off the raw JSON text, so a
+# real payload always arrives properly escaped). `\\\"` (JSON-decodes to one
+# literal backslash + one literal quote) puts an actual `"` next to "old" in
+# the decoded content, so the captured offender line itself carries a quote.
+# `\\\\` (JSON-decodes to two literal backslashes) puts two literal `\`
+# bytes in the decoded path text — more than the single backslash a real
+# Windows-style path would carry, but it still exercises backslash-doubling
+# in json_escape() the same way one would.
 parses "smoke-gate: offender line with quotes" \
   smoke-gate.sh "$(plan_payload 'The smoke test is optional per the \\\"old\\\" policy.')"
-parses "smoke-gate: offender line with a backslash" \
+parses "smoke-gate: offender line with backslashes" \
   smoke-gate.sh "$(plan_payload 'The smoke test is optional, see C:\\\\tmp\\\\notes.')"
 
 # Completeness: every gate must own at least one fixture above. A newly added
@@ -211,10 +221,11 @@ Replacement:
 # Escape a value for embedding in a JSON string literal. Backslash first, then
 # double-quote — the reverse order re-escapes the backslashes the quote rule
 # just inserted. Raw control characters are illegal inside a JSON string
-# (RFC 8259) and make the payload unparseable, so tab/newline/CR fold to a
-# space; reasons that interpolate a captured line can carry a tab.
+# (RFC 8259) and make the payload unparseable, so every C0 byte (0x00-0x1F —
+# tab and newline are the ones a grep capture is likely to carry, but the
+# fold covers the whole range, not just those) collapses to a space.
 json_escape() {
-  printf '%s' "$1" | sed -E 's/\\/\\\\/g; s/"/\\"/g' | tr '\n\t\r' '   '
+  printf '%s' "$1" | sed -E 's/\\/\\\\/g; s/"/\\"/g' | tr '\000-\037' ' '
 }
 
 deny() {
@@ -357,9 +368,10 @@ No README change: the gates' user-visible behavior is unchanged, and the README 
   0.12.1, which wraps the matched line in quotes. The gate still blocked, but
   the reason never reached the author, so there was no way to see which field
   was missing or which escape hatch applied. `deny()` now JSON-escapes its
-  argument in all six gates — backslash before quote, with tab/newline/CR
-  folded to a space, since raw control characters are illegal inside a JSON
-  string. Gate behaviour (what denies, what passes) is unchanged.
+  argument in all six gates — backslash before quote, with every C0 control
+  byte (0x00-0x1F, not just tab/newline/CR) folded to a space, since raw
+  control characters are illegal inside a JSON string. Gate behaviour (what
+  denies, what passes) is unchanged.
 
 ### Added
 - **`2026-08-12-hook-json-contract-smoke.zsh`.** Pipes every gate's deny output
@@ -404,7 +416,7 @@ The installed copy under `~/.claude/plugins/cache/talgolan/session-continuity/` 
 
 ## Deferred, with reasons
 
-- **`learnings-surface.sh:92` and `pre-commit-check.sh:101`** interpolate into `additionalContext` in the same hand-built style. `learnings-surface` escapes backslash and quote inline but not control characters; its titles come from a tab-separated table, so a tab cannot reach the value and no failure was observed. Same class, no reproduction — worth folding into the shared treatment later, out of scope for a fix whose value is that it is narrow and verifiable.
+- **`learnings-surface.sh:92` and `pre-commit-check.sh:101`** interpolate into `additionalContext` in the same hand-built style. `learnings-surface` escapes backslash and quote inline but not control characters; its titles come from a tab-separated table, so a tab cannot reach the value and no failure was observed. `pre-commit-check.sh:101` interpolates `$primer_rel` (the primer's repo-relative path, e.g. `.session-continuity/SESSION_PRIMER.md`) with **no** escaping at all, not even the inline backslash/quote pass `learnings-surface` has — safe only because that path is derived from the repo's own layout, never from file content or user input, so it cannot carry a quote or backslash in practice. Same class, no reproduction in either case — worth folding into the shared treatment later, out of scope for a fix whose value is that it is narrow and verifiable.
 - **The other runners' substring asserts** stay as they are. They own behavior, and the contract runner now owns encoding for all of them. Rewriting six runners to duplicate the parse check would spread the invariant instead of centralizing it.
 
 ## Self-review
