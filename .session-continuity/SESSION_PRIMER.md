@@ -74,6 +74,38 @@ No external credentials or costs.
 
 ## Current state
 
+- **v0.12.2 shipped** (branch `fix/hook-json-escaping`, PR #11, tag `v0.12.2`
+  pushed, GitHub Release published, live plugin install refreshed and
+  verified). Fixes `proven-gate.sh` and `smoke-gate.sh` emitting malformed
+  JSON on deny: a reason string containing a literal `"` broke their
+  hand-built `printf` JSON, so the block worked but the reason never
+  parsed — undiagnosable rather than unsafe. Root cause: every existing
+  per-gate runner asserted with a substring match on `deny`, which passes on
+  malformed JSON too, so this shipped green. Fix, in order:
+  1. New hermetic runner
+     `meta/superpowers/validation/2026-08-12-hook-json-contract-smoke.zsh`
+     parses each gate's deny output with a real JSON parser (`python3 -m
+     json`) instead of substring-matching it, and fails if any
+     `hooks/*-gate.sh` has no fixture — so a future gate can't skip the
+     check. Red on landing (4 failures: `proven-gate` + 3 `smoke-gate`
+     cases), 16/16 green after the fix.
+  2. All six gates' `deny()` (not just the two broken ones) now route the
+     reason through a `json_escape()` helper: backslash-then-quote
+     escaping, full C0 control-byte range (`0x00`-`0x1F`, not just
+     `\n\t\r`) folded to a space. `smoke-gate.sh`'s now-redundant
+     `offender_esc` pre-escape removed.
+  3. `.session-continuity/LEARNINGS.md` entry #1 gained a "Second trap"
+     addendum: a well-formed JSON *shape* isn't the same as parseable
+     JSON, and a substring assert can't tell the difference.
+  4. `plugin.json` 0.12.1→0.12.2, CHANGELOG entry added.
+  Full validation suite 8 runners / 101 checks green; shellcheck clean on
+  all six gates. Built via `superpowers:subagent-driven-development`
+  (fresh implementer + reviewer per task, final whole-branch review on the
+  most capable model — 1 Minor finding, non-blocking: the new runner's
+  coverage check verifies gate-name list membership, not fixture
+  existence, so CHANGELOG/LEARNINGS phrasing slightly overstates what's
+  machine-enforced). Plan:
+  `meta/superpowers/plans/2026-08-12-hook-json-escaping-fix.md`.
 - **v0.12.1 shipped** (branch `fix/smoke-gate-false-positive`). Fixes a
   line-level false positive in `hooks/smoke-gate.sh`: the weak-smoke branch
   denied any line where `smoke` co-occurred with a weak-word
@@ -150,11 +182,11 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-986b22a feat(end-session): report outstanding-items verdicts in Step 3 checklist
-dd59d4a feat(end-session): verify outstanding items against code (Step 1)
-a822087 docs(plan): address review of outstanding-items verification plan
-eb4e7ba docs(plan): outstanding-items verification implementation plan
-1e8944e docs(spec): address review of outstanding-items verification
+b75af34 feat(learnings): backfill Trigger lines, require them going forward
+8f05d0e fix(hooks): JSON-escape deny reasons (v0.12.2) (#11)
+4eb8d5c fix(hooks): scope smoke-gate weak-word to adjacency + honor MANDATORY (v0.12.1) (#10)
+5e3426c feat: outstanding-items code verification in end-session (v0.12.0) (#9)
+3941f55 feat: evidence, flaky, and backend-parity gates (v0.11.0) (#8)
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
@@ -178,6 +210,8 @@ Regenerate this block whenever you commit — see "Primer maintenance" below.
 3. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The auto-migration code path in primer's Migrate mode and the new `learning`-skill duplicate-detection guard are good candidates.
 
 4. **Plan to drop the `docs/` fallback in hooks.** v0.5.0 keeps dual-path support indefinitely. A future v1.0.0 can remove the fallback once the auto-migration has had time to land in every user's repo.
+
+5. **SessionStart should restate outstanding items and ask which to work on.** Right now `hooks/session-start.sh` only nudges Claude to read the primer; it doesn't surface the `## Outstanding items` list itself or prompt the user to pick one. Add that as a final step of session start — after the primer/LEARNINGS reminder, list the current outstanding items and ask the user which (if any) they want to tackle this session.
 
 ## Workflow conventions
 
