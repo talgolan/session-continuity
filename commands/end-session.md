@@ -144,7 +144,12 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
    **Wait for the answer before continuing.** Do not preemptively edit the list, clear items you interpret as "stale," or proceed based on your own reading. Do not split this into two sequential prompts — one prompt covers the same answer space.
 5. Apply the edits the user specified. If the user replied "no changes" (or similar), skip this step.
-6. Stage the updated primer: `git add .session-continuity/SESSION_PRIMER.md`.
+6. Stage the updated primer, and `PROJECT_CONTEXT.md` too if it has unstaged changes (e.g. the session edited repo layout / conventions):
+
+   ```bash
+   git add .session-continuity/SESSION_PRIMER.md
+   git diff --quiet .session-continuity/PROJECT_CONTEXT.md 2>/dev/null || git add .session-continuity/PROJECT_CONTEXT.md
+   ```
 
 **Do not** commit. Staging only.
 

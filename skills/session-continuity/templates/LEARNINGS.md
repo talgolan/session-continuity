@@ -8,6 +8,17 @@ within each group.
 
 ---
 
+## Symptoms index
+
+<!--
+  Fully derived — never hand-edit. The `/session-continuity:learning`
+  command regenerates this list from every entry's **Symptom.** line
+  each time it appends a new entry. Delete this comment once entries
+  exist; leave the section itself for the command to populate.
+-->
+
+---
+
 ## {{LAYER_1_NAME}}
 
 <!--
@@ -18,10 +29,17 @@ within each group.
 -->
 
 ### 1. {{ENTRY_TITLE}}
-<!-- Optional: a Trigger line resurfaces this entry BEFORE a matching action runs
-     (via the learnings-surface hook). Form: Trigger: <tool> /<regex>/  where
-     <tool> is Bash | Write | Edit | *. Delete if no mechanical trigger fits.
-     Example:  Trigger: Bash /smoke|run\.zsh/  -->
+<!-- Optional metadata lines, each on its own line directly under the heading,
+     in this order (omit any that don't apply):
+       Slug: <kebab-slug>             — stable cross-reference; other entries
+                                         can then write [[slug]] instead of "see #1"
+       Trigger: <tool> /<regex>/      — resurfaces this entry BEFORE a matching
+                                         action runs (via the learnings-surface
+                                         hook). <tool> is Bash | Write | Edit | *.
+                                         Example: Trigger: Bash /smoke|run\.zsh/
+       Occurrence count: <N of M>     — recurrence tracking for this bug class
+       Invariant: <end-state>         — REQUIRED once occurrence count reaches 2
+     Delete any line that doesn't fit this entry. -->
 
 **The trap.** {{WHAT_YOU_TRIED_THAT_SEEMED_REASONABLE}}
 

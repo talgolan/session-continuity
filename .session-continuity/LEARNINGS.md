@@ -8,9 +8,28 @@ within each group.
 
 ---
 
+## Symptoms index
+
+<!--
+  Fully derived — never hand-edit. The /session-continuity:learning
+  command regenerates this list from every entry's **Symptom.** line
+  each time it appends a new entry.
+-->
+
+- Clean-machine acceptance test for v0.4.0. /session-continuity:primer ran init mode cleanly,… — #4
+- Discovered when /session-continuity:end-session was invoked on this v0.6.0 session. — #6
+- In a live Claude session, the hook runs (verified via debug… — #1
+- The /session-continuity:end-session smoke test had two staged files (primer + src/foo.js). — #3
+- The Bash call is refused outright: "This session is isolated in… — #8
+- The first v0.2.0 release fired the workflow, created the GitHub… — #2
+- The self-gate check returned rc=0 (allowed) — but via the… — #7
+
+---
+
 ## Claude Code plugin mechanics
 
 ### 8. `git -C` and compound commands blocked inside a worktree-isolated session
+Slug: worktree-compound-commands-blocked
 Trigger: Bash /git\s+-C\s/
 
 **The trap.** Once EnterWorktree switches a session into a worktree, it feels natural to keep using `git -C <other-path>` to peek at another checkout, or to chain several `cd`/`git` statements into one Bash call, the way you would outside a worktree.
@@ -24,6 +43,7 @@ Trigger: Bash /git\s+-C\s/
 ---
 
 ### 2. awk CHANGELOG range collapses on single-version files
+Slug: changelog-awk-range-collapse
 Trigger: * /release\.yml/
 
 **The trap.** In the release workflow, extracting one version's CHANGELOG section with `awk "/^## \[${version}\]/,/^## \[/"` looks right — "print from the version header to the next version header." It works fine on multi-version files, so it's easy to ship.
@@ -53,6 +73,7 @@ The original awk range fails because the same pattern matches both the start and
 ## Slash command skill authoring
 
 ### 6. Stale path references in slash-command bodies survive plugin path migrations
+Slug: stale-path-refs-survive-migration
 Trigger: * /docs\/SESSION_PRIMER\.md|docs\/LEARNINGS\.md/
 
 **The trap.** v0.5.0 relocated `docs/SESSION_PRIMER.md` + `docs/LEARNINGS.md` to `.session-continuity/`. The hooks (`session-start.sh`, `pre-commit-check.sh`), templates, top-level `SKILL.md`, and `commands/primer.md` were all updated. `commands/end-session.md` was *partly* updated — but its first paragraph still introduces the command as refreshing "`docs/SESSION_PRIMER.md`," its Step 0 preflight checks `docs/LEARNINGS.md`, its Step 1.5 stages `docs/SESSION_PRIMER.md`, its Step 2 capture flow stages `docs/LEARNINGS.md`, and its Suggested-commit pattern still says "Only `docs/` staged →." The slash command kept working because Claude reads the *actual* file via the `.session-continuity/` Step-0 heuristic added later — but the body's prose is misleading and the suggested-commit path rule is wrong for any v0.5.0+ install.
@@ -66,6 +87,7 @@ Trigger: * /docs\/SESSION_PRIMER\.md|docs\/LEARNINGS\.md/
 ---
 
 ### 5. Superpowers-style upstream skills hardcode `docs/superpowers/{specs,plans}/` and silently re-create deleted directories
+Slug: superpowers-hardcoded-docs-path
 Trigger: Write /docs\/superpowers\//
 
 **The trap.** The `superpowers:brainstorming` and `superpowers:writing-plans` skills both default their output paths to `docs/superpowers/specs/YYYY-MM-DD-*.md` and `docs/superpowers/plans/YYYY-MM-DD-*.md`. Their skill bodies say "User preferences for spec location override this default" — but that override has to live somewhere Claude actually reads at every brainstorming invocation. A project that *moved* its agent meta-artifacts (e.g., to `meta/superpowers/`) and deleted the `docs/superpowers/` directory will have it silently re-created by the next brainstorming session, producing a duplicate-tree pair.
@@ -79,6 +101,7 @@ Trigger: Write /docs\/superpowers\//
 ---
 
 ### 4. Init-mode commits can leak `{{PLACEHOLDER}}` tokens when the user skips ahead
+Slug: init-mode-placeholder-leak
 Trigger: Bash /git commit/
 
 **The trap.** The primer command's init mode copies templates, fills in derivable fields, and "asks the user for the blanks." Reads fine. But the command prose doesn't say what Claude should do if the user *never answers* — pastes a `git commit` command or says "commit it" before filling in the blanks. Claude's default is to stage and proceed with the placeholders still present, so the committed file ends up containing literal `{{PACKAGE_1}}`, `{{ITEM_1_BODY}}`, etc.
@@ -92,6 +115,7 @@ Trigger: Bash /git commit/
 ---
 
 ### 3. Checklist-style prose needs an explicit "enumerate, don't summarize" rule
+Slug: checklist-enumerate-dont-summarize
 Trigger: Write /commands\/.*\.md/
 
 **The trap.** A slash command that instructs Claude to "emit a ✓ / ⚠️ checklist of the staged files from `git diff --cached --name-only`" reads like a complete instruction. It isn't. Claude's default is to *summarize* tool output when embedding it in a response — so if `git diff --cached` returns two files, the checklist row might still list only the "most relevant" one.
@@ -115,6 +139,7 @@ Applies generally: any time command prose tells Claude to produce an inventory f
 ## Hook scripting (SessionStart / PreToolUse)
 
 ### 7. A grep-based gate cannot reliably scan a plan that documents the gate's own syntax
+Slug: self-referential-gate-check
 Trigger: Write /smoke-gate|plans/.*\.md/
 
 **The trap.** The `smoke-gate` hook blocks plan writes whose smoke task is tagged optional/deferred, and offers a `Smoke: N/A — <reason>` escape hatch. Natural assumption: run the gate against this very plan as a dogfood check and expect a clean MANDATORY-smoke pass. But a plan that *documents the gate* contains the gate's own trigger strings — both the weak-smoke fixtures (`smoke runner (optional, after merge)`) and the literal `Smoke: N/A — <reason>` hatch text appear in the prose.
@@ -128,6 +153,7 @@ Trigger: Write /smoke-gate|plans/.*\.md/
 ---
 
 ### 1. PreToolUse hooks must emit JSON to reach Claude's context
+Slug: pretooluse-json-contract
 Trigger: Write /hooks/.*\.sh|hooks\.json/
 
 **The trap.** `SessionStart` hooks inject plain stdout into Claude's context — that's documented, straightforward, and works on the first try. When writing a `PreToolUse` hook, it's natural to reach for the same pattern: print a `<system-reminder>` block to stdout, exit 0. Bash-level smoke tests show the reminder firing. Looks done.

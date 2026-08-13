@@ -38,6 +38,7 @@ Prompt the user for each field. Show examples inline.
 6. **Trigger** (REQUIRED unless the bug has no tool-call shape at all): a tool + regex that the `learnings-surface` hook matches against the imminent command or file, so this entry resurfaces *before* the action instead of only after a symptom makes it greppable. Form: `<tool> /<regex>/` where `<tool>` is `Bash`, `Write`, `Edit`, or `*`. E.g. `Bash /smoke|run\.zsh/` to resurface a smoke-runner trap before a smoke run; `Write /path\/to\/file\.ext/` to fire when a specific file is touched. Before skipping, actively look for a file path, command substring, or content pattern tied to the bug — most bugs have one. Only skip for entries that are purely conversational/workflow (e.g. "the user never answered a question") with no single tool invocation to hook on, and say so explicitly rather than silently omitting the line.
 7. **Occurrence count** (optional — recurrence tracking): Is this the Nth time this *class* of bug has bitten? Enter `N of M` (e.g. `2 of 2`). Skip for a first-occurrence entry. If the user enters N ≥ 2, item 8 below becomes REQUIRED.
 8. **Invariant** (REQUIRED when occurrence N ≥ 2; otherwise skip): the END-STATE that, enforced at the reconciler/entry gate, makes the whole class impossible on EVERY path — not another trigger-patch. CLAUDE.md rule 4. E.g. "a host-global port implies a host-global secret." The `occurrence-gate` hook will block a 2nd-occurrence entry that lacks this line.
+9. **Slug** (optional — stable cross-reference): auto-suggest a kebab-case slug derived from the title (lowercase, spaces to hyphens, strip punctuation), show it to the user, let them accept or override. Used so other entries (or notes elsewhere) can write `[[slug]]` instead of `see #N` — a slug survives renumbering, an entry number's *meaning* doesn't. Skip if the user declines; not every entry needs one, only ones likely to be cross-referenced.
 
 ## Step 3 — Choose section
 
@@ -69,12 +70,15 @@ Scan `.session-continuity/LEARNINGS.md` for **every** `### N.` heading (regex: `
 
 After computing, validate: the chosen number must not already appear in the file. If it does (race condition with manual edit during this command), bump again and re-validate.
 
+3. **Validate the slug, if one was accepted.** Scan for every `^Slug:[[:space:]]*(.+)` line. If the proposed slug matches an existing one, tell the user which entry already owns it and ask for a different slug (or decline to add one).
+
 ## Step 5 — Insert at top of chosen section
 
 Compose the entry:
 
 ```markdown
 ### <N>. <Title>
+Slug: <kebab-slug>             ← include ONLY if the user accepted a slug; omit the whole line otherwise
 Trigger: <tool> /<regex>/      ← include ONLY if the user supplied a trigger; omit the whole line otherwise
 Occurrence count: <N of M>     ← include ONLY if supplied; omit otherwise
 Invariant: <end-state>          ← include ONLY when occurrence N >= 2; omit otherwise
@@ -94,11 +98,20 @@ Invariant: <end-state>          ← include ONLY when occurrence N >= 2; omit ot
 
 The `Trigger:` line, when present, must sit on the line directly below the `### N.` heading (no blank line between) so the `learnings-surface` hook's parser associates it with the entry.
 
-When present, `Occurrence count:` and `Invariant:` sit on their own lines in the metadata block directly under the heading (after `Trigger:` if it exists), each before the blank line that precedes `**The trap.**`. Omit any of the three metadata lines that has no value — never write an empty label.
+When present, `Slug:`, `Occurrence count:`, and `Invariant:` sit on their own lines in the metadata block directly under the heading (in that order, after `Trigger:` if it exists), each before the blank line that precedes `**The trap.**`. Omit any metadata line that has no value — never write an empty label.
 
 Insert immediately after the section heading (and any HTML comments that follow it). Keep a blank line between the heading and the new entry.
 
-## Step 6 — Bump the footer
+## Step 6 — Regenerate the Symptoms index
+
+Every entry's `**Symptom.**` line is searchable, but with enough entries a reader won't know which section to grep. Keep a flat, alphabetized index at the top of the file so symptom-first search works regardless of section.
+
+1. If the file has no `## Symptoms index` section yet, create one as the very first section — immediately after the intro paragraph, before the first `---`.
+2. Scan every entry for its `### N.` number and its `**Symptom.**` text. Build one bullet per entry: `- <symptom text, truncated to ~12 words with a trailing "…" if cut> — #N`.
+3. Sort bullets alphabetically (case-insensitive) by the symptom text.
+4. Replace the entire contents of `## Symptoms index` with the regenerated list. This section is fully derived — never hand-edit it, always regenerate from the entries.
+
+## Step 7 — Bump the footer
 
 If the file has a footer line of the form `*Last reviewed: <date>...` or `*Last entry: <date> (#<N>)...`, update it in place:
 
@@ -108,7 +121,7 @@ If the file has a footer line of the form `*Last reviewed: <date>...` or `*Last 
 
 The rename from "Last reviewed" to "Last entry" reflects what the field actually tracks (the timestamp of the last *change*, not a manual review pass). If the footer doesn't exist, skip — don't synthesize one.
 
-## Step 7 — Stage
+## Step 8 — Stage
 
 Run: `git add .session-continuity/LEARNINGS.md`
 
@@ -119,5 +132,7 @@ Tell the user: "Learning #<N> appended and staged. Commit when ready — typical
 ## Notes
 
 - **Numbering is stable.** Never renumber existing entries. Old entries keep their numbers even when new entries arrive at the top.
+- **Slugs are stable too.** Once an entry has a `Slug:`, never change it — other entries or memory files may already reference it as `[[slug]]`. To cross-reference a slugged entry from elsewhere in LEARNINGS.md, write `[[slug]]` in prose (e.g. "see also [[worktree-git-dash-c-block]]"); resolve it by grepping `^Slug: <slug>` — the same convention the auto-memory `MEMORY.md` index uses for `[[name]]` links.
+- **The Symptoms index is derived, not authored.** Never hand-edit `## Symptoms index` — it's regenerated wholesale in Step 6 every time this command runs. If it looks wrong, fix the source `**Symptom.**` line, then re-run.
 - **Never invent details.** If the user says "I don't know" for a field, leave it blank or omit it (except trap/symptom/fix, which are required — push back gently if the user skips them).
 - **Redact secrets.** Never put actual credential values in the file. Use `<redacted>` or a description.

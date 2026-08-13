@@ -1,16 +1,17 @@
 ---
 name: session-continuity
-description: Establish and maintain cross-session memory for a project via two in-repo docs — .session-continuity/SESSION_PRIMER.md (current state, refreshed alongside substantive commits) and .session-continuity/LEARNINGS.md (append-only wisdom for 15+ min bugs). Use when starting, before commits, or after hard-won bugs.
+description: Establish and maintain cross-session memory for a project via three in-repo docs — .session-continuity/SESSION_PRIMER.md (current state, refreshed alongside substantive commits), .session-continuity/PROJECT_CONTEXT.md (stable repo context, changes rarely), and .session-continuity/LEARNINGS.md (append-only wisdom for 15+ min bugs). Use when starting, before commits, or after hard-won bugs.
 ---
 
 # Session Continuity
 
-Two in-repo files act as a handoff between Claude sessions on the same project:
+Three in-repo files act as a handoff between Claude sessions on the same project:
 
-- **`.session-continuity/SESSION_PRIMER.md`** — current-state snapshot (latest commits, outstanding items, test counts, workflow conventions). **Refresh alongside substantive commits** (stage the update in the same commit as the real change). Always reflects "what's true right now."
+- **`.session-continuity/SESSION_PRIMER.md`** — current-state snapshot (latest commits, outstanding items). **Refresh alongside substantive commits** (stage the update in the same commit as the real change). Always reflects "what's true right now."
+- **`.session-continuity/PROJECT_CONTEXT.md`** — stable repo context (layout, module table, workflow conventions, test expectations, "where to look for what"). Changes rarely — only when the project's shape itself changes.
 - **`.session-continuity/LEARNINGS.md`** — accumulated wisdom (numbered entries, grouped by layer). Append-only log of bugs that were painful enough to not want to rediscover. **Update when a bug takes 15+ minutes to diagnose.**
 
-The two files are complementary: primer is volatile current-state, LEARNINGS is durable wisdom. A fresh session reads the primer first to get oriented, then consults LEARNINGS when something surprising happens.
+The three files are complementary: primer is volatile current-state, PROJECT_CONTEXT is stable reference, LEARNINGS is durable wisdom. A fresh session reads the primer first to get oriented, skims PROJECT_CONTEXT once per session for the shape of the repo, then consults LEARNINGS when something surprising happens.
 
 If installed as a plugin, three commands are available: `/session-continuity:primer` (init/refresh/check the primer), `/session-continuity:learning` (append a new LEARNINGS entry interactively), and `/session-continuity:end-session` (close-out ritual — refresh the primer, capture any new learnings from this session, and report a ✓/⚠️ checklist before you close the laptop). Hooks in `hooks/hooks.json` remind Claude to read the primer on session start and nudge when a `git commit` lands without a primer refresh staged. Two further PreToolUse gates fire *before* an action rather than after a symptom: a **retrieval hook** surfaces any LEARNINGS entry carrying a `Trigger: <tool> /<regex>/` line when the imminent Bash command or Write/Edit matches that regex (non-blocking — it names the entry so you read it first), and a **smoke-gate** blocks writing a plan file that touches binary/engine work but lacks a MANDATORY smoke task (override with an explicit `Smoke: N/A — <reason>` line).
 
@@ -18,7 +19,7 @@ If installed as a plugin, three commands are available: `/session-continuity:pri
 
 Invoke when:
 
-- Starting work on a project that does not yet have `.session-continuity/SESSION_PRIMER.md` and `.session-continuity/LEARNINGS.md` — initialize from the templates.
+- Starting work on a project that does not yet have `.session-continuity/SESSION_PRIMER.md`, `.session-continuity/PROJECT_CONTEXT.md`, and `.session-continuity/LEARNINGS.md` — initialize from the templates.
 - About to commit code changes — refresh the primer's "Current state" and "Outstanding items" sections so the next session sees the truth.
 - A bug has just been resolved after significant effort (15+ min, or required reading unfamiliar code, or surprised you) — add a LEARNINGS entry.
 - The user says something like "help me preserve session memory," "how do I hand this off to the next session," "create a primer," or "add this to learnings."
@@ -27,18 +28,27 @@ Invoke when:
 
 ## Quick start (new project)
 
-Run `/session-continuity:primer`. The command detects that no primer exists, copies both templates from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/` into the project's `.session-continuity/`, fills in every placeholder it can derive automatically (project name, latest commits, working directory, test command), prompts the user for anything left blank, and stages both files. It does not commit.
+Run `/session-continuity:primer`. The command detects that no primer exists, copies all three templates from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/` into the project's `.session-continuity/`, fills in every placeholder it can derive automatically (project name, latest commits, working directory, test command), prompts the user for anything left blank, and stages all three files. It does not commit.
 
 After the user commits, remind them of the two maintenance rules: refresh the primer alongside substantive commits (stage the refresh in the same commit as the real change — do not commit the primer by itself), and add a LEARNINGS entry for every bug that took 15+ minutes to diagnose.
 
-If the `/session-continuity:primer` command is not installed (e.g. this skill was vendored manually, not installed as a plugin), fall back to copying the templates by hand from [`templates/SESSION_PRIMER.md`](templates/SESSION_PRIMER.md) and [`templates/LEARNINGS.md`](templates/LEARNINGS.md) into the project's `.session-continuity/`, filling placeholders, and committing the pair.
+If the `/session-continuity:primer` command is not installed (e.g. this skill was vendored manually, not installed as a plugin), fall back to copying the templates by hand from [`templates/SESSION_PRIMER.md`](templates/SESSION_PRIMER.md), [`templates/PROJECT_CONTEXT.md`](templates/PROJECT_CONTEXT.md), and [`templates/LEARNINGS.md`](templates/LEARNINGS.md) into the project's `.session-continuity/`, filling placeholders, and committing the set.
 
 ## Quick start (existing project with these files)
 
 1. Read `.session-continuity/SESSION_PRIMER.md` end-to-end. It is designed for this exact moment.
-2. Follow its "First things first" list.
-3. Before doing ANY work, verify claimed state is still current (the primer can be stale — run its test commands, check `git log`, etc.).
-4. When you commit, update the primer.
+2. Read `.session-continuity/PROJECT_CONTEXT.md` once per session — it changes rarely, so a stale read is unlikely, but skim it if anything about the repo's shape surprises you.
+3. Follow the primer's "First things first" list.
+4. Before doing ANY work, verify claimed state is still current (the primer can be stale — run its test commands, check `git log`, etc.).
+5. When you commit, update the primer.
+
+## Quick start (existing primer, not yet split)
+
+If a project has `.session-continuity/SESSION_PRIMER.md` but no
+`.session-continuity/PROJECT_CONTEXT.md`, it predates the volatile/stable
+split. Run `/session-continuity:primer` — it detects the unsplit shape and
+partitions the content automatically (Split mode). Review the section
+boundaries before committing.
 
 ## Quick start (pre-v0.5.0 project — files still under `docs/`)
 
@@ -46,7 +56,10 @@ If a project has `docs/SESSION_PRIMER.md` and `docs/LEARNINGS.md` but no
 `.session-continuity/` directory, it was set up before v0.5.0. Run
 `/session-continuity:primer` once — it detects the legacy layout and
 `git mv`s the files to `.session-continuity/`. The moves are staged but
-not committed; bundle them with the next substantive commit.
+not committed; bundle them with the next substantive commit. (It will also
+be missing `PROJECT_CONTEXT.md` — the same `/session-continuity:primer`
+run falls through into Split mode afterward, so one invocation handles both
+migrations.)
 
 ## The maintenance rules (read this before every commit)
 
@@ -113,6 +126,8 @@ A bug qualifies when any of:
 |---|---|
 | "The latest commit is X" | `.session-continuity/SESSION_PRIMER.md` → Current state |
 | "We should refactor Y" | `.session-continuity/SESSION_PRIMER.md` → Outstanding items |
+| "How is this repo laid out" | `.session-continuity/PROJECT_CONTEXT.md` → Repo layout |
+| "What are our workflow conventions" | `.session-continuity/PROJECT_CONTEXT.md` → Workflow conventions |
 | "Bun replaces the CA trust store" | `.session-continuity/LEARNINGS.md` → new numbered entry |
 | "The CLI uses portless URLs" | `CLAUDE.md` (per-project config) |
 | "User prefers Bun to Node" | `CLAUDE.md` (per-project) or user's global `~/.claude/CLAUDE.md` |
@@ -127,7 +142,7 @@ A bug qualifies when any of:
 
 ## Customization guidance
 
-Different projects have different shapes, but the core two-file pattern adapts well:
+Different projects have different shapes, but the core file pattern adapts well:
 
 - **Test counts in the primer.** If you have one package, one line. If you have three packages (like SF_Tunnel: relay, tunnel, web), show three. If counts are unstable (integration tests that depend on external services), drop the exact count and document the green command instead.
 - **"Workflow conventions" section.** Replace with whatever this project's disciplines are: commit message format, branch naming, code review process, required CI checks.
@@ -138,9 +153,9 @@ Different projects have different shapes, but the core two-file pattern adapts w
 
 If multiple people are working on the same project and should all benefit from this:
 
-1. Both files are **checked-in** artifacts, not gitignored. Commit them in the project repo under `.session-continuity/`.
+1. All three files are **checked-in** artifacts, not gitignored. Commit them in the project repo under `.session-continuity/`.
 2. In the project's `CLAUDE.md`, add a line like:
-   > Before making changes, read `.session-continuity/SESSION_PRIMER.md`. Refresh it alongside substantive commits (in the same commit as the real change). For debug-worthy bugs, update `.session-continuity/LEARNINGS.md`.
+   > Before making changes, read `.session-continuity/SESSION_PRIMER.md` and `.session-continuity/PROJECT_CONTEXT.md`. Refresh the primer alongside substantive commits (in the same commit as the real change). For debug-worthy bugs, update `.session-continuity/LEARNINGS.md`.
 3. Document the maintenance rules in the primer itself (last section). Templates include this.
 4. Human teammates benefit too — LEARNINGS.md doubles as a living post-mortem log, and the primer is a great onboarding handoff.
 
@@ -158,9 +173,10 @@ If multiple people are working on the same project and should all benefit from t
 
 ## Philosophy
 
-The two files answer two different questions:
+The three files answer three different questions:
 
 - Primer: "What is true about this project **right now**?"
+- PROJECT_CONTEXT: "What is true about this project **generally**, and rarely changes?"
 - LEARNINGS: "What should I know to avoid rediscovering something painful?"
 
-Together they compress the cost of session handoff from "re-explain everything" to "read two files." The primer stays short (a few hundred lines max); LEARNINGS grows organically. Both outlive any single session.
+Together they compress the cost of session handoff from "re-explain everything" to "read a couple of files." The primer stays short (a shortlist, not a snapshot); PROJECT_CONTEXT and LEARNINGS both grow organically but at different rates — one when the project's shape changes, the other with every hard-won bug. All three outlive any single session.

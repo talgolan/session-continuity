@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] — 2026-08-13
+
+### Added
+- **Split `SESSION_PRIMER.md` into volatile + stable files.** Stable repo
+  context (ground rules, repo layout, module table, workflow conventions,
+  "where to look for what") now lives in a new
+  `.session-continuity/PROJECT_CONTEXT.md`, seeded by Init mode and
+  auto-migrated from unsplit primers by a new Split mode in
+  `commands/primer.md`. `SESSION_PRIMER.md` keeps only the volatile
+  shortlist: current state, the `git log --oneline -5` block, and
+  outstanding items. No hook changes needed — `pre-commit-check.sh`'s
+  `.session-continuity/` allowlist and `session-start.sh`'s primer-only
+  read both already cover the new file for free.
+- **LEARNINGS.md gains a Symptoms index and `[[slug]]` cross-references.**
+  `/session-continuity:learning` now offers an optional stable slug per
+  entry (for `[[slug]]`-style cross-references that survive renumbering)
+  and regenerates an alphabetized `## Symptoms index` section at the top of
+  the file from every entry's `**Symptom.**` line each time it appends.
+
 ## [0.12.3] — 2026-08-12
 
 ### Added
