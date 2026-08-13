@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.3] — 2026-08-12
+
+### Added
+- **SessionStart hook surfaces outstanding items.** The `hooks/session-start.sh`
+  hook now extracts top-level numbered items from the primer's "Outstanding
+  items" section (first line only; sub-bullets dropped) and injects them into
+  the SessionStart `<system-reminder>` block, followed by an instruction asking
+  the user which (if any) they want to tackle. When the section is empty or
+  missing, no block is added and the reminder remains identical to prior output.
+
 ## [0.12.2] — 2026-08-12
 
 ### Fixed

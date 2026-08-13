@@ -83,7 +83,25 @@ status_outstanding="$(awk '
   inside && /^[0-9]+\. / { count++ }
   END { print count+0 }
 ' "$cwd/$primer_path" 2>/dev/null || echo '?')"
-status_learnings="$(grep -cE '^### [0-9]+\.' "$cwd/$learnings_path" 2>/dev/null || echo '0')"
+status_learnings="$(grep -cE '^### [0-9]+\.' "$cwd/$learnings_path" 2>/dev/null || true)"
+status_learnings="${status_learnings:-0}"
+
+# Outstanding items: extract the first line only of each top-level numbered
+# item (sub-bullets and continuation lines are intentionally dropped — see
+# spec's Decision section for why no truncation heuristics are added).
+# Empty when the section is missing or has no numbered items, which keeps
+# the reminder identical to today's output in that case.
+outstanding_items="$(awk '
+  /^## Outstanding items/ { inside=1; next }
+  inside && /^## / { exit }
+  inside && /^[0-9]+\. / { print }
+' "$cwd/$primer_path" 2>/dev/null || true)"
+
+if [ -n "$outstanding_items" ]; then
+  outstanding_block=$'\nOutstanding items:\n'"$outstanding_items"$'\n\nAsk the user which of these (if any) they want to tackle this session.\n'
+else
+  outstanding_block=""
+fi
 
 # Inject the reminder into Claude's SessionStart context. `<system-reminder>`
 # is the convention Claude Code uses for system-injected context that is
@@ -95,9 +113,9 @@ This project has $primer_path. Read it before any work — it's the fastest path
 Primer status (auto):
 - HEAD: $status_sha
 - Last primer change: $status_mtime
-- Outstanding items: $status_outstanding
+- Items to tackle: $status_outstanding
 - Learnings: $status_learnings
-</system-reminder>
+${outstanding_block}</system-reminder>
 EOF
 
 # Weekly freshness check (best-effort, silent on failure). Runs AFTER the

@@ -74,6 +74,22 @@ No external credentials or costs.
 
 ## Current state
 
+- **v0.12.3 shipped** (branch `session-start-outstanding-items`, commit pushed,
+  tag `v0.12.3` pending). SessionStart hook now surfaces outstanding items from
+  the primer: extracts the "Outstanding items" section, lists the first line of
+  each numbered item (sub-bullets dropped), and injects into the SessionStart
+  reminder with an instruction asking which to tackle. When the section is empty
+  or missing, no block is added — the output remains identical to prior versions.
+  New hermetic smoke runner
+  `meta/superpowers/validation/2026-08-12-session-start-smoke.zsh` validates 11
+  test cases covering both paths (`.session-continuity/` and legacy `docs/`),
+  multi-line items, empty sections, and missing sections; all pass. Shellcheck
+  clean on the modified hook script. Fixes a grep `-c` exit-code issue discovered
+  during smoke testing: `grep -c` exits 1 when no matches are found (even though
+  it outputs "0"), so a fallback `|| echo '0'` would output both the grep "0" and
+  the fallback "0", causing spurious output duplication. Changed status line label
+  from "- Outstanding items:" to "- Items to tackle:" to avoid ambiguity in test
+  assertions. `plugin.json` 0.12.2→0.12.3, CHANGELOG entry added.
 - **v0.12.2 shipped** (branch `fix/hook-json-escaping`, PR #11, tag `v0.12.2`
   pushed, GitHub Release published, live plugin install refreshed and
   verified). Fixes `proven-gate.sh` and `smoke-gate.sh` emitting malformed
@@ -182,11 +198,11 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+(commit to be regenerated after merge)
 b75af34 feat(learnings): backfill Trigger lines, require them going forward
 8f05d0e fix(hooks): JSON-escape deny reasons (v0.12.2) (#11)
 4eb8d5c fix(hooks): scope smoke-gate weak-word to adjacency + honor MANDATORY (v0.12.1) (#10)
 5e3426c feat: outstanding-items code verification in end-session (v0.12.0) (#9)
-3941f55 feat: evidence, flaky, and backend-parity gates (v0.11.0) (#8)
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
@@ -210,8 +226,6 @@ Regenerate this block whenever you commit — see "Primer maintenance" below.
 3. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The auto-migration code path in primer's Migrate mode and the new `learning`-skill duplicate-detection guard are good candidates.
 
 4. **Plan to drop the `docs/` fallback in hooks.** v0.5.0 keeps dual-path support indefinitely. A future v1.0.0 can remove the fallback once the auto-migration has had time to land in every user's repo.
-
-5. **SessionStart should restate outstanding items and ask which to work on.** Right now `hooks/session-start.sh` only nudges Claude to read the primer; it doesn't surface the `## Outstanding items` list itself or prompt the user to pick one. Add that as a final step of session start — after the primer/LEARNINGS reminder, list the current outstanding items and ask the user which (if any) they want to tackle this session.
 
 ## Workflow conventions
 
