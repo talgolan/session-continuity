@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.1] — 2026-08-13
+
+### Fixed
+- **`hooks/session-start.sh` could render outstanding items as unnumbered
+  prose.** The injected reminder always contained the primer's numbered list,
+  but nothing told Claude to preserve that numbering when paraphrasing it in
+  a reply — a real-world session collapsed it to "same question stand: X or
+  Y" with no numbers. Added an explicit standing rule to
+  `skills/session-continuity/SKILL.md` ("whenever you discuss or echo
+  outstanding items to the user... render them as a numbered list") and
+  strengthened the hook's own injected instruction text to say so directly,
+  not just "ask the user which of these."
+- **v0.14.0's `docs/` legacy-fallback removal shipped without re-running the
+  existing hermetic smoke suites.** Three suites
+  (`2026-08-12-session-start-smoke.zsh`, `2026-06-17-occurrence-gate-smoke.zsh`,
+  `2026-07-01-flaky-gate-smoke.zsh`) had fixtures hardcoded to the exact
+  legacy-path scope just removed, so 4 assertions were failing silently in
+  the repo the whole time — caught only by a user report from a different
+  repo running the installed plugin, not by CI (there is none for PRs) or by
+  the release process. Fixtures updated to reflect the new single-path scope;
+  see LEARNINGS #9 for the process fix (run every smoke suite before tagging,
+  not just the one for the hook touched).
+
 ## [0.14.0] — 2026-08-13
 
 ### Removed

@@ -67,9 +67,10 @@ assert "9 deny names permissionDecision" 'permissionDecision' "$out"
 out="$(learn 'Occurrence count: 2 of 2\nInvariant: \nFix: patched it.' | bash "$og_hook")"
 assert "10 empty Invariant value -> deny" 'deny' "$out"
 
-# Case 11: legacy docs/LEARNINGS.md path -> deny (dual-path scope)
+# Case 11: legacy docs/LEARNINGS.md path is out of scope (v0.14.0 dropped the
+# dual-path fallback — .session-continuity/ is the only recognized location)
 out="$(printf '{"file_path":"/x/docs/LEARNINGS.md","tool_name":"Write","tool_input":{"content":"Occurrence count: 2 of 2\\nno invariant"}}' | bash "$og_hook")"
-assert "11 legacy docs path occ2, no invariant -> deny" 'deny' "$out"
+assert "11 legacy docs/ path out of scope -> silent" "EMPTY" "$out"
 
 print ""
 print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"

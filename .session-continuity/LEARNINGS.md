@@ -23,6 +23,7 @@ within each group.
 - The Bash call is refused outright: "This session is isolated in… — #8
 - The first v0.2.0 release fired the workflow, created the GitHub… — #2
 - The self-gate check returned rc=0 (allowed) — but via the… — #7
+- Three hermetic smoke suites under meta/superpowers/validation/ had fixtures hardcoded to… — #9
 
 ---
 
@@ -137,6 +138,21 @@ Applies generally: any time command prose tells Claude to produce an inventory f
 ---
 
 ## Hook scripting (SessionStart / PreToolUse)
+
+### 9. Removing a hook's legacy-path scope breaks hermetic smoke fixtures hardcoded to that path — and a release shipped before anyone re-ran them
+Slug: legacy-scope-removal-breaks-smoke-fixtures
+Trigger: Bash /git tag v[0-9]/
+Flaky-gate: N/A — this entry names the occurrence-gate and flaky-gate hook scripts as filenames touched by the underlying bug, not as an unexplained-failure claim.
+
+**The trap.** v0.14.0 dropped the pre-v0.5.0 `docs/` legacy fallback from `hooks/session-start.sh` and two of the PreToolUse gate hooks. Each change was verified with `bash -n`, shellcheck, and a targeted manual grep against a scratch fixture — all clean. That felt like enough, so the release was tagged and pushed on that basis.
+
+**Symptom.** Three hermetic smoke suites under `meta/superpowers/validation/` had fixtures hardcoded to the exact legacy-path scope just removed. Four assertions across those suites failed with `(expected '*deny*'/'*Ask the user*', got: )`. Not caught by the release process; caught only when a user reported a real behavioral regression (SessionStart's outstanding-items list collapsing to unnumbered prose) in a *different* repo running the already-installed plugin.
+
+**Fix.** `bash -n` + shellcheck + one manual scratch test verify syntax and one happy path — they do not verify the full behavior contract a hermetic suite already encodes. After changing any hook's scope or matching logic, run **every** smoke `.zsh` file under `meta/superpowers/validation/`, not just the one for the hook touched — a scope change in one hook's path convention is exactly the kind of change whose blast radius crosses files. Run the full set, confirm every suite reports zero failures, *then* tag.
+
+**Diagnostic signal** *(optional)*. A hermetic assertion failing with `(expected '*X*', got: )` — an empty actual — right after a scope-narrowing change is the signature: the fixture is now outside the hook's new scope and needs its own update (or an explicit new "now out of scope" case), not a real regression in the new code.
+
+---
 
 ### 7. A grep-based gate cannot reliably scan a plan that documents the gate's own syntax
 Slug: self-referential-gate-check

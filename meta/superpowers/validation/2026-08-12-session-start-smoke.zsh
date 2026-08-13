@@ -58,10 +58,11 @@ assert "1a lists item 1 first line" '1. First item, single line.' "$out1"
 assert "1b lists item 2 first line only" '2. Second item header text: (rejected — details below)' "$out1"
 assert_not "1c drops item 2 sub-bullets" 'sub-bullet A' "$out1"
 assert "1d lists item 3 first line" '3. Third item, single line.' "$out1"
-assert "1e includes ask-the-user instruction" 'Ask the user which of these' "$out1"
+assert "1e includes numbered-list-echo instruction" 'Present these to the user as a numbered list' "$out1"
 rm -rf "$d1"
 
-# --- Case set 2: legacy docs/ path gets the same treatment ---
+# --- Case set 2: legacy docs/ path is no longer recognized (v0.14.0 dropped
+# the fallback — .session-continuity/ is the only canonical location now) ---
 d2="$(mktemp -d)"
 mkdir -p "$d2/docs"
 cat > "$d2/docs/SESSION_PRIMER.md" <<'PRIMER'
@@ -76,8 +77,7 @@ PRIMER
 touch "$d2/docs/LEARNINGS.md"
 
 out2="$(payload "$d2" | bash "$hook")"
-assert "2a legacy docs/ path also lists items" '1. Only item on the legacy path.' "$out2"
-assert "2b legacy docs/ path also gets instruction" 'Ask the user which of these' "$out2"
+assert "2a legacy docs/-only primer produces no reminder" "EMPTY" "$out2"
 rm -rf "$d2"
 
 # --- Case set 3: empty Outstanding items section -> no block, no noise ---
@@ -94,7 +94,7 @@ touch "$d3/.session-continuity/LEARNINGS.md"
 
 out3="$(payload "$d3" | bash "$hook")"
 assert_not "3a no Outstanding items: header block" $'\nOutstanding items:\n' "$out3"
-assert_not "3b no ask-the-user instruction" 'Ask the user which of these' "$out3"
+assert_not "3b no numbered-list-echo instruction" 'Present these to the user as a numbered list' "$out3"
 assert "3c closing tag immediately follows Learnings line (no stray blank line)" $'- Learnings: 0\n</system-reminder>' "$out3"
 rm -rf "$d3"
 

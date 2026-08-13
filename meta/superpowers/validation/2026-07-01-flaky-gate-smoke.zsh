@@ -68,14 +68,22 @@ out="$(commit 'fix: the flaky test' | bash "$fg_hook")"
 assert "10 deny carries hookSpecificOutput" 'hookSpecificOutput' "$out"
 assert "10 deny names permissionDecision" 'permissionDecision' "$out"
 
-# Case 11: Edit new_string on LEARNINGS path also gated
-out="$(printf '{"file_path":"/x/docs/LEARNINGS.md","tool_name":"Edit","tool_input":{"new_string":"Still transient, re-ran and it passed."}}' | bash "$fg_hook")"
+# Case 11: Edit new_string on LEARNINGS path also gated (canonical path —
+# v0.14.0 dropped the legacy docs/ fallback, .session-continuity/ is the
+# only recognized location now)
+out="$(printf '{"file_path":"/x/.session-continuity/LEARNINGS.md","tool_name":"Edit","tool_input":{"new_string":"Still transient, re-ran and it passed."}}' | bash "$fg_hook")"
 assert "11 Edit new_string transient, no mechanism -> deny" 'deny' "$out"
 
 # Case 12: word-boundary guard — "flakiness" as a topic word in a Mechanism
 # discussion should not be blocked once Mechanism: is present
 out="$(learn 'Discussing flaky test theory. Mechanism: none — this entry is about the concept, not a real failure.' | bash "$fg_hook")"
 assert "12 flaky + mechanism present -> silent" EMPTY "$out"
+
+# Case 13: legacy docs/LEARNINGS.md path is out of scope (v0.14.0 dropped
+# the dual-path fallback — .session-continuity/ is the only recognized
+# location now)
+out="$(printf '{"file_path":"/x/docs/LEARNINGS.md","tool_name":"Write","tool_input":{"content":"Still transient, no mechanism."}}' | bash "$fg_hook")"
+assert "13 legacy docs/ path out of scope -> silent" EMPTY "$out"
 
 print ""
 print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"
