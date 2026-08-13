@@ -4,3 +4,4 @@ node_modules/
 .cache/
 .worktrees/
 .superpowers/
+.itb.json

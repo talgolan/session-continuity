@@ -151,11 +151,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+0877f58 feat: split primer into volatile/stable files, add LEARNINGS symptoms index (v0.13.0)
+7da2278 docs: update session continuity
 9166fec Merge remote-tracking branch 'origin/main'
 3f08adc feat(hooks): surface outstanding items in SessionStart reminder (v0.12.3) (#12)
 34b8c94 docs: address caveman-review findings in outstanding-items spec
-2470260 docs: add design spec for SessionStart outstanding-items surfacing
-f9b75cd docs: update session continuity
 ```
 
 Regenerate this block whenever you commit — see
@@ -163,9 +163,11 @@ Regenerate this block whenever you commit — see
 
 ## Outstanding items (explicitly deferred — not bugs, decisions)
 
-1. **Submit to the Anthropic marketplace.** Form answers in `meta/administrative/marketplace-submission.md` (version field synced to 0.6.0 in the docs sweep on 2026-05-22).
+1. **Outstanding items must always render as an ordered list when echoed to the user.** Applies to both SessionStart (`hooks/session-start.sh`'s outstanding-items block) and `/session-continuity:end-session`'s Step 1 recap. Added 2026-08-13 — not yet audited against the actual hook output for compliance.
 
-2. **Deferred recommendations from `meta/superpowers/recommendations/improvements_20260521.md`** (rejected or not-yet-prioritized — v0.5.1 + v0.6.0 shipped the items deemed high-value; re-triaged 2026-08-13, see below):
+2. **Submit to the Anthropic marketplace.** Form answers in `meta/administrative/marketplace-submission.md` (version field synced to 0.6.0 in the docs sweep on 2026-05-22).
+
+3. **Deferred recommendations from `meta/superpowers/recommendations/improvements_20260521.md`** (rejected or not-yet-prioritized — v0.5.1 + v0.6.0 shipped the items deemed high-value; re-triaged 2026-08-13, see below):
    - §2 branch-aware primer-only rule (rejected: edge case, current escape hatch sufficient).
    - §3 init-mode auto-derivation (deferred — friction is real but bounded).
    - §4.2 slug-based cross-refs `[[name]]` in LEARNINGS — **shipped 2026-08-13**, overriding the earlier "defer until cross-ref count >20" note (only 8 entries existed; re-approved anyway on request).
@@ -177,8 +179,8 @@ Regenerate this block whenever you commit — see
    - §9.5 outstanding-items as YAML (still deferred — markdown sub-bullets work today).
    - §9.6 dev-mode plugin install template-path fallback (still low priority, one-line fix when it bites).
 
-3. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The auto-migration code path in primer's Migrate mode, the new Split mode, and the `learning`-skill duplicate-detection guard are good candidates.
+4. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The auto-migration code path in primer's Migrate mode, the new Split mode, and the `learning`-skill duplicate-detection guard are good candidates.
 
-4. **Plan to drop the `docs/` fallback in hooks.** v0.5.0 keeps dual-path support indefinitely. A future v1.0.0 can remove the fallback once the auto-migration has had time to land in every user's repo.
+5. **Plan to drop the `docs/` fallback in hooks.** v0.5.0 keeps dual-path support indefinitely. A future v1.0.0 can remove the fallback once the auto-migration has had time to land in every user's repo.
 
-5. **Scratch-project smoke test for the primer split (deferred from this session).** The v0.13.0 implementation plan's Task 6 validated the split mechanically against this repo's own files but explicitly deferred the spec's Testing items 1-2 (fresh init in a scratch project, and Split mode against a throwaway unsplit primer) since they need a directory outside this repo. Run both before the next `/session-continuity:primer` change lands.
+6. **Scratch-project smoke test for the primer split (deferred from this session).** The v0.13.0 implementation plan's Task 6 validated the split mechanically against this repo's own files but explicitly deferred the spec's Testing items 1-2 (fresh init in a scratch project, and Split mode against a throwaway unsplit primer) since they need a directory outside this repo. Run both before the next `/session-continuity:primer` change lands.
