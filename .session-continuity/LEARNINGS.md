@@ -10,6 +10,19 @@ within each group.
 
 ## Claude Code plugin mechanics
 
+### 8. `git -C` and compound commands blocked inside a worktree-isolated session
+Trigger: Bash /git\s+-C\s/
+
+**The trap.** Once EnterWorktree switches a session into a worktree, it feels natural to keep using `git -C <other-path>` to peek at another checkout, or to chain several `cd`/`git` statements into one Bash call, the way you would outside a worktree.
+
+**Symptom.** The Bash call is refused outright: "This session is isolated in the worktree <path>, but this command is too complex to verify that it stays inside the worktree; break it into plain, separate commands. Refusing to run it." Recurred 3 times over ~56 minutes this session, and the same constraint forced 7 separate single-line `cd <worktree-path>` prefixes elsewhere in the session to work around it.
+
+**Fix.** Inside a worktree-isolated session, run every git/file command as a single plain statement operating on the current directory — no `-C` pointing elsewhere, no `&&`/`;`/multi-line chains the sandbox can't statically verify stay inside the worktree path. When a fresh shell context is needed, put a literal `cd <worktree-path>` on its own line as one Bash call, then issue the next command as a separate call.
+
+**Diagnostic signal** *(optional)*. Bash error text containing "too complex to verify that it stays inside the worktree".
+
+---
+
 ### 2. awk CHANGELOG range collapses on single-version files
 Trigger: * /release\.yml/
 
@@ -184,7 +197,7 @@ and explains why it loses. -->
 
 ---
 
-*Last entry: 2026-06-15 (#7). Add new entries at the top of each section
+*Last entry: 2026-08-12 (#8). Add new entries at the top of each section
 as they surface. The `/session-continuity:learning` command bumps this
 line automatically (v0.5.1+). Rule of thumb: if a bug takes more than
 15 minutes to diagnose, it goes here.*

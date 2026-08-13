@@ -198,11 +198,11 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-(commit to be regenerated after merge)
-b75af34 feat(learnings): backfill Trigger lines, require them going forward
-8f05d0e fix(hooks): JSON-escape deny reasons (v0.12.2) (#11)
-4eb8d5c fix(hooks): scope smoke-gate weak-word to adjacency + honor MANDATORY (v0.12.1) (#10)
-5e3426c feat: outstanding-items code verification in end-session (v0.12.0) (#9)
+9166fec Merge remote-tracking branch 'origin/main'
+3f08adc feat(hooks): surface outstanding items in SessionStart reminder (v0.12.3) (#12)
+34b8c94 docs: address caveman-review findings in outstanding-items spec
+2470260 docs: add design spec for SessionStart outstanding-items surfacing
+f9b75cd docs: update session continuity
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
