@@ -74,6 +74,54 @@ No external credentials or costs.
 
 ## Current state
 
+- **v0.12.3 shipped** (branch `session-start-outstanding-items`, commit pushed,
+  tag `v0.12.3` pending). SessionStart hook now surfaces outstanding items from
+  the primer: extracts the "Outstanding items" section, lists the first line of
+  each numbered item (sub-bullets dropped), and injects into the SessionStart
+  reminder with an instruction asking which to tackle. When the section is empty
+  or missing, no block is added — the output remains identical to prior versions.
+  New hermetic smoke runner
+  `meta/superpowers/validation/2026-08-12-session-start-smoke.zsh` validates 11
+  test cases covering both paths (`.session-continuity/` and legacy `docs/`),
+  multi-line items, empty sections, and missing sections; all pass. Shellcheck
+  clean on the modified hook script. Also fixes a pre-existing `grep -c` exit-code
+  bug: `grep -c` exits 1 when no matches are found (even though it outputs "0"),
+  so a fallback `|| echo '0'` would output both the grep "0" and the fallback "0",
+  causing spurious output duplication in the status line. Fixed by using `|| true`
+  as the fallback and explicit empty-case handling. `plugin.json` 0.12.2→0.12.3,
+  CHANGELOG entry added.
+- **v0.12.2 shipped** (branch `fix/hook-json-escaping`, PR #11, tag `v0.12.2`
+  pushed, GitHub Release published, live plugin install refreshed and
+  verified). Fixes `proven-gate.sh` and `smoke-gate.sh` emitting malformed
+  JSON on deny: a reason string containing a literal `"` broke their
+  hand-built `printf` JSON, so the block worked but the reason never
+  parsed — undiagnosable rather than unsafe. Root cause: every existing
+  per-gate runner asserted with a substring match on `deny`, which passes on
+  malformed JSON too, so this shipped green. Fix, in order:
+  1. New hermetic runner
+     `meta/superpowers/validation/2026-08-12-hook-json-contract-smoke.zsh`
+     parses each gate's deny output with a real JSON parser (`python3 -m
+     json`) instead of substring-matching it, and fails if any
+     `hooks/*-gate.sh` has no fixture — so a future gate can't skip the
+     check. Red on landing (4 failures: `proven-gate` + 3 `smoke-gate`
+     cases), 16/16 green after the fix.
+  2. All six gates' `deny()` (not just the two broken ones) now route the
+     reason through a `json_escape()` helper: backslash-then-quote
+     escaping, full C0 control-byte range (`0x00`-`0x1F`, not just
+     `\n\t\r`) folded to a space. `smoke-gate.sh`'s now-redundant
+     `offender_esc` pre-escape removed.
+  3. `.session-continuity/LEARNINGS.md` entry #1 gained a "Second trap"
+     addendum: a well-formed JSON *shape* isn't the same as parseable
+     JSON, and a substring assert can't tell the difference.
+  4. `plugin.json` 0.12.1→0.12.2, CHANGELOG entry added.
+  Full validation suite 8 runners / 101 checks green; shellcheck clean on
+  all six gates. Built via `superpowers:subagent-driven-development`
+  (fresh implementer + reviewer per task, final whole-branch review on the
+  most capable model — 1 Minor finding, non-blocking: the new runner's
+  coverage check verifies gate-name list membership, not fixture
+  existence, so CHANGELOG/LEARNINGS phrasing slightly overstates what's
+  machine-enforced). Plan:
+  `meta/superpowers/plans/2026-08-12-hook-json-escaping-fix.md`.
 - **v0.12.1 shipped** (branch `fix/smoke-gate-false-positive`). Fixes a
   line-level false positive in `hooks/smoke-gate.sh`: the weak-smoke branch
   denied any line where `smoke` co-occurred with a weak-word
@@ -150,11 +198,11 @@ No external credentials or costs.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-986b22a feat(end-session): report outstanding-items verdicts in Step 3 checklist
-dd59d4a feat(end-session): verify outstanding items against code (Step 1)
-a822087 docs(plan): address review of outstanding-items verification plan
-eb4e7ba docs(plan): outstanding-items verification implementation plan
-1e8944e docs(spec): address review of outstanding-items verification
+(commit to be regenerated after merge)
+b75af34 feat(learnings): backfill Trigger lines, require them going forward
+8f05d0e fix(hooks): JSON-escape deny reasons (v0.12.2) (#11)
+4eb8d5c fix(hooks): scope smoke-gate weak-word to adjacency + honor MANDATORY (v0.12.1) (#10)
+5e3426c feat: outstanding-items code verification in end-session (v0.12.0) (#9)
 ```
 
 Regenerate this block whenever you commit — see "Primer maintenance" below.
