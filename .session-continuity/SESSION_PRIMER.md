@@ -84,12 +84,12 @@ No external credentials or costs.
   `meta/superpowers/validation/2026-08-12-session-start-smoke.zsh` validates 11
   test cases covering both paths (`.session-continuity/` and legacy `docs/`),
   multi-line items, empty sections, and missing sections; all pass. Shellcheck
-  clean on the modified hook script. Fixes a grep `-c` exit-code issue discovered
-  during smoke testing: `grep -c` exits 1 when no matches are found (even though
-  it outputs "0"), so a fallback `|| echo '0'` would output both the grep "0" and
-  the fallback "0", causing spurious output duplication. Changed status line label
-  from "- Outstanding items:" to "- Items to tackle:" to avoid ambiguity in test
-  assertions. `plugin.json` 0.12.2→0.12.3, CHANGELOG entry added.
+  clean on the modified hook script. Also fixes a pre-existing `grep -c` exit-code
+  bug: `grep -c` exits 1 when no matches are found (even though it outputs "0"),
+  so a fallback `|| echo '0'` would output both the grep "0" and the fallback "0",
+  causing spurious output duplication in the status line. Fixed by using `|| true`
+  as the fallback and explicit empty-case handling. `plugin.json` 0.12.2→0.12.3,
+  CHANGELOG entry added.
 - **v0.12.2 shipped** (branch `fix/hook-json-escaping`, PR #11, tag `v0.12.2`
   pushed, GitHub Release published, live plugin install refreshed and
   verified). Fixes `proven-gate.sh` and `smoke-gate.sh` emitting malformed

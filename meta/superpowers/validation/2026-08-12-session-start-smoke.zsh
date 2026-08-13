@@ -93,7 +93,7 @@ PRIMER
 touch "$d3/.session-continuity/LEARNINGS.md"
 
 out3="$(payload "$d3" | bash "$hook")"
-assert_not "3a no Outstanding items: header block" 'Outstanding items:' "$out3"
+assert_not "3a no Outstanding items: header block" $'\nOutstanding items:\n' "$out3"
 assert_not "3b no ask-the-user instruction" 'Ask the user which of these' "$out3"
 assert "3c closing tag immediately follows Learnings line (no stray blank line)" $'- Learnings: 0\n</system-reminder>' "$out3"
 rm -rf "$d3"
@@ -109,7 +109,7 @@ PRIMER
 touch "$d4/.session-continuity/LEARNINGS.md"
 
 out4="$(payload "$d4" | bash "$hook")"
-assert_not "4a no Outstanding items: header block when section absent" 'Outstanding items:' "$out4"
+assert_not "4a no Outstanding items: header block when section absent" $'\nOutstanding items:\n' "$out4"
 rm -rf "$d4"
 
 print ""

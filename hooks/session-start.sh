@@ -113,7 +113,7 @@ This project has $primer_path. Read it before any work — it's the fastest path
 Primer status (auto):
 - HEAD: $status_sha
 - Last primer change: $status_mtime
-- Items to tackle: $status_outstanding
+- Outstanding items: $status_outstanding
 - Learnings: $status_learnings
 ${outstanding_block}</system-reminder>
 EOF

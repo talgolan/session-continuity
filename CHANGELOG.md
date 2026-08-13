@@ -12,6 +12,15 @@ All notable changes to this project are documented here. The format follows [Kee
   the user which (if any) they want to tackle. When the section is empty or
   missing, no block is added and the reminder remains identical to prior output.
 
+### Fixed
+- **Spurious output duplication from `grep -c` exit code.** The `status_learnings`
+  computation used `grep -cE ... || echo '0'` to count LEARNINGS entries. When
+  `grep` finds no matches, it outputs "0" but exits with code 1 (not 0), causing
+  the fallback `echo '0'` to also run. The command substitution captured both
+  outputs, resulting in "0\n0" being assigned to the variable and later printed
+  to the reminder. Fixed by using `|| true` as the fallback and adding explicit
+  empty-case handling with `${status_learnings:-0}`.
+
 ## [0.12.2] — 2026-08-12
 
 ### Fixed
