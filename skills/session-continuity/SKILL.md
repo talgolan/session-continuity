@@ -13,7 +13,21 @@ Three in-repo files act as a handoff between Claude sessions on the same project
 
 The three files are complementary: primer is volatile current-state, PROJECT_CONTEXT is stable reference, LEARNINGS is durable wisdom. A fresh session reads the primer first to get oriented, skims PROJECT_CONTEXT once per session for the shape of the repo, then consults LEARNINGS when something surprising happens.
 
-If installed as a plugin, three commands are available: `/session-continuity:primer` (init/refresh/check the primer), `/session-continuity:learning` (append a new LEARNINGS entry interactively), and `/session-continuity:end-session` (close-out ritual — refresh the primer, capture any new learnings from this session, and report a ✓/⚠️ checklist before you close the laptop). Hooks in `hooks/hooks.json` remind Claude to read the primer on session start and nudge when a `git commit` lands without a primer refresh staged. Two further PreToolUse gates fire *before* an action rather than after a symptom: a **retrieval hook** surfaces any LEARNINGS entry carrying a `Trigger: <tool> /<regex>/` line when the imminent Bash command or Write/Edit matches that regex (non-blocking — it names the entry so you read it first), and a **smoke-gate** blocks writing a plan file that touches binary/engine work but lacks a MANDATORY smoke task (override with an explicit `Smoke: N/A — <reason>` line).
+If installed as a plugin, four commands are available: `/session-continuity:primer` (init/split/refresh/check the primer), `/session-continuity:learning` (append a new LEARNINGS entry interactively), `/session-continuity:end-session` (close-out ritual — refresh the primer, capture any new learnings from this session, and report a ✓/⚠️ checklist before you close the laptop), and `/session-continuity:spike-check` (force a spike to be designed against the real load-bearing path before it's built).
+
+`hooks/hooks.json` also wires up several non-blocking and blocking hooks:
+
+- **`session-start.sh`** (SessionStart) — reminds Claude to read the primer, and injects the outstanding-items shortlist.
+- **`pre-commit-check.sh`** (PreToolUse, before `git commit`) — non-blocking nudge when code is staged without a primer refresh.
+- **`learnings-surface.sh`** (PreToolUse, before Bash/Write/Edit) — the retrieval hook: surfaces any LEARNINGS entry carrying a `Trigger: <tool> /<regex>/` line when the imminent action matches, so the lesson lands *before* the mistake instead of after.
+- **`smoke-gate.sh`** (PreToolUse, before Write/Edit) — blocks writing a plan file that touches binary/engine work but lacks a MANDATORY smoke task.
+- **`proven-gate.sh`** — blocks a spec/plan's "proven"/"verified" claim unless it also names the real path exercised and what was stubbed.
+- **`occurrence-gate.sh`** — blocks a LEARNINGS entry recording a 2nd-or-later occurrence of a mistake-class unless it also names the end-state invariant.
+- **`evidence-gate.sh`** — blocks a spec/plan's smoke design if it tears down before capturing failure evidence, or polls for success only.
+- **`flaky-gate.sh`** — blocks a commit message or LEARNINGS entry that calls a failure "flaky"/"transient" without naming the deterministic mechanism behind it.
+- **`backend-parity-gate.sh`** — blocks a plan that frames its smoke coverage as multi-backend but names only one concrete backend.
+
+Every blocking gate has an explicit skip-with-reason escape hatch (e.g. `Smoke: N/A — <reason>`) documented in that hook's own header comment.
 
 ## When to use this skill
 
@@ -24,7 +38,6 @@ Invoke when:
 - A bug has just been resolved after significant effort (15+ min, or required reading unfamiliar code, or surprised you) — add a LEARNINGS entry.
 - The user says something like "help me preserve session memory," "how do I hand this off to the next session," "create a primer," or "add this to learnings."
 - Picking up work on a project that already has these files — read them as the first step, before touching anything else.
-- A project still has the files at the pre-v0.5.0 `docs/` location — running `/session-continuity:primer` will detect the legacy layout and migrate them to `.session-continuity/`.
 
 ## Quick start (new project)
 
@@ -49,17 +62,6 @@ If a project has `.session-continuity/SESSION_PRIMER.md` but no
 split. Run `/session-continuity:primer` — it detects the unsplit shape and
 partitions the content automatically (Split mode). Review the section
 boundaries before committing.
-
-## Quick start (pre-v0.5.0 project — files still under `docs/`)
-
-If a project has `docs/SESSION_PRIMER.md` and `docs/LEARNINGS.md` but no
-`.session-continuity/` directory, it was set up before v0.5.0. Run
-`/session-continuity:primer` once — it detects the legacy layout and
-`git mv`s the files to `.session-continuity/`. The moves are staged but
-not committed; bundle them with the next substantive commit. (It will also
-be missing `PROJECT_CONTEXT.md` — the same `/session-continuity:primer`
-run falls through into Split mode afterward, so one invocation handles both
-migrations.)
 
 ## The maintenance rules (read this before every commit)
 

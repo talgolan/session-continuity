@@ -4,9 +4,9 @@
 
 Claude Code sessions start cold — Claude doesn't remember yesterday's debugging, last week's refactor, or the three-hour bug you eventually cornered. Most fixes reach for clever infrastructure (vector databases, MCP memory servers, vendor-specific notes stores) that hides the knowledge outside the repo, away from human eyes.
 
-session-continuity takes a different route: plain Markdown files, committed to git, alongside the code they describe. `.session-continuity/SESSION_PRIMER.md` holds current state (the last five commits, what's outstanding, what's in flight) and refreshes with every substantive change. `.session-continuity/LEARNINGS.md` holds append-only wisdom — numbered entries for bugs that took 15+ minutes to diagnose, kept stable so cross-references don't rot.
+session-continuity takes a different route: plain Markdown files, committed to git, alongside the code they describe. `.session-continuity/SESSION_PRIMER.md` holds current state (the last five commits, what's outstanding, what's in flight) and refreshes with every substantive change. `.session-continuity/PROJECT_CONTEXT.md` holds stable repo context (layout, conventions, module table) that changes only when the project's shape itself changes. `.session-continuity/LEARNINGS.md` holds append-only wisdom — numbered entries for bugs that took 15+ minutes to diagnose, kept stable so cross-references don't rot.
 
-Three slash commands keep the habit cheap: `/session-continuity:primer` initializes, refreshes, or checks the primer; `/session-continuity:learning` appends a LEARNINGS entry interactively; `/session-continuity:end-session` runs a close-out ritual that refreshes the primer, surfaces LEARNINGS candidates from the session's context, and reports a checklist of staged / unstaged / untracked / unpushed state. Two hooks nudge when the habit slips — a `SessionStart` hook reminds Claude to read the primer on new sessions, and a non-blocking `PreToolUse` hook flags `git commit` calls that land without a primer refresh staged.
+Four slash commands keep the habit cheap: `/session-continuity:primer` initializes, splits, refreshes, or checks the primer; `/session-continuity:learning` appends a LEARNINGS entry interactively; `/session-continuity:end-session` runs a close-out ritual that refreshes the primer, surfaces LEARNINGS candidates from the session's context, and reports a checklist of staged / unstaged / untracked / unpushed state; `/session-continuity:spike-check` forces a spike to be designed against the real load-bearing path before it's built. A handful of hooks nudge or gate when the habit slips — a `SessionStart` hook reminds Claude to read the primer on new sessions, a non-blocking `PreToolUse` hook flags `git commit` calls that land without a primer refresh staged, and several blocking `PreToolUse` gates enforce evidence/invariant discipline in specs, plans, and LEARNINGS entries (each with an explicit skip-with-reason escape hatch).
 
 Install this when you work on the same project across many sessions and want Claude to pick up context in seconds instead of rebuilding it each time.
 
@@ -30,9 +30,9 @@ For reference, the form likely pulls these directly from the manifest:
 
 - **Name:** `session-continuity`
 - **Repository:** `https://github.com/talgolan/session-continuity`
-- **Description:** `Cross-session memory for Claude Code projects via two in-repo docs: SESSION_PRIMER.md (current state) and LEARNINGS.md (hard-won bugs).`
+- **Description:** `Cross-session memory for Claude Code projects via three in-repo docs: SESSION_PRIMER.md (current state), PROJECT_CONTEXT.md (stable repo context), and LEARNINGS.md (hard-won bugs).`
 - **Author:** Tal Golan
 - **License:** MIT
 - **Homepage:** `https://github.com/talgolan/session-continuity`
 - **Keywords:** memory, session, handoff, continuity, documentation, onboarding, post-mortem
-- **Version at submission:** 0.7.0
+- **Version at submission:** 0.14.0 (re-check against `.claude-plugin/plugin.json` at actual submission time — this field drifts with every release and was last synced 2026-08-13)

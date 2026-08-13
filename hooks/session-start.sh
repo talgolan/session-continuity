@@ -6,11 +6,8 @@
 # stdin. We do two things:
 #
 #   1. If the user's working directory contains a session-continuity primer at
-#      either .session-continuity/SESSION_PRIMER.md (v0.5.0+ canonical path)
-#      or docs/SESSION_PRIMER.md (v0.4-and-earlier legacy path), emit a
-#      <system-reminder> block so Claude is nudged to read the primer before
-#      doing any work. The reminder interpolates whichever path is actually
-#      present, so a fresh session reads the right file.
+#      .session-continuity/SESSION_PRIMER.md, emit a <system-reminder> block so
+#      Claude is nudged to read the primer before doing any work.
 #   2. Invoke hooks/version-check.sh (weekly freshness check against the
 #      GitHub Releases API) — silently fails and is entirely optional.
 #
@@ -50,18 +47,11 @@ if [ -z "${cwd:-}" ] || [ ! -d "$cwd" ]; then
   exit 0
 fi
 
-# Prefer the v0.5.0+ canonical location (.session-continuity/); fall back to
-# the legacy docs/ path so unmigrated repos keep working. The reminder text
-# uses whichever path actually exists so Claude reads the right file.
 primer_new="$cwd/.session-continuity/SESSION_PRIMER.md"
-primer_old="$cwd/docs/SESSION_PRIMER.md"
 
 if [ -f "$primer_new" ]; then
   primer_path=".session-continuity/SESSION_PRIMER.md"
   learnings_path=".session-continuity/LEARNINGS.md"
-elif [ -f "$primer_old" ]; then
-  primer_path="docs/SESSION_PRIMER.md"
-  learnings_path="docs/LEARNINGS.md"
 else
   exit 0
 fi

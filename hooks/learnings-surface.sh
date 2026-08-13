@@ -31,7 +31,6 @@ cwd="$(printf '%s' "$payload" \
 [ ! -d "$cwd" ] && exit 0
 
 learnings="$cwd/.session-continuity/LEARNINGS.md"
-[ -f "$learnings" ] || learnings="$cwd/docs/LEARNINGS.md"
 [ -f "$learnings" ] || exit 0
 
 tool="$(printf '%s' "$payload" \

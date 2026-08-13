@@ -7,11 +7,10 @@
 # when the user is about to run `git commit` — NOT on every ls/grep/cat.
 #
 # What it does: if the user's repo has a session-continuity primer (at
-# .session-continuity/SESSION_PRIMER.md for v0.5.0+ projects, or the legacy
-# docs/SESSION_PRIMER.md for v0.4-and-earlier) and the user is committing
-# code without also staging a primer refresh, nudge Claude to consider
-# staging one. The hook never blocks the commit — it only injects a
-# non-blocking reminder into Claude's additional context.
+# .session-continuity/SESSION_PRIMER.md) and the user is committing code
+# without also staging a primer refresh, nudge Claude to consider staging
+# one. The hook never blocks the commit — it only injects a non-blocking
+# reminder into Claude's additional context.
 #
 # Claude Code contract (this is the gotcha that cost us a session — see
 # LEARNINGS #1):
@@ -57,16 +56,10 @@ if [ -z "${cwd:-}" ] || [ ! -d "$cwd" ]; then
   exit 0
 fi
 
-# Prefer the v0.5.0+ canonical location (.session-continuity/); fall back to
-# the legacy docs/ path so unmigrated repos keep working. Whichever exists
-# is the path we'll nudge about (and check against the staged set).
 primer_new="$cwd/.session-continuity/SESSION_PRIMER.md"
-primer_old="$cwd/docs/SESSION_PRIMER.md"
 
 if [ -f "$primer_new" ]; then
   primer_rel=".session-continuity/SESSION_PRIMER.md"
-elif [ -f "$primer_old" ]; then
-  primer_rel="docs/SESSION_PRIMER.md"
 else
   exit 0
 fi
@@ -78,8 +71,7 @@ fi
 staged="$(git -C "$cwd" diff --cached --name-only 2>/dev/null || true)"
 
 # If the primer is already staged, nothing to remind about — the commit
-# will carry its refresh. Accept either path so a user mid-migration who
-# stages the move alongside code doesn't also get nudged.
+# will carry its refresh.
 if printf '%s\n' "$staged" | grep -Fxq "$primer_rel"; then
   exit 0
 fi

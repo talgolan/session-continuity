@@ -20,6 +20,32 @@ rarely.
 
 ## Current state
 
+- **v0.14.0 shipped** — dropped the pre-v0.5.0 `docs/` legacy fallback
+  entirely (sole current user, no unmigrated install to carry it for).
+  Removed dual-path detection/fallback from `hooks/session-start.sh`,
+  `hooks/pre-commit-check.sh`, `hooks/learnings-surface.sh`,
+  `hooks/occurrence-gate.sh`, `hooks/flaky-gate.sh` (these two were missed
+  in the first pass — caught by a follow-up compliance check),
+  `commands/primer.md` (Migrate mode
+  and Conflict mode deleted; dispatch is now init/split/refresh/check),
+  `commands/end-session.md`, `commands/learning.md`,
+  `skills/session-continuity/SKILL.md`, and `PRIVACY.md`. `git grep` for
+  `docs/SESSION_PRIMER\.md\|docs/LEARNINGS\.md` across `hooks/`,
+  `commands/`, `skills/` returns zero hits. Resolves the outstanding item
+  that had this deferred to "a future v1.0.0." Also: full documentation
+  accuracy sweep across `README.md`, `CONTRIBUTING.md`, `PRIVACY.md`,
+  `SECURITY.md`, `CLAUDE.md`, `SKILL.md`, and
+  `meta/administrative/marketplace-submission.md` — these had drifted
+  since the v0.13.0 `PROJECT_CONTEXT.md` split (undercounted files/commands,
+  3 of 7 gate hooks undocumented) and since the marketplace catalog moved
+  to `talgolan/claude-plugins` (README's install/update commands were
+  pointing at the wrong repo/name — a real broken-install bug, not just
+  prose drift). See CHANGELOG `[0.14.0]`'s Fixed section for the full list.
+  Confirmed no automated doc-accuracy checking exists anywhere on this
+  machine at the repo level — it does exist globally (`~/.githooks/pre-commit`
+  + a global Claude Code `Stop` hook) but only checks "was a doc file
+  touched," never prose accuracy; verified against the real files, not
+  from memory.
 - **v0.13.0 shipped** — split `.session-continuity/SESSION_PRIMER.md` into
   volatile (`SESSION_PRIMER.md`) and stable (`PROJECT_CONTEXT.md`) halves,
   overriding the prior §6 rejection on explicit request 2026-08-13. Also
@@ -151,11 +177,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+c7177b7 docs: update session continuity, ignore .itb.json
 0877f58 feat: split primer into volatile/stable files, add LEARNINGS symptoms index (v0.13.0)
 7da2278 docs: update session continuity
 9166fec Merge remote-tracking branch 'origin/main'
 3f08adc feat(hooks): surface outstanding items in SessionStart reminder (v0.12.3) (#12)
-34b8c94 docs: address caveman-review findings in outstanding-items spec
 ```
 
 Regenerate this block whenever you commit — see
@@ -163,9 +189,9 @@ Regenerate this block whenever you commit — see
 
 ## Outstanding items (explicitly deferred — not bugs, decisions)
 
-1. **Outstanding items must always render as an ordered list when echoed to the user.** Applies to both SessionStart (`hooks/session-start.sh`'s outstanding-items block) and `/session-continuity:end-session`'s Step 1 recap. Added 2026-08-13 — not yet audited against the actual hook output for compliance.
+1. **Outstanding items must always render as an ordered list when echoed to the user.** Audited 2026-08-13: `hooks/session-start.sh` already prints verbatim `^[0-9]+\. ` lines lifted from the primer (compliant, no change needed). `/session-continuity:end-session`'s Step 1 "May close outstanding items" overlay block was NOT compliant — it only mandated inline citation strings (`item #<N> (...)`, `<sha> → item #<N>`), no list structure. Fixed in `commands/end-session.md`'s Presentation section: candidates now must render as a markdown ordered list keyed to the item's own primer number.
 
-2. **Submit to the Anthropic marketplace.** Form answers in `meta/administrative/marketplace-submission.md` (version field synced to 0.6.0 in the docs sweep on 2026-05-22).
+2. **Submit to the Anthropic marketplace.** Form answers in `meta/administrative/marketplace-submission.md` (version field synced to 0.14.0 in the docs-accuracy sweep on 2026-08-13 — re-check against `.claude-plugin/plugin.json` at actual submission time, this field drifts every release).
 
 3. **Deferred recommendations from `meta/superpowers/recommendations/improvements_20260521.md`** (rejected or not-yet-prioritized — v0.5.1 + v0.6.0 shipped the items deemed high-value; re-triaged 2026-08-13, see below):
    - §2 branch-aware primer-only rule (rejected: edge case, current escape hatch sufficient).
@@ -179,8 +205,11 @@ Regenerate this block whenever you commit — see
    - §9.5 outstanding-items as YAML (still deferred — markdown sub-bullets work today).
    - §9.6 dev-mode plugin install template-path fallback (still low priority, one-line fix when it bites).
 
-4. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The auto-migration code path in primer's Migrate mode, the new Split mode, and the `learning`-skill duplicate-detection guard are good candidates.
+4. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The Split mode in `commands/primer.md` and the `learning`-skill duplicate-detection guard are good candidates.
 
-5. **Plan to drop the `docs/` fallback in hooks.** v0.5.0 keeps dual-path support indefinitely. A future v1.0.0 can remove the fallback once the auto-migration has had time to land in every user's repo.
+5. **Scratch-project smoke test for the primer split (deferred from this session).** The v0.13.0 implementation plan's Task 6 validated the split mechanically against this repo's own files but explicitly deferred the spec's Testing items 1-2 (fresh init in a scratch project, and Split mode against a throwaway unsplit primer) since they need a directory outside this repo. Run both before the next `/session-continuity:primer` change lands.
 
-6. **Scratch-project smoke test for the primer split (deferred from this session).** The v0.13.0 implementation plan's Task 6 validated the split mechanically against this repo's own files but explicitly deferred the spec's Testing items 1-2 (fresh init in a scratch project, and Split mode against a throwaway unsplit primer) since they need a directory outside this repo. Run both before the next `/session-continuity:primer` change lands.
+6. **Global docs-current hooks check "touched," not "accurate" — generalize the existing pass-count mechanism.** Investigated 2026-08-13, after verifying the hooks themselves exist and work exactly as documented (`~/.githooks/pre-commit` + the global Claude Code `Stop` hook `~/.claude/hooks/docs-current-check.sh`; see the `reference-global-docs-current-hooks` memory). **The gap:** both hooks only check whether *a* doc file was touched in a commit/turn, never whether a specific claim in that doc is still *true*. The one exception — `pre-commit`'s hard block when a primer's `"NN pass"` line disagrees with the real `bun test` count — is a single hard-coded special case, not a generalizable check. Every drift found in this session's doc sweep (file counts, command counts, hook counts, a stale marketplace repo name) is a claim-vs-reality mismatch that neither hook would have caught, because none of it is the one pattern they special-case.
+   **Invariant (per CLAUDE.md rule 4):** every count or named-entity-list claim in a repo's shipped docs must match the actual repo state at commit time — enforced at the gate that runs on every commit, not left to whoever's authoring the next PR to remember.
+   **Design sketch (not built — lives outside any git repo, needs separate buy-in before touching `~/.githooks`):** generalize the existing `"NN pass"` special case into a declarative per-repo config (e.g. `.docguard.yml`): a list of `{doc: <glob>, claim_pattern: <regex w/ capture>, actual_command: <shell>}` entries. On each staged doc file matching an entry, extract the claimed value, run the command, hard-block on mismatch — reusing the same code path and escape-hatch pattern (`DOCGUARD_SKIP_COUNT=1`, generalized) the pass-count check already has, rather than inventing a second mechanism.
+   **Why not build it now:** touches `~/.githooks` and `~/.claude/hooks`, not this repo; changes behavior for every git commit on the machine, not just this project. Bigger blast radius, deserves its own session and explicit go-ahead.

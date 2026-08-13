@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] — 2026-08-13
+
+### Removed
+- **Dropped the pre-v0.5.0 `docs/` legacy fallback.** `.session-continuity/`
+  is now the only recognized location. Removed the dual-path detection and
+  fallback logic from `hooks/session-start.sh`, `hooks/pre-commit-check.sh`,
+  `hooks/learnings-surface.sh`, `hooks/occurrence-gate.sh`, `hooks/flaky-gate.sh`,
+  `commands/primer.md` (Migrate mode and the dual-location Conflict mode are
+  gone; dispatch is now four states: init, split, refresh, check),
+  `commands/end-session.md`, `commands/learning.md`,
+  `skills/session-continuity/SKILL.md`, and `PRIVACY.md`. Outstanding item
+  originally tracked for a "future v1.0.0" is resolved now instead — this
+  plugin currently has a single user, so there is no unmigrated install to
+  carry the fallback for.
+
+### Fixed
+- **Documentation accuracy sweep.** `README.md`, `CONTRIBUTING.md`,
+  `PRIVACY.md`, `SECURITY.md`, `CLAUDE.md`, `skills/session-continuity/SKILL.md`,
+  and `meta/administrative/marketplace-submission.md` had drifted across
+  several unreleased features: the v0.13.0 `PROJECT_CONTEXT.md` split (most
+  docs still said "two files"/"two commands", missing the third file and the
+  `/session-continuity:spike-check` command entirely), and three of seven
+  `PreToolUse` gate hooks (`evidence-gate`, `flaky-gate`, `backend-parity-gate`)
+  that were never documented anywhere outside their own source comments.
+  Also fixed a broken install path: the marketplace catalog moved to the
+  separate `talgolan/claude-plugins` repo in a past release, but `README.md`'s
+  `/plugin marketplace add`/`/plugin install`/`/plugin marketplace update`
+  commands still pointed at this repo directly — corrected to the catalog's
+  actual name (`talgolan`) and repo. `CONTRIBUTING.md`'s release-process steps
+  no longer reference bumping a `marketplace.json` that no longer lives here.
+
 ## [0.13.0] — 2026-08-13
 
 ### Added

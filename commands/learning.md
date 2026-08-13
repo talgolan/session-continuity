@@ -12,17 +12,10 @@ If `$ARGUMENTS` is non-empty, use it as the pre-filled title.
 
 ## Step 1 — Preflight
 
-Check both the canonical path and the legacy path:
-
 - If `.session-continuity/LEARNINGS.md` exists, use that path for the rest of this command.
-- Else if `docs/LEARNINGS.md` exists (pre-v0.5.0 layout), tell the user:
-
-  > "Found `docs/LEARNINGS.md` at the pre-v0.5.0 location. Run `/session-continuity:primer` first — it will migrate the files to `.session-continuity/`. Then re-run `/session-continuity:learning`."
-
-  Exit.
 - Else tell the user:
 
-  > "No `.session-continuity/LEARNINGS.md` (or legacy `docs/LEARNINGS.md`) found. Run `/session-continuity:primer` first to initialize session-continuity in this project."
+  > "No `.session-continuity/LEARNINGS.md` found. Run `/session-continuity:primer` first to initialize session-continuity in this project."
 
   Exit.
 

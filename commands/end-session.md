@@ -17,18 +17,11 @@ Check that both files exist at the canonical path:
 1. `.session-continuity/SESSION_PRIMER.md`
 2. `.session-continuity/LEARNINGS.md`
 
-If either is missing, check the pre-v0.5.0 legacy path (`docs/SESSION_PRIMER.md`, `docs/LEARNINGS.md`):
+If either is missing, tell the user:
 
-- If either legacy file exists, tell the user:
+> "No `.session-continuity/SESSION_PRIMER.md` (or `.session-continuity/LEARNINGS.md`) found. Run `/session-continuity:primer` first to initialize session-continuity in this project."
 
-  > "Found session-continuity files at `docs/` (the pre-v0.5.0 location). Run `/session-continuity:primer` first — it will migrate the files to `.session-continuity/`. Then re-run `/session-continuity:end-session`."
-
-  Exit.
-- Else tell the user:
-
-  > "No `.session-continuity/SESSION_PRIMER.md` (or `.session-continuity/LEARNINGS.md`) found. Run `/session-continuity:primer` first to initialize session-continuity in this project."
-
-  Exit. Do not proceed.
+Exit. Do not proceed.
 
 ## Step 1 — Refresh the primer (drift-gated)
 
@@ -88,13 +81,11 @@ auto-removed**.
   append every `appears-DONE` item to the existing outstanding-items overlay
   candidate list, so it surfaces at Step 1's single combined prompt. One reply
   closes it. Cite the evidence beside the candidate.
-- **When the primer is drift-clean** (refresh flow skipped, no prompt fires):
-  do NOT force a prompt — that would break the "drift-clean + zero candidates =
-  zero prompts" guarantee. The `appears-DONE` item surfaces only as a ⚠️ in the
-  Step 3 checklist row. Across repeated drift-clean sessions the same item
-  re-flags every time until a drift-bearing session (or a manual `/primer`
-  refresh) gives the user a prompt to close it — intentional; the ⚠️ is a
-  standing reminder, and closing is deferred, never blocked.
+- **When the primer is drift-clean** (refresh flow skipped): if at least one
+  `appears-DONE` item was found, run the **drift-clean close-candidate prompt**
+  below instead of the refresh flow. If zero `appears-DONE` items were found,
+  no prompt fires at all — the "drift-clean + zero candidates = zero prompts"
+  guarantee holds.
 
 Removal of any item always requires explicit user confirmation. A verdict never
 mutates the primer on its own.
@@ -103,10 +94,24 @@ mutates the primer on its own.
 
 Read `.session-continuity/SESSION_PRIMER.md` and compare its `git log --oneline -5` block to the actual output of `git log --oneline -5` against the primary branch. Two outcomes:
 
-- **Block matches.** Treat the primer as current. Do NOT prompt for outstanding-items changes. Skip the rest of Step 1. In Step 3's checklist, record the Primer refresh row as ✓ "Primer already current (no-op)".
+- **Block matches.** Treat the primer as current — no git-log regeneration, no test-count re-check, no refresh flow. Then check the Outstanding-items verification results computed above:
+  - **Zero `appears-DONE` items.** Skip the rest of Step 1. In Step 3's checklist, record the Primer refresh row as ✓ "Primer already current (no-op)".
+  - **≥1 `appears-DONE` item.** Run the drift-clean close-candidate prompt below instead of skipping Step 1.
 - **Block differs** (any line differs — subjects, hashes, or ordering). Enter the refresh flow below.
 
 If the primer has a test-counts section, optionally re-run the test command(s) to confirm the counts are still accurate. **Retry flaky suites up to 3× before reporting drift** (per Step 5.3 of `commands/primer.md`); pin to the count seen in ≥2 of 3 runs and only flag drift if all three runs agree on a number that differs from the primer. Count mismatches that survive the retry count as drift.
+
+### Drift-clean close-candidate prompt (runs only when drift is clean AND ≥1 `appears-DONE` item)
+
+A lighter-weight alternative to the refresh flow below — no git-log regeneration, no test-count re-check, no commit-subject overlay matching (there is no "commits since last refresh" list to match against when nothing drifted).
+
+1. Render the `appears-DONE` items as the same markdown ordered list format used by the refresh flow's overlay (item's own primer number as ordinal, citing the code evidence).
+2. Ask a close-only question, scoped narrower than the refresh flow's combined prompt since there are no commit subjects or free-form drift to fold in:
+
+   > "Outstanding items — N appears-DONE (see list). Close any, or leave as-is?"
+3. **Wait for the answer before continuing.** Same refusal rule as the refresh flow: never close an item without explicit confirmation.
+4. If the user closes any items, edit only the primer's `## Outstanding items` section (do not touch the `git log --oneline -5` block — the drift check already confirmed it's current) and stage the primer. Step 3's Primer refresh row reads ✓ "Primer updated (outstanding item(s) closed)".
+5. If the user declines, skip the rest of Step 1. Step 3's Primer refresh row reads ✓ "Primer already current (no-op)", and the still-open `appears-DONE` item(s) surface again as a ⚠️ in the Outstanding items row (same standing-reminder behavior as before — it'll be offered again next session).
 
 ### Refresh flow (runs only when drift was detected)
 
@@ -114,7 +119,7 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
 1. Regenerate the `git log --oneline -5` block with current output.
 2. If the primer has a test-counts section and the counts changed (after the 3× retry), update them to match current output.
-3. **Surface commits since the last primer refresh, with outstanding-items overlay.** Run `git log <last-primer-commit>..HEAD --oneline` (where `<last-primer-commit>` is the output of `git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md`, falling back to `docs/SESSION_PRIMER.md` for legacy repos). Present the subject list as candidate prompts.
+3. **Surface commits since the last primer refresh, with outstanding-items overlay.** Run `git log <last-primer-commit>..HEAD --oneline` (where `<last-primer-commit>` is the output of `git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md`). Present the subject list as candidate prompts.
 
    Then compute an **outstanding-items overlay** for each subject:
 
@@ -130,10 +135,17 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
    **Presentation.** Render the "May close outstanding items" block when EITHER
    token-overlap matches from commit subjects OR `appears-DONE` items from the
-   Outstanding-items verification sub-block above exist. Cite each candidate:
-   commit-subject matches as `<sha> → item #<N>`, verification candidates as
-   `item #<N> (<cited code evidence>)`. Dedupe by item number: an item that is both a commit-subject match and an `appears-DONE` candidate appears once, on a single line carrying both the `<sha>` and the code-evidence citation. Omit the block only when BOTH sources
-   are empty (do not print an empty section).
+   Outstanding-items verification sub-block above exist. **Render candidates as
+   a markdown ordered list, one item per line, using the item's own primer
+   number as the list ordinal** (e.g. `4. <cited code evidence> — <sha>`) so
+   the numbering the user sees matches the numbering in the primer — never a
+   bare bullet list or an inline comma-separated citation. Cite each
+   candidate: commit-subject matches as `<sha> → item #<N>`, verification
+   candidates as `item #<N> (<cited code evidence>)`. Dedupe by item number: an
+   item that is both a commit-subject match and an `appears-DONE` candidate
+   appears once, on a single numbered line carrying both the `<sha>` and the
+   code-evidence citation. Omit the block only when BOTH sources are empty (do
+   not print an empty section).
 
    **Refusal.** Never close an outstanding item without explicit user confirmation. The overlay is a candidate list, not an auto-close.
 
@@ -399,7 +411,7 @@ Output using this structure. Use ✓ (green), ⚠️ (yellow), or → (suggestio
 
 | Row | Marker | Content |
 |---|---|---|
-| Primer refresh | ✓ | "Primer refreshed and staged" OR "Primer already current (no-op)" |
+| Primer refresh | ✓ | "Primer refreshed and staged" OR "Primer updated (outstanding item(s) closed)" OR "Primer already current (no-op)" |
 | New learnings | ✓ | "N LEARNINGS entry/entries captured (#X, \"<title>\" …)" OR "No new learnings" |
 | Outstanding items | checkmark if none stale, else warning | "N tracked — <k> appears-DONE (#X, evidence), <m> still-open (#…), <j> manual (#…)" OR "none tracked" |
 | Staged files | ✓ | "Staged: <file1>, <file2>, …" OR "Nothing staged" |
@@ -433,7 +445,7 @@ Prefix with `→ Suggested:` and wrap in a fenced code block so the user can cop
 ```
 ✓ Primer refreshed and staged
 ✓ 1 LEARNINGS entry captured (#7, "awk range collapse on single-version CHANGELOG")
-⚠️ Outstanding items: 5 tracked — 1 appears-DONE (#4, "drop docs/ fallback": grep hooks/ for 'docs/' → 0 hits after removal), 1 still-open (#3), 3 manual (#1, #2, #5)
+⚠️ Outstanding items: 5 tracked — 1 appears-DONE (#4, "add bats test harness": found test/end_to_end.bats → 0 hits before, now present), 1 still-open (#3), 3 manual (#1, #2, #5)
 ✓ Staged: .session-continuity/SESSION_PRIMER.md, .session-continuity/LEARNINGS.md, .github/workflows/release.yml
 ✓ No unstaged modifications
 ⚠️ 2 untracked files: scratch.md, tmp/debug.log — ignore, add, or delete?
@@ -442,7 +454,7 @@ Prefix with `→ Suggested:` and wrap in a fenced code block so the user can cop
     git commit -m "fix(ci): extract CHANGELOG section with proper awk range"
 ```
 
-*(Illustrative only — the real Outstanding-items row reflects the current primer; e.g. item #4's `docs/` fallback is still present today, so it reads `still-open`, not `appears-DONE`.)*
+*(Illustrative only — the real Outstanding-items row reflects the current primer's actual item set and verdicts.)*
 
 ## Step 4 — Terminal sign-off (always)
 
@@ -472,9 +484,10 @@ After the checklist (and suggested-commit block, if any), emit a final closing l
 - **Reflection is bounded by the current session.** Step 2 looks only at this conversation's context. Bugs from prior sessions, parallel worktrees, or separate Claude instances (subagents, different windows) aren't visible and won't be proposed. For those, the user should invoke `/session-continuity:learning` directly.
 - **Respect the primer-only-commit rule.** If the user, after seeing the checklist, commits only the primer, the `PreToolUse` hook's nudge still applies — nothing to do here.
 - **Zero arguments.** If the user passed text after `/session-continuity:end-session`, ignore it — session reflection provides all context needed.
-- **Bound the prompt count.** The whole ritual must fit ≤2 user prompts in the common case: one combined prompt in Step 1 (only when drift exists), one batch confirm in Step 2 (only when candidates surface). Drift-clean + zero candidates = zero prompts. Never split Step 1's combined question into two sequential asks. Never loop one-prompt-per-candidate in Step 2.
+- **Bound the prompt count.** The whole ritual must fit ≤2 user prompts in the common case: one Step 1 prompt (the full combined prompt when drift exists, or the lighter drift-clean close-candidate prompt when drift is clean but `appears-DONE` items exist), one batch confirm in Step 2 (only when candidates surface). Drift-clean + zero candidates = zero prompts; drift-clean + ≥1 candidate = exactly one (lightweight) prompt. Never split Step 1's prompt into two sequential asks. Never loop one-prompt-per-candidate in Step 2.
 - **Always sign off.** Step 4's terminal line is non-negotiable — the user invoked an explicit close-out and must not be left ambiguous about whether the ritual is done.
 - **Outstanding-items verdicts never mutate the primer.** The verification in
   Step 1 only classifies and reports; an `appears-DONE` item is removed only if
-  the user confirms it at the Step 1 prompt. A drift-clean session surfaces a
-  stale item as a standing ⚠️ in the checklist, never as a silent deletion.
+  the user confirms it at a Step 1 prompt (full combined prompt or the
+  drift-clean close-candidate prompt). Declining either prompt leaves the item
+  as a standing ⚠️ in the checklist, never a silent deletion.

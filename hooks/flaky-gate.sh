@@ -7,8 +7,7 @@
 #
 #   (1) Bash: extracts the git commit message text from tool_input.command.
 #   (2) Write/Edit: self-scopes to LEARNINGS.md under a .session-continuity/
-#       or docs/ path (same scope as occurrence-gate.sh), extracts the
-#       written content.
+#       path (same scope as occurrence-gate.sh), extracts the written content.
 #
 # In both cases, BLOCKS when the text calls a failure "flaky" / "transient"
 # / "CDN blip" / "CDN flake" without also naming the mechanism behind it —
@@ -100,7 +99,7 @@ case "$tool" in
     base="${file_path##*/}"
     [ "$base" = "LEARNINGS.md" ] || exit 0
     case "$file_path" in
-      */.session-continuity/*|*/docs/*) : ;;
+      */.session-continuity/*) : ;;
       *) exit 0 ;;
     esac
     raw="$(printf '%s' "$payload" \

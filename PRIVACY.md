@@ -2,7 +2,7 @@
 
 **Plugin:** `session-continuity`
 **Maintainer:** Tal Golan ([github.com/talgolan](https://github.com/talgolan))
-**Last updated:** 2026-05-22
+**Last updated:** 2026-08-13
 
 ## Short version
 
@@ -10,11 +10,11 @@ This plugin does not collect, transmit, or store personal data about you. All da
 
 ## What data the plugin handles
 
-- **File contents in your own repositories.** The slash commands (`/session-continuity:primer`, `/session-continuity:learning`, `/session-continuity:end-session`) read and write `.session-continuity/SESSION_PRIMER.md` and `.session-continuity/LEARNINGS.md` in the current git repository (or the legacy `docs/` location on pre-v0.5.0 projects). These are ordinary files in your repo; the plugin stores nothing elsewhere.
-- **Git metadata.** The commands invoke `git log`, `git status`, `git diff --cached`, and similar read-only commands to populate the primer and checklist. This metadata is processed locally and written into the same two files; it is never transmitted.
-- **Hook payloads.** Claude Code passes the hook scripts a JSON payload containing the current working directory and the command being run. The scripts read these values locally to decide whether to emit a reminder. Nothing from the payload is transmitted or persisted outside the running session.
+- **File contents in your own repositories.** The slash commands `/session-continuity:primer`, `/session-continuity:learning`, and `/session-continuity:end-session` read and write `.session-continuity/SESSION_PRIMER.md`, `.session-continuity/PROJECT_CONTEXT.md`, and `.session-continuity/LEARNINGS.md` in the current git repository. These are ordinary files in your repo; the plugin stores nothing elsewhere. `/session-continuity:spike-check` touches no files at all — it prints a checklist and asks questions in-conversation.
+- **Git metadata.** The commands invoke `git log`, `git status`, `git diff --cached`, and similar read-only commands to populate the primer and checklist. This metadata is processed locally and written into the same three files; it is never transmitted.
+- **Hook payloads.** Claude Code passes the hook scripts a JSON payload containing the current working directory and, depending on the hook, the Bash command about to run or the file path + content about to be written/edited. The scripts read these values locally to decide whether to emit a reminder or block the action. Nothing from the payload is transmitted or persisted outside the running session.
 
-**The plugin does not touch:** environment variables, shell history, editor state, other files in your repo, any file outside the current working directory, your clipboard, or anything on disk outside the two documented files plus the update-check cache described below.
+**The plugin does not touch:** environment variables, shell history, editor state, other files in your repo, any file outside the current working directory, your clipboard, or anything on disk outside the three documented files plus the update-check cache described below.
 
 ## External network calls
 

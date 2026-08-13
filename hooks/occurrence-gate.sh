@@ -3,7 +3,7 @@
 # occurrence-gate.sh — PreToolUse hook (session-continuity plugin).
 #
 # Fires before Write / Edit. Self-scopes to a LEARNINGS.md under a
-# .session-continuity/ or docs/ path. BLOCKS the write when the content records
+# .session-continuity/ path. BLOCKS the write when the content records
 # the 2nd-or-later occurrence of a mistake-class —
 #
 #   Occurrence count: N of M     (N >= 2)
@@ -42,11 +42,11 @@ file_path="$(printf '%s' "$payload" \
   || true)"
 [ -z "${file_path:-}" ] && exit 0
 
-# Self-scope: basename LEARNINGS.md AND under a .session-continuity/ or docs/ dir.
+# Self-scope: basename LEARNINGS.md AND under a .session-continuity/ dir.
 base="${file_path##*/}"
 [ "$base" = "LEARNINGS.md" ] || exit 0
 case "$file_path" in
-  */.session-continuity/*|*/docs/*) : ;;
+  */.session-continuity/*) : ;;
   *) exit 0 ;;
 esac
 

@@ -4,12 +4,12 @@ Thanks for thinking about contributing. This is a small, opinionated project wit
 
 ## Scope first
 
-This skill ships a specific pattern: two in-repo Markdown files (`.session-continuity/SESSION_PRIMER.md` and `.session-continuity/LEARNINGS.md`) with slash commands and hooks that make the habit of using them cheap. That's the whole scope.
+This skill ships a specific pattern: three in-repo Markdown files (`.session-continuity/SESSION_PRIMER.md`, `.session-continuity/PROJECT_CONTEXT.md`, and `.session-continuity/LEARNINGS.md`) with slash commands and hooks that make the habit of using them cheap. That's the whole scope.
 
 **PRs that fit the existing shape move quickly.** Bug fixes, prose improvements to existing commands, small behavior refinements that sharpen the existing tools — all welcome.
 
 **PRs that expand scope will be declined or redirected.** Examples of scope expansion:
-- A third in-repo doc (e.g. `.session-continuity/DECISIONS.md`, `.session-continuity/ROADMAP.md`). The two-file split is load-bearing; see the README's "Two files, two questions" section.
+- A fourth in-repo doc (e.g. `.session-continuity/DECISIONS.md`, `.session-continuity/ROADMAP.md`). The three-file split is load-bearing; see the README's "Why three files" section.
 - Integration with a specific memory server, vector database, or external storage. The point is plain files in git.
 - A plugin architecture, extension API, or configuration system. The slash commands and hooks are the interface.
 - Auto-commit, auto-push, or "just do it all for me" modes. Deliberate capture is a design choice, not an oversight.
@@ -20,8 +20,9 @@ If you're unsure whether your idea fits, open an issue first and describe what y
 
 1. Read the [README](README.md) for the user-facing view.
 2. Read `.session-continuity/SESSION_PRIMER.md` — it's the current-state snapshot for this very repo, maintained by the plugin's own commands.
-3. Skim `.session-continuity/LEARNINGS.md` — real bugs we've hit, grouped by layer. Useful context for hook/command work.
-4. Skim the most recent spec + plan in `meta/superpowers/` to see how changes are shaped before they become code. (`.session-continuity/` in this repo is intentionally limited to the two files the plugin ships — primer and LEARNINGS. Dev artifacts like specs, plans, and marketplace paperwork live under `meta/` so they don't pollute the plugin's public surface.)
+3. Skim `.session-continuity/PROJECT_CONTEXT.md` — stable repo layout and conventions for this repo.
+4. Skim `.session-continuity/LEARNINGS.md` — real bugs we've hit, grouped by layer. Useful context for hook/command work.
+5. Skim the most recent spec + plan in `meta/superpowers/` to see how changes are shaped before they become code. (`.session-continuity/` in this repo is intentionally limited to the three files the plugin ships — primer, PROJECT_CONTEXT, and LEARNINGS. Dev artifacts like specs, plans, and marketplace paperwork live under `meta/` so they don't pollute the plugin's public surface.)
 
 ## Local development
 
@@ -41,7 +42,7 @@ git config core.hooksPath .githooks
 
 There's no build step, no dependencies to install. Everything is Markdown, shell, and JSON.
 
-The `core.hooksPath` line enables the repo's tracked git hooks (currently a single pre-commit guard that blocks commits where `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` disagree on the version — the two files have drifted silently before). This is dev-only — end users installing the plugin via `/plugin marketplace add` never run these hooks.
+The `core.hooksPath` line enables the repo's tracked git hooks: currently a single pre-commit guard (`.githooks/pre-commit`) that would block a commit where `.claude-plugin/plugin.json` and a per-repo `.claude-plugin/marketplace.json` disagree on version. **Currently dormant**: the marketplace catalog moved to the separate `talgolan/claude-plugins` repo, so this repo no longer has a `.claude-plugin/marketplace.json` — the guard silently no-ops (it exits 0 when either file is missing). This is dev-only either way — end users installing the plugin via `/plugin marketplace add` never run these hooks.
 
 ### Run the plugin against a scratch repo
 
@@ -57,7 +58,7 @@ git commit -m "init"
 claude --plugin-dir /Users/YOU/path/to/session-continuity
 ```
 
-Inside Claude, exercise the slash commands (`/session-continuity:primer`, `/session-continuity:learning`, `/session-continuity:end-session`) and check that the hooks fire when expected.
+Inside Claude, exercise the slash commands (`/session-continuity:primer`, `/session-continuity:learning`, `/session-continuity:end-session`, `/session-continuity:spike-check`) and check that the hooks fire when expected.
 
 ### Hook smoke tests
 
@@ -89,45 +90,57 @@ zsh meta/superpowers/validation/2026-08-06-smoke-gate-smoke.zsh
 ```
 session-continuity/
 ├── .claude-plugin/
-│   ├── plugin.json              # manifest — name, version, keywords
-│   └── marketplace.json         # catalog that lets users install this repo via /plugin marketplace add
+│   └── plugin.json              # manifest — name, version, keywords
 ├── .githooks/
-│   └── pre-commit               # version-sync guard (dev-only; activated via `git config core.hooksPath .githooks`)
+│   └── pre-commit               # dormant version-sync guard (dev-only; see "Clone and install locally")
 ├── skills/
 │   └── session-continuity/
 │       ├── SKILL.md             # main skill description (shown in marketplace)
 │       └── templates/
 │           ├── SESSION_PRIMER.md
+│           ├── PROJECT_CONTEXT.md
 │           └── LEARNINGS.md
 ├── commands/
 │   ├── primer.md                # /session-continuity:primer
 │   ├── learning.md              # /session-continuity:learning
-│   └── end-session.md           # /session-continuity:end-session
+│   ├── end-session.md           # /session-continuity:end-session
+│   └── spike-check.md           # /session-continuity:spike-check
 ├── hooks/
 │   ├── hooks.json               # hook registration
 │   ├── session-start.sh         # SessionStart event
-│   ├── pre-commit-check.sh      # PreToolUse event (Bash matcher + `if: Bash(git commit *)`)
+│   ├── pre-commit-check.sh      # PreToolUse, Bash matcher + `if: Bash(git commit *)` — commit nudge
+│   ├── learnings-surface.sh     # PreToolUse, Bash/Write/Edit — action-keyed LEARNINGS retrieval
+│   ├── smoke-gate.sh            # PreToolUse, Write/Edit — MANDATORY smoke task on binary/engine plans
+│   ├── proven-gate.sh           # PreToolUse, Write/Edit — Real path:/Stubbed: fields on "proven" claims
+│   ├── occurrence-gate.sh       # PreToolUse, Write/Edit — Invariant: on 2nd+ occurrence LEARNINGS entries
+│   ├── evidence-gate.sh         # PreToolUse, Write/Edit — failure-evidence preservation in smoke design
+│   ├── flaky-gate.sh            # PreToolUse, Bash(git commit)/Write/Edit — names the mechanism, not "flaky"
+│   ├── backend-parity-gate.sh   # PreToolUse, Write/Edit — second backend named for parity coverage
 │   └── version-check.sh         # weekly freshness check (invoked by session-start.sh)
 ├── .session-continuity/
 │   ├── SESSION_PRIMER.md        # this repo's own primer (yes, we dogfood the pattern)
+│   ├── PROJECT_CONTEXT.md       # this repo's own stable context
 │   └── LEARNINGS.md             # this repo's own LEARNINGS
 ├── meta/
 │   ├── administrative/          # meta-docs (marketplace-submission answers, contributor notes)
 │   └── superpowers/
 │       ├── specs/               # design docs (one per feature)
-│       └── plans/               # implementation plans (one per feature)
+│       ├── plans/               # implementation plans (one per feature)
+│       ├── validation/          # hermetic smoke runners, one per gate hook
+│       └── recommendations/     # triaged improvement proposals, accepted or rejected
 ├── .github/workflows/
 │   └── release.yml              # tag-triggered GitHub Release
 ├── README.md
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md              # you are here
+├── PRIVACY.md                   # data-handling disclosure
 ├── SECURITY.md                  # security disclosure + scope
 └── LICENSE
 ```
 
-`.session-continuity/` is intentionally limited to the two files the plugin ships — primer and LEARNINGS — so it mirrors what users see in their own projects. Repo-specific dev artifacts (design specs, implementation plans, submission paperwork) live under `meta/` so they don't pollute the plugin's public surface.
+The marketplace catalog that lets users `/plugin marketplace add` this plugin no longer lives in this repo — it moved to the separate `talgolan/claude-plugins` repo (see the README's "Install" section). `.session-continuity/` here is intentionally limited to the three files the plugin ships — primer, PROJECT_CONTEXT, and LEARNINGS — so it mirrors what users see in their own projects. Repo-specific dev artifacts (design specs, implementation plans, submission paperwork) live under `meta/` so they don't pollute the plugin's public surface.
 
-Files that change together live together. If you're adding a new slash command, you'll likely touch `commands/<name>.md`, the "three commands" paragraph in `skills/session-continuity/SKILL.md`, `README.md`, and `CHANGELOG.md`. If you're modifying a hook, you'll likely only touch `hooks/<name>.sh`.
+Files that change together live together. If you're adding a new slash command, you'll likely touch `commands/<name>.md`, the commands paragraph in `skills/session-continuity/SKILL.md`, `README.md`, `PRIVACY.md`, and `CHANGELOG.md`. If you're modifying a hook, you'll likely only touch `hooks/<name>.sh`.
 
 ## Development workflow
 
@@ -241,11 +254,11 @@ Only the maintainer tags releases, but the steps are public so PR authors know w
 
 1. Ensure `main` is green and the desired changes are merged.
 2. Bump `.claude-plugin/plugin.json` version following semver.
-3. Bump `.claude-plugin/marketplace.json` `plugins[0].version` to the **same** value. The pre-commit hook (`.githooks/pre-commit`, enabled via `git config core.hooksPath .githooks`) will refuse the commit if these two disagree.
-4. Add a new `## [X.Y.Z] — YYYY-MM-DD` section to `CHANGELOG.md` with `### Added`, `### Changed`, `### Removed` subsections as needed. **This section must appear above the previous version's section.** The release workflow extracts the first section matching the tag.
-5. Commit with `chore: bump to X.Y.Z` (covers both manifest files) and `docs: add [X.Y.Z] to CHANGELOG` — or one combined commit, your call.
-6. Tag: `git tag vX.Y.Z && git push origin vX.Y.Z`. **The version-check hook polls GitHub Releases, not commits — without the tag and release, no user gets the upgrade nudge.**
-7. The `.github/workflows/release.yml` workflow extracts the CHANGELOG section and publishes a GitHub Release.
+3. Add a new `## [X.Y.Z] — YYYY-MM-DD` section to `CHANGELOG.md` with `### Added`, `### Changed`, `### Removed` subsections as needed. **This section must appear above the previous version's section.** The release workflow extracts the first section matching the tag.
+4. Commit with `chore: bump to X.Y.Z` and `docs: add [X.Y.Z] to CHANGELOG` — or one combined commit, your call.
+5. Tag: `git tag vX.Y.Z && git push origin vX.Y.Z`. **The version-check hook polls GitHub Releases, not commits — without the tag and release, no user gets the upgrade nudge.**
+6. The `.github/workflows/release.yml` workflow extracts the CHANGELOG section and publishes a GitHub Release.
+7. Update the plugin's entry in the separate `talgolan/claude-plugins` catalog repo if the plugin's name, description, or source changed (the version there is not read by users — `/plugin install` resolves the plugin's own `plugin.json` — but keep the catalog's description in sync so `/plugin` → Discover doesn't show stale copy).
 
 If the release body comes back empty ("No CHANGELOG section for X.Y.Z"), the awk extraction matched the wrong range — see LEARNINGS #2.
 

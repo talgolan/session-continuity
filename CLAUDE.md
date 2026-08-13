@@ -7,8 +7,7 @@ inside this repo only.
 
 Superpowers skills (brainstorming, writing-plans, etc.) default to
 `docs/superpowers/specs/` and `docs/superpowers/plans/`. **Do not use
-those paths in this repo.** This project's `docs/` is reserved for
-files the plugin ships to end users.
+those paths in this repo.**
 
 Canonical locations for in-repo agent artifacts:
 
@@ -20,10 +19,13 @@ Canonical locations for in-repo agent artifacts:
 | Recommendation / feedback docs | `meta/superpowers/recommendations/` |
 | Administrative notes (marketplace submission, etc.) | `meta/administrative/` |
 
-History: the `docs/` → `meta/` move shipped in v0.3 (see CHANGELOG)
-to keep `docs/` clean for the two files the plugin ships to user
-projects (`SESSION_PRIMER.md` template and `LEARNINGS.md` template,
-both now under `skills/session-continuity/templates/`).
+History: the `docs/` → `meta/` move shipped in v0.3 (see CHANGELOG).
+The three files the plugin ships to user projects
+(`SESSION_PRIMER.md`, `PROJECT_CONTEXT.md`, and `LEARNINGS.md`
+templates) live under `skills/session-continuity/templates/`, not
+`docs/`. This repo has no top-level `docs/` directory at all today —
+if one gets added later for some other purpose, it stays clean of
+agent meta-artifacts per the table above.
 
 If a superpowers skill suggests `docs/superpowers/<thing>/`, redirect
 to `meta/superpowers/<thing>/` before creating the file.
