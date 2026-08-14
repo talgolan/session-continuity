@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.2] — 2026-08-14
+
+### Fixed
+- **`/session-continuity:end-session` had gotten slow.** Grew from 172 to
+  493 lines over its history; the two biggest single additions —
+  outstanding-items code verification (v0.12.0) and the four LEARNINGS
+  heuristics (v0.6.0) — both pay real per-invocation cost, not just
+  instruction-length cost. Three changes to `commands/end-session.md`:
+  - Added a fast path at the top of Step 1: if `git status --porcelain` is
+    empty and no commits landed since the primer was last touched, skip the
+    drift check and outstanding-items verification entirely (nothing in the
+    repo changed, so nothing could have resolved).
+  - Gated per-item outstanding-items verification behind commit-subject
+    token overlap (reusing the existing overlay's tokenizer): only items
+    implicated by a commit since the last refresh get the full
+    classify/grep/glob treatment; untouched items get a cheap `manual`
+    verdict cited "no related commits since last refresh — not re-checked
+    this session." Deliberate tradeoff, documented inline: an item resolved
+    without a matching commit subject won't be caught until one lands.
+  - Merged Step 2's four independent transcript scans (retry-burst, revert,
+    error-recurrence, fix-burst) into one combined extraction pass producing
+    three shared arrays (`bash_calls`/`commits`/`errors`); all four
+    heuristics now read from those instead of re-scanning the transcript
+    file each.
+  - Also deduped a redundant `git log <last-primer>..HEAD` call that was
+    computed once for verification and again for the refresh-flow overlay.
+- **Outstanding-items numbering had no explicit floor.** Nothing in
+  `hooks/session-start.sh` or `skills/session-continuity/SKILL.md` said
+  numbering must start at 1 — hardened both the hook's injected instruction
+  text and the SKILL.md standing rule to say so explicitly ("never 0").
+
 ## [0.14.1] — 2026-08-13
 
 ### Fixed

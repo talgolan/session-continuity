@@ -25,17 +25,44 @@ Exit. Do not proceed.
 
 ## Step 1 — Refresh the primer (drift-gated)
 
-Before prompting the user for anything, first verify the primer's outstanding
-items against code (below), then run a drift check. The goal: if the primer is
-already in sync with the repo, do nothing and record a no-op. Only enter the
-refresh flow when something actually changed.
+Before prompting the user for anything, check the fast path below. If it
+doesn't fire, verify the primer's outstanding items against code, then run a
+drift check. The goal: if the primer is already in sync with the repo, do
+nothing and record a no-op. Only enter the refresh flow when something
+actually changed.
 
-### Outstanding-items verification (runs first, unconditionally)
+### Fast path — nothing changed since last close-out (check first, cheap)
 
-Before the drift check, verify the primer's outstanding items against actual
-repo state. This runs on EVERY invocation — drift-clean or not — because a
-stale item can outlive a drift-clean primer. Compute each verdict once here;
+Run:
+
+```bash
+git status --porcelain
+git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md   # <last-primer-commit>
+git rev-parse HEAD
+```
+
+If `git status --porcelain` is empty AND `<last-primer-commit>` equals
+`HEAD` (no commits have landed since the primer was last touched), skip the
+rest of Step 1 entirely — no drift check, no outstanding-items verification,
+no git-log recomputation. Nothing in the repo has changed since the last
+close-out, so no per-item re-check could turn up anything new. Step 3's
+Primer refresh row reads ✓ "Primer already current (no-op)"; the
+Outstanding-items row reads ✓ "N tracked — not re-verified this session (no
+repo changes since last close-out)". Skip straight to Step 2.
+
+Otherwise — something changed — proceed with the checks below.
+
+### Outstanding-items verification (gated by commit-subject overlap)
+
+Verify the primer's outstanding items against actual repo state. Runs
+whenever the fast path above didn't fire. Compute each verdict once here;
 Step 3 reuses these verdicts.
+
+**Compute the commit list once.** Run
+`git log <last-primer-commit>..HEAD --oneline` (reusing `<last-primer-commit>`
+from the fast-path check above). This same list feeds both this section's
+overlap gate below and the Refresh flow's overlay further down — compute it
+here, don't recompute it there.
 
 **Skip conditions.** Same as the overlay's existing skip clause (the "Skip
 conditions" bullet in the Refresh flow): if the primer has no
@@ -47,6 +74,20 @@ empty.
 **For each top-level numbered item** under `## Outstanding items` (scope the
 item exactly as the overlay does: the numbered line plus indented continuation
 lines until the next top-level number; sub-bullets roll up to their parent):
+
+**Overlap gate (cost control) — run this before classifying.** Tokenize the
+item (same rule as the overlay below: lowercase, split on non-alphanumeric,
+drop tokens <3 chars, drop the overlay's stopword list) and compare against
+each commit subject in the list computed above, tokenized the same way. If
+the intersection with EVERY commit subject has cardinality <3 — nothing that
+landed since the last refresh implicates this item — skip the
+classify/verify steps below for this item. Assign verdict **`manual`**, cited
+as `"no related commits since last refresh — not re-checked this session"`.
+This is the deliberate accuracy tradeoff of the gate: an item resolved
+through means that leave no matching commit subject (a manual/external fix)
+won't be caught until a touching commit lands or the user mentions it
+directly. Items with cardinality ≥3 against at least one commit subject
+proceed to full classify/verify below.
 
 1. **Classify — code-verifiable or not.** An item is code-verifiable if a
    `grep`/`glob`/file-exists check *could* speak to it (it names a file, a
@@ -119,7 +160,7 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
 1. Regenerate the `git log --oneline -5` block with current output.
 2. If the primer has a test-counts section and the counts changed (after the 3× retry), update them to match current output.
-3. **Surface commits since the last primer refresh, with outstanding-items overlay.** Run `git log <last-primer-commit>..HEAD --oneline` (where `<last-primer-commit>` is the output of `git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md`). Present the subject list as candidate prompts.
+3. **Surface commits since the last primer refresh, with outstanding-items overlay.** Reuse the commit list already computed in the Outstanding-items verification section above (`git log <last-primer-commit>..HEAD --oneline`) — do not recompute it. Present the subject list as candidate prompts.
 
    Then compute an **outstanding-items overlay** for each subject:
 
@@ -203,6 +244,31 @@ When in context-window mode, note the limitation in the candidate
 output: "session context may be compacted; some early-session events
 may not have surfaced." Do not pretend to have full visibility.
 
+### Combined extraction pass (transcript-file mode only)
+
+Do this ONCE, before applying any heuristic below — not once per heuristic.
+Four independent greps/jq passes over the same (possibly multi-megabyte)
+file is pure redundant cost; one pass produces everything all four
+heuristics need.
+
+Run a single `jq` pass over the transcript file that extracts three arrays
+in one read (adjust the filter to the file's actual JSONL schema — the point
+is one read producing three derived views, not the exact incantation):
+
+- **`bash_calls`** — every Bash tool call: timestamp, normalized command
+  (per Heuristic A's normalization rule), exit code, first line of stderr.
+  Feeds Heuristics A and D.
+- **`commits`** — every Bash call whose command matches `git commit`:
+  timestamp, sha, subject. Feeds Heuristic D's trigger.
+- **`errors`** — every tool result with non-empty stderr or an `Error:`
+  line: timestamp, normalized error string (per Heuristic C's normalization
+  rules). Feeds Heuristic C.
+
+Heuristics A–D below all read from these three in-memory arrays. None of
+them re-reads or re-filters the transcript file — if a heuristic's logic
+seems to require a fresh scan, derive it from `bash_calls`/`commits`/`errors`
+instead.
+
 ### Privacy
 
 Heuristic candidates' "evidence" bullets paraphrase tool inputs; they
@@ -219,7 +285,8 @@ title and supporting evidence (1-3 bullet citations).
 
 #### Heuristic A — retry burst
 
-Group consecutive Bash tool calls by **normalized command**:
+From `bash_calls` (computed once above), group consecutive calls by
+**normalized command**:
 
 - Strip arguments after the first newline (heredocs collapse to their
   command head).
@@ -238,7 +305,7 @@ session.
 
 #### Heuristic B — revert / reset
 
-**Trigger:** any Bash invocation matching one of:
+**Trigger:** in `bash_calls`, any invocation matching one of:
 
 - `git reset --hard`
 - `git checkout -- <path>`
@@ -255,20 +322,16 @@ reverted (look up `git show <reverted-sha> --format=%s` if known).
 
 #### Heuristic C — error recurrence
 
-For each tool result with non-empty stderr OR a tool output line
-prefixed `Error:`, extract the **error string**:
+`errors` (computed once above) already holds the normalized error string per
+entry:
 
 - First non-empty line of stderr, or
 - The `Error:`-prefixed line, whichever appears first.
+- Normalized: absolute paths stripped to basenames, line:column refs
+  (`:42:7`) stripped, ISO-8601/`HH:MM:SS` timestamps stripped, hex addresses
+  (`0x[0-9a-f]+`) stripped.
 
-**Normalize the error string:**
-
-- Strip absolute paths to basenames.
-- Strip line:column references (e.g. `:42:7`).
-- Strip ISO-8601 and `HH:MM:SS` timestamps.
-- Strip hex addresses (`0x[0-9a-f]+`).
-
-**Trigger:** the same normalized error string appears ≥3 times AND
+**Trigger:** the same normalized error string appears ≥3 times in `errors` AND
 the first and last occurrences span ≥15 minutes (use timestamps from
 the JSONL `timestamp` field; in context-window fallback skip the
 wall-clock gate and trigger on count alone).
@@ -279,12 +342,10 @@ wall-clock gate and trigger on count alone).
 
 #### Heuristic D — fix burst
 
-**Trigger:** a commit with subject matching `^fix(\(.+\))?: ` (Bash
-invocation matching `git commit -m "fix...` or `git commit ... -m`
-with such a subject) preceded by ≥10 Bash tool calls within the prior
-30 minutes (count both successful and failing invocations; use
-JSONL timestamps; in fallback mode use ordinal proximity rather than
-wall-clock).
+**Trigger:** in `commits`, a subject matching `^fix(\(.+\))?: ` preceded, in
+`bash_calls`, by ≥10 calls within the prior 30 minutes (count both
+successful and failing invocations; use JSONL timestamps; in fallback mode
+use ordinal proximity rather than wall-clock).
 
 **Candidate title:** `<commit subject> — fix preceded by N-action investigation.`
 
@@ -428,7 +489,12 @@ post-edit primer; only the per-item verdicts (`still-open` / `appears-DONE` /
 1 prompt, it is gone from the primer and absent from this row. Marker: ✓ if
 every remaining item is `still-open` or `manual` (nothing stale lingering);
 ⚠️ if any remaining item is `appears-DONE` (a resolved item still listed).
-Cite the evidence for each `appears-DONE` item inline.
+Cite the evidence for each `appears-DONE` item inline. A `manual` item's
+citation is either `"not auto-verifiable"` (genuinely non-code) or `"no
+related commits since last refresh — not re-checked this session"` (skipped
+by the overlap gate) — keep whichever citation Step 1 assigned, don't
+collapse them to one phrase. When the fast path fired, skip re-deriving this
+row altogether and use its own citation as specified there.
 
 ### Suggested commit message
 

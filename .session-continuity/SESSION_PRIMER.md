@@ -20,6 +20,21 @@ rarely.
 
 ## Current state
 
+- **v0.14.2 (pending release)** — two fixes from user-reported friction, not
+  from a doc sweep this time. (1) `/session-continuity:end-session` had
+  gotten slow — grew 172→493 lines across its history, and the two biggest
+  additions (v0.12.0's outstanding-items verification, v0.6.0's four
+  LEARNINGS heuristics) both pay real per-invocation runtime cost, not just
+  instruction-length cost. Added a fast path (skip Step 1 entirely when
+  nothing changed since last close-out), gated per-item verification behind
+  commit-subject token overlap (untouched items get a cheap `manual` verdict
+  instead of a full grep/glob check — documented tradeoff: an item resolved
+  without a matching commit won't be caught until one lands), and merged
+  Step 2's four separate transcript scans into one combined extraction pass.
+  (2) Outstanding-items numbering had no explicit "start at 1, never 0"
+  rule anywhere — hardened both `hooks/session-start.sh`'s injected
+  instruction and `SKILL.md`'s standing rule to say so directly. See
+  CHANGELOG `[0.14.2]` for the full list.
 - **v0.14.1 (pending release)** — fixes a real-world regression reported
   from a different repo running the installed v0.14.0 plugin: outstanding
   items could render as unnumbered prose in chat, because the "always
@@ -194,11 +209,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+9d8df5f fix: outstanding-items list-echo rule + smoke suite drift (v0.14.1)
 5a2f3d6 feat: drop docs/ legacy fallback, fix doc-accuracy drift (v0.14.0)
 c7177b7 docs: update session continuity, ignore .itb.json
 0877f58 feat: split primer into volatile/stable files, add LEARNINGS symptoms index (v0.13.0)
 7da2278 docs: update session continuity
-9166fec Merge remote-tracking branch 'origin/main'
 ```
 
 Regenerate this block whenever you commit — see
@@ -220,7 +235,7 @@ Regenerate this block whenever you commit — see
    - §9.5 outstanding-items as YAML (still deferred — markdown sub-bullets work today).
    - §9.6 dev-mode plugin install template-path fallback (still low priority, one-line fix when it bites).
 
-3. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The Split mode in `commands/primer.md` and the `learning`-skill duplicate-detection guard are good candidates.
+3. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The Split mode in `commands/primer.md`, the `learning`-skill duplicate-detection guard, and v0.14.2's new end-session fast-path/overlap-gate logic (untested beyond prose review — no fixture repo yet exercises "nothing changed" vs. "item touched by a commit" vs. "item untouched") are good candidates.
 
 4. **Scratch-project smoke test for the primer split (deferred from this session).** The v0.13.0 implementation plan's Task 6 validated the split mechanically against this repo's own files but explicitly deferred the spec's Testing items 1-2 (fresh init in a scratch project, and Split mode against a throwaway unsplit primer) since they need a directory outside this repo. Run both before the next `/session-continuity:primer` change lands.
 
