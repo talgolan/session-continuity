@@ -20,25 +20,27 @@ rarely.
 
 ## Current state
 
-- **v0.14.4 shipped** (branch `fix/end-session-perf-round-trips`, commit
-  pushed). User-reported: `/session-continuity:end-session` took 20+
-  minutes on a real session despite v0.14.2's fast path. Diagnosis: the
-  20 minutes was round-trip latency (one model turn per Bash call), not
-  compute — validated the actual jq/grep work on a 4.3MB/238-call
-  transcript at <0.05s. Three fixes to `commands/end-session.md` +
-  `commands/primer.md`: (1) explicit single-Bash-call batching at 4 spots
-  that previously spent one round trip per command/item (fast-path check,
-  outstanding-items per-item verification, Step 3's fact-gathering, plus
-  Step 2's transcript extraction); (2) Step 2's jq filter went from
-  unverified "adjust to the schema" prose to a concrete filter tested
-  against 3 real transcripts, fixing a real jq gotcha along the way
-  (`split("\n")[0]` → `null` on `""`, not `""` — crashes the next `gsub`;
-  see LEARNINGS #10); (3) Step 1's test-count drift check ran the suite
-  3× unconditionally — now skips the rerun when no relevant file changed,
-  runs once otherwise, and only escalates to the 3-run majority vote on
-  disagreement. Also fixed a majority-vs-unanimity self-contradiction in
-  `end-session.md`'s restatement of the retry rule. See CHANGELOG
-  `[0.14.4]`.
+- **v0.14.4 released** — commit `cf29867` (squash-merged via PR #13), tag
+  `v0.14.4` pushed, GitHub Actions `release.yml` ran clean, [GitHub
+  Release](https://github.com/talgolan/session-continuity/releases/tag/v0.14.4)
+  published 2026-08-15. Verified via `gh run list` + `gh release view`.
+  User-reported: `/session-continuity:end-session` took 20+ minutes on a
+  real session despite v0.14.2's fast path. Diagnosis: the 20 minutes was
+  round-trip latency (one model turn per Bash call), not compute —
+  validated the actual jq/grep work on a 4.3MB/238-call transcript at
+  <0.05s. Three fixes to `commands/end-session.md` + `commands/primer.md`:
+  (1) explicit single-Bash-call batching at 4 spots that previously spent
+  one round trip per command/item (fast-path check, outstanding-items
+  per-item verification, Step 3's fact-gathering, plus Step 2's transcript
+  extraction); (2) Step 2's jq filter went from unverified "adjust to the
+  schema" prose to a concrete filter tested against 3 real transcripts,
+  fixing a real jq gotcha along the way (`split("\n")[0]` → `null` on
+  `""`, not `""` — crashes the next `gsub`; see LEARNINGS #10); (3) Step
+  1's test-count drift check ran the suite 3× unconditionally — now skips
+  the rerun when no relevant file changed, runs once otherwise, and only
+  escalates to the 3-run majority vote on disagreement. Also fixed a
+  majority-vs-unanimity self-contradiction in `end-session.md`'s
+  restatement of the retry rule. See CHANGELOG `[0.14.4]`.
 - **v0.14.3 released** — commit `e197071`, tag `v0.14.3` pushed, GitHub
   Actions `release.yml` ran clean, [GitHub Release](https://github.com/talgolan/session-continuity/releases/tag/v0.14.3)
   published 2026-08-15. Verified via `gh run watch` + `gh release view`,
@@ -247,11 +249,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+cf29867 fix: end-session round-trip batching + jq robustness + test-retry early-exit (#13) (v0.14.4)
 87e9e96 docs: flip v0.14.3 primer bullet to released (catch-up, per new exception)
 e197071 fix: name the tag+push+release exception to the primer-only-commit rule (v0.14.3)
 e1e20c9 fix: end-session perf (fast path + gating) + outstanding-items numbering rule (v0.14.2)
 9d8df5f fix: outstanding-items list-echo rule + smoke suite drift (v0.14.1)
-5a2f3d6 feat: drop docs/ legacy fallback, fix doc-accuracy drift (v0.14.0)
 ```
 
 Regenerate this block whenever you commit — see
