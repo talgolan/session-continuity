@@ -91,8 +91,18 @@ but legitimate:
   change is imminent.
 - Correcting factual errors (wrong test counts, wrong branch names)
   discovered during review.
+- **Recording a completed tag + push + release, immediately after doing
+  it.** This is not busywork — a new git ref exists and a release is
+  published, a real dateable state change — and it happens on a
+  predictable cadence (every ship), unlike the other two exceptions. Do
+  this the moment `gh release view <tag>` confirms the release is live;
+  don't defer it waiting for a "real" change to bundle it with. Update the
+  bullet from "shipped"/"pending release" to "released" with the commit
+  SHA, tag, and release URL. Deferring this is exactly how a primer ends
+  up claiming "pending release" after the release has already shipped —
+  the gap this exception exists to close.
 
-Both should be marked clearly in the commit message as catch-up work.
+All three should be marked clearly in the commit message as catch-up work.
 If you find yourself making repeated primer-only commits, stop and
 bundle the refresh with the next real change instead.
 

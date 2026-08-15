@@ -20,22 +20,38 @@ rarely.
 
 ## Current state
 
-- **v0.14.2 (pending release)** — two fixes from user-reported friction, not
-  from a doc sweep this time. (1) `/session-continuity:end-session` had
-  gotten slow — grew 172→493 lines across its history, and the two biggest
-  additions (v0.12.0's outstanding-items verification, v0.6.0's four
-  LEARNINGS heuristics) both pay real per-invocation runtime cost, not just
-  instruction-length cost. Added a fast path (skip Step 1 entirely when
-  nothing changed since last close-out), gated per-item verification behind
-  commit-subject token overlap (untouched items get a cheap `manual` verdict
-  instead of a full grep/glob check — documented tradeoff: an item resolved
-  without a matching commit won't be caught until one lands), and merged
-  Step 2's four separate transcript scans into one combined extraction pass.
-  (2) Outstanding-items numbering had no explicit "start at 1, never 0"
-  rule anywhere — hardened both `hooks/session-start.sh`'s injected
-  instruction and `SKILL.md`'s standing rule to say so directly. See
-  CHANGELOG `[0.14.2]` for the full list.
-- **v0.14.1 (pending release)** — fixes a real-world regression reported
+- **v0.14.3 (pending release)** — fixes the exact bug this bullet-pattern
+  keeps hitting: the primer's "shipped" → "released" update lagged behind
+  the actual tag/push/release, because the workaround (bundle the release
+  bullet with a trivial unrelated change so it isn't a primer-only commit —
+  see commit `c7177b7`) was never written down. Both v0.14.1 and v0.14.2
+  sat marked "(pending release)" after they'd already shipped, until this
+  commit corrected them below. `skills/session-continuity/SKILL.md`'s
+  primer-only-commit exception list now names "record a completed
+  tag+push+release immediately, don't defer it" as its own case. See
+  CHANGELOG `[0.14.3]`.
+- **v0.14.2 released** — commit `e1e20c9`, tag `v0.14.2` pushed, GitHub
+  Actions `release.yml` ran clean, [GitHub Release](https://github.com/talgolan/session-continuity/releases/tag/v0.14.2)
+  published 2026-08-14. Verified via `gh run list` + `gh release view`.
+  Two fixes from user-reported friction, not a doc sweep: (1)
+  `/session-continuity:end-session` had gotten slow — grew 172→493 lines
+  across its history, and the two biggest additions (v0.12.0's
+  outstanding-items verification, v0.6.0's four LEARNINGS heuristics) both
+  pay real per-invocation runtime cost, not just instruction-length cost.
+  Added a fast path (skip Step 1 entirely when nothing changed since last
+  close-out), gated per-item verification behind commit-subject token
+  overlap (untouched items get a cheap `manual` verdict instead of a full
+  grep/glob check — documented tradeoff: an item resolved without a
+  matching commit won't be caught until one lands), and merged Step 2's
+  four separate transcript scans into one combined extraction pass. (2)
+  Outstanding-items numbering had no explicit "start at 1, never 0" rule
+  anywhere — hardened both `hooks/session-start.sh`'s injected instruction
+  and `SKILL.md`'s standing rule to say so directly. See CHANGELOG
+  `[0.14.2]` for the full list.
+- **v0.14.1 released** — commit `9d8df5f`, tag `v0.14.1` pushed, GitHub
+  Actions `release.yml` ran clean, [GitHub Release](https://github.com/talgolan/session-continuity/releases/tag/v0.14.1)
+  published 2026-08-13. Verified via `gh release view`, not assumed. Fixes
+  a real-world regression reported
   from a different repo running the installed v0.14.0 plugin: outstanding
   items could render as unnumbered prose in chat, because the "always
   render as ordered list" rule only ever covered two mechanical code paths

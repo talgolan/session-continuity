@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.3] — 2026-08-14
+
+### Fixed
+- **The "shipped" → "released" primer update kept lagging behind the actual
+  tag/push/release.** This repo's own history shows the workaround (e.g.
+  commit `c7177b7`): bundle the primer's "released" bullet with a trivial
+  unrelated change so it isn't technically a primer-only commit. That
+  workaround was never written down, so it kept getting forgotten — v0.14.2
+  sat with a stale "(pending release)" bullet after it was already tagged,
+  pushed, and released. `skills/session-continuity/SKILL.md`'s primer-only-
+  commit exception list now names this explicitly as its own case: record a
+  completed tag+push+release the moment `gh release view` confirms it's
+  live, don't defer waiting for a "real" change to bundle it with.
+
 ## [0.14.2] — 2026-08-14
 
 ### Fixed
