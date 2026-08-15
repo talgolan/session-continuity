@@ -33,7 +33,7 @@ actually changed.
 
 ### Fast path — nothing changed since last close-out (check first, cheap)
 
-Run:
+Run all three in **one Bash call** (one round trip, not three):
 
 ```bash
 git status --porcelain
@@ -99,7 +99,11 @@ proceed to full classify/verify below.
    recommendations) are non-code.
 
 2. **Verify code items** with a derived `grep`/`glob`/file-exists check via
-   Bash. Assign one verdict:
+   Bash. **Batch every item's check into one Bash call** — one script that
+   runs all the derived checks back-to-back (e.g. one `grep`/`test -e` per
+   item, each echoing a labeled result line) and returns all evidence in a
+   single round trip. Never spend one round trip per item. Assign one
+   verdict per item from that combined output:
    - **`still-open`** — the artifact is absent as the item expects. Cite the
      negative check (e.g. "no `*.bats` and no `test/` dir → item still open").
    - **`appears-DONE`** — the artifact is present/absent in a way that proves
@@ -140,7 +144,26 @@ Read `.session-continuity/SESSION_PRIMER.md` and compare its `git log --oneline 
   - **≥1 `appears-DONE` item.** Run the drift-clean close-candidate prompt below instead of skipping Step 1.
 - **Block differs** (any line differs — subjects, hashes, or ordering). Enter the refresh flow below.
 
-If the primer has a test-counts section, optionally re-run the test command(s) to confirm the counts are still accurate. **Retry flaky suites up to 3× before reporting drift** (per Step 5.3 of `commands/primer.md`); pin to the count seen in ≥2 of 3 runs and only flag drift if all three runs agree on a number that differs from the primer. Count mismatches that survive the retry count as drift.
+If the primer has a test-counts section, decide whether to re-run it (logic
+lives in Step 5.3 of `commands/primer.md` — summarized here):
+
+- **Skip the rerun** if the commit list already computed above
+  (`<last-primer-commit>..HEAD`) contains no file outside
+  `.session-continuity/` — no source or test file changed, so the recorded
+  count cannot have drifted.
+- **Otherwise, run the test command(s) once.** Matches the primer's
+  recorded count → stop, no drift on this axis.
+- **Only if that first run disagrees**, retry up to 2 more times (3 total)
+  to rule out flakiness. Pin to the count seen in ≥2 of 3 runs — if that
+  pinned count matches the primer, the first run was the flake and there's
+  no drift; if it still differs, report drift with the pinned count. If all
+  three runs disagree with each other, surface the spread (`saw 1162 / 1161
+  / 1162 across 3 runs — using 1162; suite is unstable`) instead of
+  silently picking one.
+
+Common cases stay cheap: zero test runs when nothing relevant changed, one
+run when the count still holds, three only when there's an actual
+discrepancy to resolve.
 
 ### Drift-clean close-candidate prompt (runs only when drift is clean AND ≥1 `appears-DONE` item)
 
@@ -251,18 +274,93 @@ Four independent greps/jq passes over the same (possibly multi-megabyte)
 file is pure redundant cost; one pass produces everything all four
 heuristics need.
 
-Run a single `jq` pass over the transcript file that extracts three arrays
-in one read (adjust the filter to the file's actual JSONL schema — the point
-is one read producing three derived views, not the exact incantation):
+Run the `jq` filter below over the transcript file in **one Bash call**
+(`jq -n -f <(cat <<'JQEOF' ... JQEOF) "$TRANSCRIPT"` or write it to a temp
+file and `jq -n -f`). It has been validated against real Claude Code
+transcripts across schema variants (some tool_result lines carry a
+`toolUseResult.{stdout,stderr}` object, others carry only a `content`
+string prefixed `"Exit code N\n..."` — the filter handles both) and runs in
+well under a second even on multi-megabyte, 200+-call transcripts. Use it
+as-is; do not re-derive a filter from scratch (a naive rewrite is exactly
+what caused a syntax-error retry round trip in past runs — e.g. `"" |
+split("\n")[0]` returns `null` in jq, not `""`, and crashes the next
+`gsub` in the chain):
 
-- **`bash_calls`** — every Bash tool call: timestamp, normalized command
-  (per Heuristic A's normalization rule), exit code, first line of stderr.
-  Feeds Heuristics A and D.
+```jq
+def norm_err:
+  if (. == null or . == "") then ""
+  else
+    .
+    | gsub("(?<p>/[^ :\"]+/)(?<b>[^/ :\"]+)"; "\(.b)")
+    | gsub(":[0-9]+:[0-9]+"; "")
+    | gsub("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z?"; "")
+    | gsub("[0-9]{2}:[0-9]{2}:[0-9]{2}"; "")
+    | gsub("0x[0-9a-fA-F]+"; "0xN")
+  end;
+# First useful line out of a tool_result's text blob: skips a leading
+# "Exit code N" line (Bash convention), skips blank lines.
+def first_line_from_text:
+  (split("\n") | map(select(length>0))) as $ls
+  | if ($ls|length)==0 then ""
+    elif ($ls[0] | test("^Exit code")) then ($ls[1] // "")
+    else $ls[0]
+    end;
+def err_line_of($is_error; $stderr; $text):
+  if ($stderr // "") != "" then $stderr
+  elif $is_error then ($text // "" | first_line_from_text)
+  else (($text // "" | split("\n") | map(select(test("^Error:"))) | .[0]) // "")
+  end;
+[inputs] as $lines
+| ($lines
+    | map(select(.type=="user" and (.message.content|type)=="array"))
+    | map(. as $line
+        | $line.message.content[]?
+        | select(.type=="tool_result")
+        | {
+            ts: $line.timestamp,
+            tool_use_id: .tool_use_id,
+            is_error: (.is_error // false),
+            text: (.content | if type=="string" then . else tostring end),
+            stderr: ($line.toolUseResult | if type=="object" then .stderr else null end)
+          })
+  ) as $tool_results
+| ($tool_results | map(. + {err_line: err_line_of(.is_error; .stderr; .text)})) as $tool_results2
+| ($tool_results2 | map({key: .tool_use_id, value: .}) | from_entries) as $results_by_id
+| ($lines
+    | map(select(.type=="assistant"))
+    | map(. as $line | .message.content[]? | select(.type=="tool_use" and .name=="Bash") | {
+        ts: $line.timestamp,
+        tool_use_id: .id,
+        command: .input.command,
+        result: ($results_by_id[.id] // {is_error:false, err_line:""})
+      })
+  ) as $bash_calls
+| {
+    bash_calls: ($bash_calls | map({ts, command, is_error: .result.is_error, first_err_line: (.result.err_line | norm_err)})),
+    commits: ($bash_calls | map(select(.command | test("git commit"))) | map({ts, command})),
+    errors: ($tool_results2 | map(select(.err_line != "")) | map({ts, err: (.err_line | norm_err)}))
+  }
+```
+
+Output shape — three arrays in one JSON object:
+
+- **`bash_calls`** — every Bash tool call: timestamp (`ts`), raw command,
+  `is_error`, normalized first error line (`first_err_line`, empty string
+  if none). Feeds Heuristics A and D. Apply Heuristic A's own command
+  normalization (strip-after-newline, whitespace-collapse, drop pure-read
+  commands) on top of the raw `command` field — that normalization is
+  heuristic-specific, not part of this shared pass.
 - **`commits`** — every Bash call whose command matches `git commit`:
-  timestamp, sha, subject. Feeds Heuristic D's trigger.
-- **`errors`** — every tool result with non-empty stderr or an `Error:`
-  line: timestamp, normalized error string (per Heuristic C's normalization
-  rules). Feeds Heuristic C.
+  timestamp, raw command (parse `sha`/`subject` from the `-m` argument or
+  from stdout's `[branch sha] subject` line — the filter doesn't attempt
+  this since it varies by whether a heredoc or `-m` string was used).
+  Feeds Heuristic D's trigger.
+- **`errors`** — every tool result (any tool, not just Bash) whose derived
+  error line is non-empty: timestamp, normalized error string. Feeds
+  Heuristic C. Entries are already deduped to non-empty `err` — an
+  `is_error: true` result with no extractable text is silently excluded
+  rather than appearing as a spurious empty-string "error", which would
+  otherwise falsely satisfy Heuristic C's ≥3-recurrence trigger.
 
 Heuristics A–D below all read from these three in-memory arrays. None of
 them re-reads or re-filters the transcript file — if a heuristic's logic
@@ -300,7 +398,7 @@ session.
 
 **Candidate title:** `<command> — investigated for N retries.`
 
-**Evidence:** up to 3 of the invocation timestamps + exit codes
+**Evidence:** up to 3 of the invocation timestamps + `is_error` flags
 (redact stdout/stderr beyond the first error line).
 
 #### Heuristic B — revert / reset
@@ -342,10 +440,12 @@ wall-clock gate and trigger on count alone).
 
 #### Heuristic D — fix burst
 
-**Trigger:** in `commits`, a subject matching `^fix(\(.+\))?: ` preceded, in
-`bash_calls`, by ≥10 calls within the prior 30 minutes (count both
-successful and failing invocations; use JSONL timestamps; in fallback mode
-use ordinal proximity rather than wall-clock).
+**Trigger:** in `commits`, a subject (parse from the `-m` argument, or the
+first line of a `<<'EOF'` heredoc body, in the entry's raw `command` field)
+matching `^fix(\(.+\))?: ` preceded, in `bash_calls`, by ≥10 calls within
+the prior 30 minutes (count both successful and failing invocations; use
+JSONL timestamps; in fallback mode use ordinal proximity rather than
+wall-clock).
 
 **Candidate title:** `<commit subject> — fix preceded by N-action investigation.`
 
@@ -442,7 +542,7 @@ Run real git commands and emit a structured checklist. Every item must reflect a
 
 ### Gather the facts
 
-Run each of these and record the results:
+Run all six in **one Bash call** (one round trip, not six):
 
 ```bash
 git diff --cached --name-only          # staged files

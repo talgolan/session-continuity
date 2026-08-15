@@ -20,6 +20,25 @@ rarely.
 
 ## Current state
 
+- **v0.14.4 shipped** (branch `fix/end-session-perf-round-trips`, commit
+  pushed). User-reported: `/session-continuity:end-session` took 20+
+  minutes on a real session despite v0.14.2's fast path. Diagnosis: the
+  20 minutes was round-trip latency (one model turn per Bash call), not
+  compute — validated the actual jq/grep work on a 4.3MB/238-call
+  transcript at <0.05s. Three fixes to `commands/end-session.md` +
+  `commands/primer.md`: (1) explicit single-Bash-call batching at 4 spots
+  that previously spent one round trip per command/item (fast-path check,
+  outstanding-items per-item verification, Step 3's fact-gathering, plus
+  Step 2's transcript extraction); (2) Step 2's jq filter went from
+  unverified "adjust to the schema" prose to a concrete filter tested
+  against 3 real transcripts, fixing a real jq gotcha along the way
+  (`split("\n")[0]` → `null` on `""`, not `""` — crashes the next `gsub`;
+  see LEARNINGS #10); (3) Step 1's test-count drift check ran the suite
+  3× unconditionally — now skips the rerun when no relevant file changed,
+  runs once otherwise, and only escalates to the 3-run majority vote on
+  disagreement. Also fixed a majority-vs-unanimity self-contradiction in
+  `end-session.md`'s restatement of the retry rule. See CHANGELOG
+  `[0.14.4]`.
 - **v0.14.3 released** — commit `e197071`, tag `v0.14.3` pushed, GitHub
   Actions `release.yml` ran clean, [GitHub Release](https://github.com/talgolan/session-continuity/releases/tag/v0.14.3)
   published 2026-08-15. Verified via `gh run watch` + `gh release view`,
@@ -228,11 +247,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+87e9e96 docs: flip v0.14.3 primer bullet to released (catch-up, per new exception)
+e197071 fix: name the tag+push+release exception to the primer-only-commit rule (v0.14.3)
+e1e20c9 fix: end-session perf (fast path + gating) + outstanding-items numbering rule (v0.14.2)
 9d8df5f fix: outstanding-items list-echo rule + smoke suite drift (v0.14.1)
 5a2f3d6 feat: drop docs/ legacy fallback, fix doc-accuracy drift (v0.14.0)
-c7177b7 docs: update session continuity, ignore .itb.json
-0877f58 feat: split primer into volatile/stable files, add LEARNINGS symptoms index (v0.13.0)
-7da2278 docs: update session continuity
 ```
 
 Regenerate this block whenever you commit — see
@@ -254,7 +273,7 @@ Regenerate this block whenever you commit — see
    - §9.5 outstanding-items as YAML (still deferred — markdown sub-bullets work today).
    - §9.6 dev-mode plugin install template-path fallback (still low priority, one-line fix when it bites).
 
-3. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The Split mode in `commands/primer.md`, the `learning`-skill duplicate-detection guard, and v0.14.2's new end-session fast-path/overlap-gate logic (untested beyond prose review — no fixture repo yet exercises "nothing changed" vs. "item touched by a commit" vs. "item untouched") are good candidates.
+3. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The Split mode in `commands/primer.md`, the `learning`-skill duplicate-detection guard, v0.14.2's end-session fast-path/overlap-gate logic, and v0.14.4's test-count skip/escalate logic (all untested beyond prose review — no fixture repo yet exercises "nothing changed" vs. "item touched by a commit" vs. "item untouched," or "no relevant file changed" vs. "changed but count holds" vs. "genuinely drifted") are good candidates.
 
 4. **Scratch-project smoke test for the primer split (deferred from this session).** The v0.13.0 implementation plan's Task 6 validated the split mechanically against this repo's own files but explicitly deferred the spec's Testing items 1-2 (fresh init in a scratch project, and Split mode against a throwaway unsplit primer) since they need a directory outside this repo. Run both before the next `/session-continuity:primer` change lands.
 

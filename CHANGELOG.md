@@ -2,6 +2,45 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.4] — 2026-08-15
+
+### Fixed
+- **`/session-continuity:end-session` still took 20+ minutes on a real
+  session** despite v0.14.2's fast path and gating. Root cause: several
+  places in `commands/end-session.md` listed multiple shell commands as
+  a sequence without ever saying "in one Bash call" — nothing stopped an
+  agent from spending one full model round trip per command instead of
+  one round trip for the batch. Fixed four spots to explicitly mandate
+  single-Bash-call batching: the Step 1 fast-path check (3 commands),
+  the outstanding-items per-item verification (was one call per item),
+  Step 2's transcript extraction, and Step 3's final-checklist fact
+  gathering (6 commands).
+- **Step 2's transcript-extraction jq filter was unverified prose**
+  ("adjust the filter to the file's actual JSONL schema") rather than a
+  tested incantation, which caused a real syntax-error retry round trip
+  in the field. Replaced with a concrete jq filter validated against
+  three real Claude Code transcripts (up to 4.3MB / 238 Bash calls,
+  runs in <0.05s), handling both transcript schema variants seen in the
+  wild (`toolUseResult.{stdout,stderr}` object vs. a bare `content`
+  string prefixed `"Exit code N\n..."`). See LEARNINGS #10 for the
+  underlying jq gotcha (`split("\n")[0]` returns `null` on `""`, not
+  `""`, crashing the next `gsub`).
+- **Step 1's test-count drift check always ran the test suite 3×**,
+  unconditionally, whenever the primer had a test-counts section and
+  drift was detected — regardless of whether anything test-relevant had
+  actually changed, or whether the first run already agreed with the
+  recorded count. Now: skip the rerun entirely if no file outside
+  `.session-continuity/` changed since the last primer touch (reuses
+  the commit list already computed elsewhere in Step 1); otherwise run
+  once and only escalate to the 3-run majority vote if that first run
+  disagrees with the recorded count. Same correctness guarantee (a
+  flaky single run still can't produce a false drift alarm), paid for
+  only when there's an actual discrepancy to resolve. Applied to both
+  `commands/primer.md` Step 5.3 (canonical) and `commands/end-session.md`
+  Step 1's restatement — the latter also had a self-contradiction
+  (majority-of-3 in one sentence, unanimity-of-3 two sentences later)
+  that's fixed as part of this change.
+
 ## [0.14.3] — 2026-08-14
 
 ### Fixed

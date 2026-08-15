@@ -18,6 +18,7 @@ within each group.
 
 - Clean-machine acceptance test for v0.4.0. /session-continuity:primer ran init mode cleanly,… — #4
 - Discovered when /session-continuity:end-session was invoked on this v0.6.0 session. — #6
+- Discovered while hardening the Step 2 transcript-extraction jq filter after a user… — #10
 - In a live Claude session, the hook runs (verified via debug… — #1
 - The /session-continuity:end-session smoke test had two staged files (primer + src/foo.js). — #3
 - The Bash call is refused outright: "This session is isolated in… — #8
@@ -72,6 +73,20 @@ The original awk range fails because the same pattern matches both the start and
 ---
 
 ## Slash command skill authoring
+
+### 10. jq's `split("\n")[0]` returns `null` on an empty string — crashes the next `gsub` in a chain
+Slug: jq-split-empty-string-null
+Trigger: * /split\("\n"\)\[0\]/
+
+**The trap.** `commands/end-session.md`'s Step 2 combined-extraction pass told Claude to write a `jq` filter that "adjusts to the file's actual JSONL schema" — prose, not a tested incantation. A user reported `/session-continuity:end-session` taking 20+ minutes; while diagnosing it, one contributing cause turned out to be a jq syntax-error retry: the natural way to grab an error's first line, `text | split("\n")[0] | gsub(...)`, throws `null (null) cannot be matched, as it is not a string` the moment `text` is empty. jq's `split` on `""` returns `[]`, not `[""]`, so `[0]` yields `null`, and the next `gsub`/`test`/`match` in the pipe crashes on it. Most tool_result entries in a real transcript have empty stderr, so this isn't a rare edge case — it's the common case.
+
+**Symptom.** Discovered while hardening the Step 2 transcript-extraction jq filter after a user reported the slow close-out. Validated a combined `bash_calls`/`commits`/`errors` extraction against three real transcripts (2.9MB/173 calls up to 4.3MB/238 calls) and hit `jq: error (at <file>:N): null (null) cannot be matched, as it is not a string` on the very first real transcript tried — `N` was the last line of the file, jq's error location reports where input was exhausted, not the offending expression, so the message alone didn't point at the bug.
+
+**Fix.** Guard empty/null before entering any `gsub`/`test`/`match` chain: `if (. == null or . == "") then "" else <chain> end`. More generally: never ship "adjust the filter to the schema" as unverified prose in a slash command that an agent will execute live — test the incantation against a real transcript file first and bake in the working version (now embedded verbatim in `commands/end-session.md`). Separately, the transcript JSONL schema itself varies across Claude Code versions — some tool_result lines carry a `toolUseResult.{stdout,stderr}` object, others carry only a `content` string prefixed `"Exit code N\n..."` with no `stderr` field at all — a filter that assumes one shape silently misses errors under the other rather than crashing, which is a worse failure mode.
+
+**Diagnostic signal.** `jq -n '"" | split("\n")[0]'` returns `null`, not `""`. Any `gsub`/`test`/`match` fed from an unguarded `split(...)[0]` will crash with "null (null) cannot be matched, as it is not a string" on the first empty input it sees.
+
+---
 
 ### 6. Stale path references in slash-command bodies survive plugin path migrations
 Slug: stale-path-refs-survive-migration
@@ -239,7 +254,7 @@ and explains why it loses. -->
 
 ---
 
-*Last entry: 2026-08-12 (#8). Add new entries at the top of each section
+*Last entry: 2026-08-15 (#10). Add new entries at the top of each section
 as they surface. The `/session-continuity:learning` command bumps this
 line automatically (v0.5.1+). Rule of thumb: if a bug takes more than
 15 minutes to diagnose, it goes here.*
