@@ -89,7 +89,12 @@ contains).
 
 1. Read the current `.session-continuity/SESSION_PRIMER.md`.
 2. Regenerate the `git log --oneline -5` block with current output.
-3. If the primer has a test-counts section, run the test command(s) found there. **Retry up to 3× when counts disagree across runs** before reporting drift; flaky suites can swing one or two pass/fail counts between runs and a single sample will produce false drift alarms. Pin to the highest stable count (the count seen in ≥2 of 3 runs). If all three runs disagree, surface the spread (`saw 1162 / 1161 / 1162 across 3 runs — using 1162; suite is unstable`) instead of silently picking one.
+3. If the primer has a test-counts section, decide whether to re-run it:
+   - **Skip the rerun** if `git diff <last-primer-commit>..HEAD --name-only` (the commit range since the primer was last touched) contains no file outside `.session-continuity/` — no source or test file changed, so the recorded count cannot have drifted. Reuse this diff if already computed elsewhere in this flow; don't recompute it just for this check.
+   - **Otherwise, run the test command(s) once.** If that single run's count matches the primer's recorded count, stop there — no drift on this axis, no further runs.
+   - **Only if that first run disagrees with the recorded count**, retry up to 2 more times (3 runs total) to rule out flakiness before reporting drift — a single sample can swing a pass/fail count and produce a false drift alarm. Pin to the count seen in ≥2 of the 3 runs. If that pinned count matches the primer's recorded count, the first run was the flake — no drift. If it differs, report drift with the pinned count. If all three runs disagree with each other, surface the spread (`saw 1162 / 1161 / 1162 across 3 runs — using 1162; suite is unstable`) instead of silently picking one.
+   
+   This keeps the common cases cheap: zero test runs when no relevant file changed, one run when relevant files changed but the count still holds, and the full 3-run majority vote only when there's an actual discrepancy to resolve.
 4. **Surface activity since the last primer refresh.** Find the last commit that touched the primer with `git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md`. Run `git log <that-hash>..HEAD --oneline` and present the subject list to the user as candidate prompts:
    > "Since the last primer refresh, these commits landed:
    > - `<sha> <subject>`
