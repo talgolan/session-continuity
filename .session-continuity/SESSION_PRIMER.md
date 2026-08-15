@@ -20,16 +20,19 @@ rarely.
 
 ## Current state
 
-- **v0.14.3 (pending release)** — fixes the exact bug this bullet-pattern
-  keeps hitting: the primer's "shipped" → "released" update lagged behind
-  the actual tag/push/release, because the workaround (bundle the release
-  bullet with a trivial unrelated change so it isn't a primer-only commit —
-  see commit `c7177b7`) was never written down. Both v0.14.1 and v0.14.2
-  sat marked "(pending release)" after they'd already shipped, until this
-  commit corrected them below. `skills/session-continuity/SKILL.md`'s
-  primer-only-commit exception list now names "record a completed
-  tag+push+release immediately, don't defer it" as its own case. See
-  CHANGELOG `[0.14.3]`.
+- **v0.14.3 released** — commit `e197071`, tag `v0.14.3` pushed, GitHub
+  Actions `release.yml` ran clean, [GitHub Release](https://github.com/talgolan/session-continuity/releases/tag/v0.14.3)
+  published 2026-08-15. Verified via `gh run watch` + `gh release view`,
+  and this bullet itself is the first live use of the fix it describes:
+  fixes the bug this bullet-pattern kept hitting — the primer's "shipped"
+  → "released" update lagged behind the actual tag/push/release, because
+  the workaround (bundle the release bullet with a trivial unrelated
+  change so it isn't a primer-only commit — see commit `c7177b7`) was
+  never written down. Both v0.14.1 and v0.14.2 sat marked "(pending
+  release)" after they'd already shipped, corrected in the prior commit.
+  `skills/session-continuity/SKILL.md`'s primer-only-commit exception list
+  now names "record a completed tag+push+release immediately, don't defer
+  it" as its own case. See CHANGELOG `[0.14.3]`.
 - **v0.14.2 released** — commit `e1e20c9`, tag `v0.14.2` pushed, GitHub
   Actions `release.yml` ran clean, [GitHub Release](https://github.com/talgolan/session-continuity/releases/tag/v0.14.2)
   published 2026-08-14. Verified via `gh run list` + `gh release view`.
