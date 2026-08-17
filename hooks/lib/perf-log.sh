@@ -69,11 +69,15 @@ mkdir -p "$SC_DIR" 2>/dev/null || { echo "perf-log.sh: could not create $SC_DIR"
 
 if [[ ! -f "$MARKER" ]]; then
   GITIGNORE="$REPO_ROOT/.gitignore"
-  LINE=".session-continuity/performance.log"
   touch "$GITIGNORE" 2>/dev/null
-  if ! grep -qxF "$LINE" "$GITIGNORE" 2>/dev/null; then
-    printf '%s\n' "$LINE" >> "$GITIGNORE" 2>/dev/null
-  fi
+
+  # Ensure both performance.log and the marker file itself are gitignored.
+  for LINE in ".session-continuity/performance.log" ".session-continuity/.gitignore-ensured"; do
+    if ! grep -qxF "$LINE" "$GITIGNORE" 2>/dev/null; then
+      printf '%s\n' "$LINE" >> "$GITIGNORE" 2>/dev/null
+    fi
+  done
+
   touch "$MARKER" 2>/dev/null
 fi
 

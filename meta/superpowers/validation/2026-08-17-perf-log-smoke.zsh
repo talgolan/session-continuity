@@ -116,6 +116,14 @@ else
   bad "json_escape: quotes/backslashes malformed, got: $line"
 fi
 
+# 10. After record call, git status --porcelain does NOT list .gitignore-ensured as untracked.
+untracked="$(cd "$work" && git status --porcelain | grep -cF '.session-continuity/.gitignore-ensured' 2>/dev/null || true)"
+if [[ -z "$untracked" || "$untracked" == "0" ]]; then
+  ok "gitignore-ensured: marker file is gitignored, not in git status"
+else
+  bad "gitignore-ensured: marker file shows as untracked (breaks fast path)"
+fi
+
 print ""
 print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"
 (( fail == 0 ))
