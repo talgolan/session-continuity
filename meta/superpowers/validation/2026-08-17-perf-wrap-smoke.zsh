@@ -69,7 +69,7 @@ fi
 spec_payload() { printf '{"file_path":"/x/specs/s.md","tool_name":"Write","tool_input":{"content":"%s"}}' "$1"; }
 payload="$(spec_payload 'Approach is proven, option A.')"
 gate_hook="proven-gate.sh"
-out="$(printf '%s' "$payload" | bash "$wrap" "$gate_hook" 2>/dev/null)"
+out="$(cd "$work" && printf '%s' "$payload" | bash "$wrap" "$gate_hook" 2>/dev/null)"
 rc=$?
 if [[ "$rc" == "0" ]] && printf '%s' "$out" | python3 -c 'import sys, json; d=json.load(sys.stdin); assert d["hookSpecificOutput"]["permissionDecision"]=="deny"' 2>/dev/null; then
   ok "wrapped $gate_hook still denies the claim (exit 0, JSON deny)"
