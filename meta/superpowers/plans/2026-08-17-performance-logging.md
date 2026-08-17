@@ -1079,7 +1079,7 @@ elsewhere in this file, captured around this whole check.
 - [ ] **Step 4: `step-2-transcript-extraction`**
 
 Modify `commands/end-session.md` — the paragraph right before the
-```jq``` fence under `### Combined extraction pass (transcript-file
+`jq` fence under `### Combined extraction pass (transcript-file
 mode only)`. Old content:
 
 ```markdown
