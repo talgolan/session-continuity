@@ -20,13 +20,6 @@ rarely.
 
 ## Current state
 
-- **Performance logging feature branch: Task 2 complete** (commit `65ed654`) — 
-  `hooks/lib/perf-wrap.sh` timing wrapper implemented. Wraps any shipped hook,
-  measures execution time and exit code, logs via `perf-log.sh`. Smoke test 
-  validates 6/6 cases: stub hooks pass through exit/stdout/stderr unchanged, 
-  all 3 exit codes logged correctly, and real `proven-gate.sh` hook's 
-  deny-decision behavior unaffected by wrapping (regression protection).
-  Next: Task 3 wires `hooks/hooks.json` to call the wrapper for each hook.
 - **v0.14.4 released** — commit `cf29867` (squash-merged via PR #13), tag
   `v0.14.4` pushed, GitHub Actions `release.yml` ran clean, [GitHub
   Release](https://github.com/talgolan/session-continuity/releases/tag/v0.14.4)
@@ -253,14 +246,14 @@ rarely.
 - `.session-continuity/` holds `SESSION_PRIMER.md`, `PROJECT_CONTEXT.md` (new in v0.13.0), and `LEARNINGS.md`. Dev artifacts (marketplace-submission notes, specs, plans, recommendation docs) live under `meta/`.
 - No known open bugs; outstanding items are feature-level.
 
-**Current `git log --oneline -5` (feature branch `feat/performance-logging`):**
+**Current `git log --oneline -5` (primary branch):**
 
 ```
-65ed654 feat: add perf-wrap.sh timing wrapper for shipped hooks
 cf29867 fix: end-session round-trip batching + jq robustness + test-retry early-exit (#13) (v0.14.4)
 87e9e96 docs: flip v0.14.3 primer bullet to released (catch-up, per new exception)
 e197071 fix: name the tag+push+release exception to the primer-only-commit rule (v0.14.3)
 e1e20c9 fix: end-session perf (fast path + gating) + outstanding-items numbering rule (v0.14.2)
+9d8df5f fix: outstanding-items list-echo rule + smoke suite drift (v0.14.1)
 ```
 
 Regenerate this block whenever you commit — see
