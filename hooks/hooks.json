@@ -3,7 +3,7 @@
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh" }
+          { "type": "command", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh session-start.sh" }
         ]
       }
     ],
@@ -14,16 +14,16 @@
           {
             "type": "command",
             "if": "Bash(git commit *)",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/pre-commit-check.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh pre-commit-check.sh"
           },
           {
             "type": "command",
             "if": "Bash(git commit *)",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/flaky-gate.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh flaky-gate.sh"
           },
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/learnings-surface.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh learnings-surface.sh"
           }
         ]
       },
@@ -32,31 +32,31 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/learnings-surface.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh learnings-surface.sh"
           },
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/smoke-gate.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh smoke-gate.sh"
           },
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/proven-gate.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh proven-gate.sh"
           },
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/occurrence-gate.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh occurrence-gate.sh"
           },
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/evidence-gate.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh evidence-gate.sh"
           },
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/flaky-gate.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh flaky-gate.sh"
           },
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/backend-parity-gate.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh backend-parity-gate.sh"
           }
         ]
       }
