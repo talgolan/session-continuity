@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] — 2026-08-17
+
+### Added
+- **Per-repo performance logging.** Every shipped hook invocation, and
+  the heavier batched-bash-call operations inside
+  `/session-continuity:primer` and `/session-continuity:end-session`
+  (test-count reruns, outstanding-items verification, transcript
+  extraction, git-log gathering), now append a timing line to
+  `.session-continuity/performance.log` in the repo where the plugin
+  runs. Gitignored automatically. No new command surfaces the data yet
+  — read it directly with `jq`/`grep`/`bat`. `/session-continuity:learning`
+  is not instrumented (no batched bash operation to time). See
+  `meta/superpowers/specs/2026-08-17-performance-logging-design.md`.
+
 ## [0.14.4] — 2026-08-15
 
 ### Fixed

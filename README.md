@@ -104,6 +104,11 @@ The hooks are bash scripts wired through `hooks/hooks.json`. They split into two
 **Stay fresh:**
 
 - **Weekly version check** makes one unauthenticated GitHub API call per machine per seven days and nudges you inside Claude when a new release ships. Opt out with `SESSION_CONTINUITY_SKIP_UPDATE_CHECK=1`.
+- **Performance logging** times every hook invocation and the heavier
+  operations inside `/session-continuity:primer` and
+  `/session-continuity:end-session`, appending JSONL lines to
+  `.session-continuity/performance.log` (auto-gitignored). Read it
+  directly — `jq`, `grep`, `bat` — there's no summary command yet.
 
 ## Usage
 
