@@ -74,6 +74,48 @@ else
   bad "missing flags: expected exit0+no-append, got rc=$rc before=$before after=$after"
 fi
 
+# 6. Non-numeric --duration is rejected same as missing --duration: exit 0, no line written.
+before="$(wc -l < "$work/.session-continuity/performance.log")"
+( cd "$work" && bash "$perflog" record --source=hook --name=x --duration=abc --exit=0 ) 2>/dev/null
+rc=$?
+after="$(wc -l < "$work/.session-continuity/performance.log")"
+if [[ "$rc" == "0" && "$before" == "$after" ]]; then
+  ok "non-numeric duration: exit 0, no line appended"
+else
+  bad "non-numeric duration: expected exit0+no-append, got rc=$rc before=$before after=$after"
+fi
+
+# 7. Non-numeric optional --items is silently omitted from JSON (line still parses, no 'items' key).
+before="$(wc -l < "$work/.session-continuity/performance.log")"
+( cd "$work" && bash "$perflog" record --source=command --name=end-session --step=test --duration=1.0 --items=notanumber ) 2>/dev/null
+after="$(wc -l < "$work/.session-continuity/performance.log")"
+line="$(tail -1 "$work/.session-continuity/performance.log" 2>/dev/null)"
+if [[ "$before" != "$after" ]] && print -r -- "$line" | python3 -c 'import sys, json; d=json.load(sys.stdin); assert "items" not in d; assert d["duration_s"]==1.0' 2>/dev/null; then
+  ok "non-numeric items: silently omitted, line still valid JSON"
+else
+  bad "non-numeric items: expected valid JSON without items key, got: $line"
+fi
+
+# 8. Non-numeric optional --exit is silently omitted from JSON (line still parses, no 'exit' key).
+before="$(wc -l < "$work/.session-continuity/performance.log")"
+( cd "$work" && bash "$perflog" record --source=hook --name=test.sh --duration=0.5 --exit=nocode ) 2>/dev/null
+after="$(wc -l < "$work/.session-continuity/performance.log")"
+line="$(tail -1 "$work/.session-continuity/performance.log" 2>/dev/null)"
+if [[ "$before" != "$after" ]] && print -r -- "$line" | python3 -c 'import sys, json; d=json.load(sys.stdin); assert "exit" not in d; assert d["duration_s"]==0.5' 2>/dev/null; then
+  ok "non-numeric exit: silently omitted, line still valid JSON"
+else
+  bad "non-numeric exit: expected valid JSON without exit key, got: $line"
+fi
+
+# 9. String fields with quotes and backslashes round-trip correctly through json_escape.
+( cd "$work" && bash "$perflog" record --source=hook --name='test"quote\slash.sh' --duration=0.1 --exit=0 ) 2>/dev/null
+line="$(tail -1 "$work/.session-continuity/performance.log" 2>/dev/null)"
+if print -r -- "$line" | python3 -c 'import sys, json; d=json.load(sys.stdin); assert d["name"] == """test"quote\\slash.sh"""' 2>/dev/null; then
+  ok "json_escape: quotes and backslashes escape correctly"
+else
+  bad "json_escape: quotes/backslashes malformed, got: $line"
+fi
+
 print ""
 print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"
 (( fail == 0 ))

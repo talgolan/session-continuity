@@ -41,6 +41,23 @@ if [[ -z "$SOURCE" || -z "$NAME" || -z "$DURATION" ]]; then
   exit 0
 fi
 
+# Validate numeric fields: duration_s (required), exit/retries/items (optional).
+if ! [[ "$DURATION" =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
+  echo "perf-log.sh: record requires --source, --name, --duration" >&2
+  exit 0
+fi
+
+# For optional numeric fields, omit from JSON if non-numeric (never fail loud).
+if [[ -n "$EXIT" && ! "$EXIT" =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
+  EXIT=""
+fi
+if [[ -n "$RETRIES" && ! "$RETRIES" =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
+  RETRIES=""
+fi
+if [[ -n "$ITEMS" && ! "$ITEMS" =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
+  ITEMS=""
+fi
+
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 [[ -z "$REPO_ROOT" ]] && exit 0   # not a git repo: silent no-op
 
