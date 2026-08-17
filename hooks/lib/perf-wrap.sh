@@ -31,6 +31,8 @@ else
 fi
 NAME_FOR_LOG="$(basename "$SCRIPT_NAME")"
 
+# Deliberately fail OPEN (not found = allow, not block) — a logging wrapper
+# should never brick tool use because a hook path is misconfigured.
 if [[ ! -x "$TARGET" ]]; then
   echo "perf-wrap.sh: $TARGET not found or not executable" >&2
   exit 0

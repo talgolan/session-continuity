@@ -1,8 +1,8 @@
-# Validation log — per-repo performance logging (v0.14.5)
+# Validation log — per-repo performance logging (v0.15.0)
 
 **Branch:** `feat/performance-logging`
 **Spec:** `meta/superpowers/specs/2026-08-17-performance-logging-design.md`
-**Plan:** `.superpowers/sdd/2026-08-17-performance-logging/` (task briefs 1-7)
+**Plan:** `meta/superpowers/plans/2026-08-17-performance-logging.md`
 
 This log records an end-to-end run of the finished performance-logging
 feature (Mechanisms 2 and 3 — the self-reported command timers in
