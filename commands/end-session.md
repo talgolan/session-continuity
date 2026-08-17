@@ -33,12 +33,16 @@ actually changed.
 
 ### Fast path — nothing changed since last close-out (check first, cheap)
 
-Run all three in **one Bash call** (one round trip, not three):
+Run all three in **one Bash call** (one round trip, not three), timed:
 
 ```bash
+_PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 git status --porcelain
 git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md   # <last-primer-commit>
 git rev-parse HEAD
+_PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+_PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
+bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-fast-path --duration="$_PERF_DURATION"
 ```
 
 If `git status --porcelain` is empty AND `<last-primer-commit>` equals
@@ -102,8 +106,20 @@ proceed to full classify/verify below.
    Bash. **Batch every item's check into one Bash call** — one script that
    runs all the derived checks back-to-back (e.g. one `grep`/`test -e` per
    item, each echoing a labeled result line) and returns all evidence in a
-   single round trip. Never spend one round trip per item. Assign one
-   verdict per item from that combined output:
+   single round trip. Never spend one round trip per item. Wrap that one
+   Bash call with a timer, and set `ITEMS` to the count of items that went
+   through this classify/verify pass (i.e. items NOT already resolved as
+   `manual` by the overlap gate above):
+
+   ```bash
+   _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+   # ... the derived per-item grep/test -e checks run here ...
+   _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+   _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
+   bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-outstanding-items-verification --duration="$_PERF_DURATION" --items="$ITEMS"
+   ```
+
+   Assign one verdict per item from that combined output:
    - **`still-open`** — the artifact is absent as the item expects. Cite the
      negative check (e.g. "no `*.bats` and no `test/` dir → item still open").
    - **`appears-DONE`** — the artifact is present/absent in a way that proves
@@ -145,7 +161,10 @@ Read `.session-continuity/SESSION_PRIMER.md` and compare its `git log --oneline 
 - **Block differs** (any line differs — subjects, hashes, or ordering). Enter the refresh flow below.
 
 If the primer has a test-counts section, decide whether to re-run it (logic
-lives in Step 5.3 of `commands/primer.md` — summarized here):
+lives in Step 5.3 of `commands/primer.md` — summarized here). Do this as
+**one Bash call**, timed, tracking a `RETRIES` count (0 if skipped or the
+first run matched, else the number of *extra* runs actually executed
+beyond the first):
 
 - **Skip the rerun** if the commit list already computed above
   (`<last-primer-commit>..HEAD`) contains no file outside
@@ -164,6 +183,13 @@ lives in Step 5.3 of `commands/primer.md` — summarized here):
 Common cases stay cheap: zero test runs when nothing relevant changed, one
 run when the count still holds, three only when there's an actual
 discrepancy to resolve.
+
+At the end of this Bash call (whichever branch above ran):
+```bash
+bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-drift-test-rerun --duration="$_PERF_DURATION" --retries="$RETRIES"
+```
+using the same `_PERF_START`/`_PERF_END`/`_PERF_DURATION` pattern used
+elsewhere in this file, captured around this whole check.
 
 ### Drift-clean close-candidate prompt (runs only when drift is clean AND ≥1 `appears-DONE` item)
 
@@ -284,7 +310,14 @@ well under a second even on multi-megabyte, 200+-call transcripts. Use it
 as-is; do not re-derive a filter from scratch (a naive rewrite is exactly
 what caused a syntax-error retry round trip in past runs — e.g. `"" |
 split("\n")[0]` returns `null` in jq, not `""`, and crashes the next
-`gsub` in the chain):
+`gsub` in the chain). Time this Bash call: capture
+`_PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")` immediately
+before running `jq`, `_PERF_END` the same way immediately after, compute
+`_PERF_DURATION` the same way as elsewhere in this file, and call:
+```bash
+bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-2-transcript-extraction --duration="$_PERF_DURATION"
+```
+in the same call, right after `jq` returns.
 
 ```jq
 def norm_err:
@@ -542,15 +575,19 @@ Run real git commands and emit a structured checklist. Every item must reflect a
 
 ### Gather the facts
 
-Run all six in **one Bash call** (one round trip, not six):
+Run all six in **one Bash call** (one round trip, not six), timed:
 
 ```bash
+_PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 git diff --cached --name-only          # staged files
 git diff --name-only                    # unstaged modifications
 git ls-files --others --exclude-standard   # untracked (ignoring .gitignore'd)
 git rev-parse --abbrev-ref HEAD         # current branch (or "HEAD" if detached)
 git rev-parse --abbrev-ref @{u} 2>/dev/null  # upstream branch, or empty if none
 git rev-list --count @{u}..HEAD 2>/dev/null  # unpushed commits, empty if no upstream
+_PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+_PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
+bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-3-gather-facts --duration="$_PERF_DURATION"
 ```
 
 - **Outstanding-items verdicts** — reuse the per-item verdicts from Step 1's

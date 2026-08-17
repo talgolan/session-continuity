@@ -10,12 +10,26 @@ You are responding to the `/session-continuity:primer` slash command.
 
 ## Step 1 — Detect state
 
-Run these checks, in order:
+Gather the raw data for every check below in **one Bash call**, timed:
 
-1. Do `.session-continuity/SESSION_PRIMER.md` and `.session-continuity/LEARNINGS.md` exist?
-2. If a primer exists, does the `git log --oneline -5` block inside it match the actual output of `git log --oneline -5` for the primary branch? (mtime is intentionally not checked — formatters, save-on-blur, and `cat | tee` all bump mtime without changing content. The log-block diff is the authoritative drift signal.)
-3. Does `git diff --cached --name-only` contain any file outside `docs/`, `.session-continuity/`, `README*`, `CHANGELOG*`, `LICENSE*`? (Code is staged and a commit is imminent — the primer will be stale the moment that commit lands.)
-4. If a primer exists, does `.session-continuity/PROJECT_CONTEXT.md` also exist?
+```bash
+_PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+[ -f .session-continuity/SESSION_PRIMER.md ] && echo "PRIMER_EXISTS=1" || echo "PRIMER_EXISTS=0"
+[ -f .session-continuity/LEARNINGS.md ] && echo "LEARNINGS_EXISTS=1" || echo "LEARNINGS_EXISTS=0"
+[ -f .session-continuity/PROJECT_CONTEXT.md ] && echo "PROJECT_CONTEXT_EXISTS=1" || echo "PROJECT_CONTEXT_EXISTS=0"
+git log --oneline -5
+git diff --cached --name-only
+_PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+_PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
+bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-1-detect-state --duration="$_PERF_DURATION"
+```
+
+Interpret the output:
+
+1. Do `.session-continuity/SESSION_PRIMER.md` and `.session-continuity/LEARNINGS.md` exist? (`PRIMER_EXISTS` / `LEARNINGS_EXISTS` above.)
+2. If a primer exists, does the `git log --oneline -5` block inside it match the `git log --oneline -5` output above? (mtime is intentionally not checked — formatters, save-on-blur, and `cat | tee` all bump mtime without changing content. The log-block diff is the authoritative drift signal.)
+3. Does the `git diff --cached --name-only` output above contain any file outside `docs/`, `.session-continuity/`, `README*`, `CHANGELOG*`, `LICENSE*`? (Code is staged and a commit is imminent — the primer will be stale the moment that commit lands.)
+4. If a primer exists, does `.session-continuity/PROJECT_CONTEXT.md` also exist? (`PROJECT_CONTEXT_EXISTS` above.)
 
 Four states result:
 
@@ -30,12 +44,30 @@ Four states result:
 2. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/SESSION_PRIMER.md` to `.session-continuity/SESSION_PRIMER.md`.
 3. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/LEARNINGS.md` to `.session-continuity/LEARNINGS.md`.
 4. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/PROJECT_CONTEXT.md` to `.session-continuity/PROJECT_CONTEXT.md`.
-5. Fill in placeholders Claude can derive automatically:
+5. Fill in placeholders Claude can derive automatically. Gather the raw
+   data in **one Bash call**, timed:
+
+   ```bash
+   _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+   pwd
+   basename "$(pwd)"
+   [ -f package.json ] && grep -m1 '"name"' package.json
+   [ -f Cargo.toml ] && grep -m1 '^name' Cargo.toml
+   [ -f pyproject.toml ] && grep -m1 '^name' pyproject.toml
+   git log --oneline -5
+   [ -f package.json ] && grep -A1 '"scripts"' package.json | grep '"test"'
+   find . -maxdepth 2 -not -path './node_modules/*' -not -path './.git/*'
+   _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+   _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
+   bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-2-init-derive-placeholders --duration="$_PERF_DURATION"
+   ```
+
+   Derive from that output:
    - `{{PROJECT_NAME}}` — from `package.json` `name`, `Cargo.toml` `name`, `pyproject.toml` `name`, or the current directory basename.
-   - `{{LATEST_COMMIT_HASH_N}}` / `{{LATEST_COMMIT_SUBJECT_N}}` — from `git log --oneline -5`.
-   - `{{WORKING_DIRECTORY_ABSOLUTE_PATH}}` — from `pwd`.
-   - `{{TEST_COMMAND_SUMMARY}}` — from `package.json` `scripts.test` if present.
-   - `{{REPO_LAYOUT_SUMMARY}}` — best-effort from `find . -maxdepth 2 -not -path './node_modules/*' -not -path './.git/*'` plus a one-line description Claude infers from the file extensions present.
+   - `{{LATEST_COMMIT_HASH_N}}` / `{{LATEST_COMMIT_SUBJECT_N}}` — from the `git log --oneline -5` output above.
+   - `{{WORKING_DIRECTORY_ABSOLUTE_PATH}}` — from the `pwd` output above.
+   - `{{TEST_COMMAND_SUMMARY}}` — from the `scripts.test` grep above, if present.
+   - `{{REPO_LAYOUT_SUMMARY}}` — from the `find` output above, plus a one-line description Claude infers from the file extensions present.
    - `{{MODULES_TABLE}}` — leave as `TBD` unless the project has an obvious package/module manifest to read (`package.json` workspaces, Cargo workspace members, etc.) — don't invent structure that isn't there.
 6. Ask the user for the blanks that can't be derived: `{{GROUND_RULES}}`, `{{WORKFLOW_CONVENTIONS}}`, `{{WHERE_TO_LOOK_ROWS}}`, `{{STUCK_ESCALATION_STEPS}}`, `{{OUTSTANDING_ITEMS}}`. **Wait for their answer.** Do not proceed to Step 8 until the user responds.
 7. **Replace any remaining `{{PLACEHOLDER}}` tokens with `TBD` before staging.** If the user skipped a field, declined to answer, or asked you to stage/commit without filling everything in, substitute `TBD` (with an empty body line where the template had prose). Never leave `{{...}}` syntax in a file you are about to stage — `grep -n '{{' .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md` must return nothing after this step.
@@ -88,14 +120,47 @@ contains).
 ## Step 4 — Refresh mode
 
 1. Read the current `.session-continuity/SESSION_PRIMER.md`.
-2. Regenerate the `git log --oneline -5` block with current output.
-3. If the primer has a test-counts section, decide whether to re-run it:
+2. Regenerate the `git log --oneline -5` block. **One Bash call**, timed:
+
+   ```bash
+   _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+   git log --oneline -5
+   _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+   _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
+   bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-git-log-refresh --duration="$_PERF_DURATION"
+   ```
+
+   Use the output above to regenerate the primer's block.
+3. If the primer has a test-counts section, decide whether to re-run it.
+   Do this as **one Bash call**, timed, tracking a `RETRIES` count (0
+   if skipped or the first run matched, else the number of *extra*
+   runs actually executed beyond the first):
    - **Skip the rerun** if `git diff <last-primer-commit>..HEAD --name-only` (the commit range since the primer was last touched) contains no file outside `.session-continuity/` — no source or test file changed, so the recorded count cannot have drifted. Reuse this diff if already computed elsewhere in this flow; don't recompute it just for this check.
    - **Otherwise, run the test command(s) once.** If that single run's count matches the primer's recorded count, stop there — no drift on this axis, no further runs.
    - **Only if that first run disagrees with the recorded count**, retry up to 2 more times (3 runs total) to rule out flakiness before reporting drift — a single sample can swing a pass/fail count and produce a false drift alarm. Pin to the count seen in ≥2 of the 3 runs. If that pinned count matches the primer's recorded count, the first run was the flake — no drift. If it differs, report drift with the pinned count. If all three runs disagree with each other, surface the spread (`saw 1162 / 1161 / 1162 across 3 runs — using 1162; suite is unstable`) instead of silently picking one.
-   
+
    This keeps the common cases cheap: zero test runs when no relevant file changed, one run when relevant files changed but the count still holds, and the full 3-run majority vote only when there's an actual discrepancy to resolve.
-4. **Surface activity since the last primer refresh.** Find the last commit that touched the primer with `git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md`. Run `git log <that-hash>..HEAD --oneline` and present the subject list to the user as candidate prompts:
+
+   At the end of this Bash call (whichever branch above ran), call:
+   ```bash
+   bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-test-count-rerun --duration="$_PERF_DURATION" --retries="$RETRIES"
+   ```
+   using the same `_PERF_START`/`_PERF_END`/`_PERF_DURATION` pattern
+   shown in item 2 above, captured around this whole check.
+4. **Surface activity since the last primer refresh.** **One Bash
+   call**, timed:
+
+   ```bash
+   _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+   LAST_PRIMER_COMMIT=$(git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md)
+   git log "$LAST_PRIMER_COMMIT"..HEAD --oneline
+   _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+   _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
+   bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-activity-surface --duration="$_PERF_DURATION"
+   ```
+
+   Present the subject list from the `git log` output above to the
+   user as candidate prompts:
    > "Since the last primer refresh, these commits landed:
    > - `<sha> <subject>`
    > - …
@@ -108,6 +173,19 @@ contains).
 8. Tell the user: "Primer refreshed and staged. Include it in your next commit (same commit as the substantive change — do not primer-commit alone)."
 
 ## Step 5 — Check mode
+
+Gather the report data in **one Bash call**, timed:
+
+```bash
+_PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+git rev-parse --short HEAD
+stat -f '%Sm' .session-continuity/SESSION_PRIMER.md 2>/dev/null || stat -c '%y' .session-continuity/SESSION_PRIMER.md
+grep -c '^[0-9]\+\.' .session-continuity/SESSION_PRIMER.md 2>/dev/null || echo 0
+grep -c '^### [0-9]\+\.' .session-continuity/LEARNINGS.md 2>/dev/null || echo 0
+_PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+_PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
+bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-5-check-mode --duration="$_PERF_DURATION"
+```
 
 Report:
 
