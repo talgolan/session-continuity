@@ -21,7 +21,7 @@ git log --oneline -5
 git diff --cached --name-only
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
-bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-1-detect-state --duration="$_PERF_DURATION"
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-1-detect-state --duration="$_PERF_DURATION"
 ```
 
 Interpret the output:
@@ -59,7 +59,7 @@ Four states result:
    find . -maxdepth 2 -not -path './node_modules/*' -not -path './.git/*'
    _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
    _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
-   bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-2-init-derive-placeholders --duration="$_PERF_DURATION"
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-2-init-derive-placeholders --duration="$_PERF_DURATION"
    ```
 
    Derive from that output:
@@ -127,7 +127,7 @@ contains).
    git log --oneline -5
    _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
    _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
-   bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-git-log-refresh --duration="$_PERF_DURATION"
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-git-log-refresh --duration="$_PERF_DURATION"
    ```
 
    Use the output above to regenerate the primer's block.
@@ -143,7 +143,7 @@ contains).
 
    At the end of this Bash call (whichever branch above ran), call:
    ```bash
-   bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-test-count-rerun --duration="$_PERF_DURATION" --retries="$RETRIES"
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-test-count-rerun --duration="$_PERF_DURATION" --retries="$RETRIES"
    ```
    using the same `_PERF_START`/`_PERF_END`/`_PERF_DURATION` pattern
    shown in item 2 above, captured around this whole check.
@@ -156,7 +156,7 @@ contains).
    git log "$LAST_PRIMER_COMMIT"..HEAD --oneline
    _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
    _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
-   bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-activity-surface --duration="$_PERF_DURATION"
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-activity-surface --duration="$_PERF_DURATION"
    ```
 
    Present the subject list from the `git log` output above to the
@@ -184,7 +184,7 @@ grep -c '^[0-9]\+\.' .session-continuity/SESSION_PRIMER.md 2>/dev/null || echo 0
 grep -c '^### [0-9]\+\.' .session-continuity/LEARNINGS.md 2>/dev/null || echo 0
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
-bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-5-check-mode --duration="$_PERF_DURATION"
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-5-check-mode --duration="$_PERF_DURATION"
 ```
 
 Report:

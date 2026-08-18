@@ -42,7 +42,7 @@ git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md   # <last-primer
 git rev-parse HEAD
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
-bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-fast-path --duration="$_PERF_DURATION"
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-fast-path --duration="$_PERF_DURATION"
 ```
 
 If `git status --porcelain` is empty AND `<last-primer-commit>` equals
@@ -116,7 +116,7 @@ proceed to full classify/verify below.
    # ... the derived per-item grep/test -e checks run here ...
    _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
    _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
-   bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-outstanding-items-verification --duration="$_PERF_DURATION" --items="$ITEMS"
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-outstanding-items-verification --duration="$_PERF_DURATION" --items="$ITEMS"
    ```
 
    Assign one verdict per item from that combined output:
@@ -186,7 +186,7 @@ discrepancy to resolve.
 
 At the end of this Bash call (whichever branch above ran):
 ```bash
-bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-drift-test-rerun --duration="$_PERF_DURATION" --retries="$RETRIES"
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-drift-test-rerun --duration="$_PERF_DURATION" --retries="$RETRIES"
 ```
 using the same `_PERF_START`/`_PERF_END`/`_PERF_DURATION` pattern used
 elsewhere in this file, captured around this whole check.
@@ -315,7 +315,7 @@ split("\n")[0]` returns `null` in jq, not `""`, and crashes the next
 before running `jq`, `_PERF_END` the same way immediately after, compute
 `_PERF_DURATION` the same way as elsewhere in this file, and call:
 ```bash
-bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-2-transcript-extraction --duration="$_PERF_DURATION"
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-2-transcript-extraction --duration="$_PERF_DURATION"
 ```
 in the same call, right after `jq` returns.
 
@@ -587,7 +587,7 @@ git rev-parse --abbrev-ref @{u} 2>/dev/null  # upstream branch, or empty if none
 git rev-list --count @{u}..HEAD 2>/dev/null  # unpushed commits, empty if no upstream
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
-bash "$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-3-gather-facts --duration="$_PERF_DURATION"
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-3-gather-facts --duration="$_PERF_DURATION"
 ```
 
 - **Outstanding-items verdicts** — reuse the per-item verdicts from Step 1's
