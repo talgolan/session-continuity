@@ -294,11 +294,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+dbe6dd7 docs: capture 3 learnings from v0.15.0/v0.15.1 release session
+12badfd docs: flip v0.15.0/v0.15.1 primer bullets to released (catch-up, per exception)
 df63267 fix: brace $CLAUDE_PLUGIN_ROOT in perf-log.sh calls (v0.15.1) (#15)
 c006b2e feat: per-repo performance logging (v0.15.0) (#14)
 22fdbfb docs: flip v0.14.4 primer bullet to released (catch-up, per exception)
-cf29867 fix: end-session round-trip batching + jq robustness + test-retry early-exit (#13) (v0.14.4)
-87e9e96 docs: flip v0.14.3 primer bullet to released (catch-up, per new exception)
 ```
 
 Regenerate this block whenever you commit — see
