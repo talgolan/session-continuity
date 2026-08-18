@@ -20,6 +20,51 @@ rarely.
 
 ## Current state
 
+- **v0.15.1 released** — commit `df63267` (squash-merged via PR #15), tag
+  `v0.15.1` pushed, GitHub Actions `release.yml` ran clean, [GitHub
+  Release](https://github.com/talgolan/session-continuity/releases/tag/v0.15.1)
+  published 2026-08-17. Verified via `gh run list` + `gh release view`.
+  **v0.15.0's self-reported performance-logging instrumentation was
+  completely non-functional as shipped.** All 11 `perf-log.sh` calls
+  added to `commands/primer.md`/`commands/end-session.md` used the
+  unbraced `$CLAUDE_PLUGIN_ROOT/...` form inside bash fences — Claude
+  Code's template substitution only resolves the braced
+  `${CLAUDE_PLUGIN_ROOT}` form (confirmed live: real invocation failed
+  every call with "No such file or directory"; `$CLAUDE_PLUGIN_ROOT` is
+  not exported as a shell env var to an agent-run Bash tool call
+  either — only Claude Code's own text templating resolves the braced
+  form, before the model ever sees the command content). The manual
+  scratch-repo validations during implementation (plan tasks 4, 5, 7)
+  didn't catch this because they manually `export`ed the variable
+  themselves, masking the gap. Found and fixed within minutes of the
+  v0.15.0 release, by actually invoking `/session-continuity:primer`
+  for real after updating and reloading. The hook-side mechanism
+  (`hooks.json` → `perf-wrap.sh`) was unaffected — already used the
+  braced form, and is confirmed working live: real timing entries for
+  `session-start.sh`, `pre-commit-check.sh`, `flaky-gate.sh`,
+  `proven-gate.sh`, etc. are already accumulating in this repo's own
+  `.session-continuity/performance.log` from ordinary use this
+  session. See CHANGELOG `[0.15.1]`.
+- **v0.15.0 released** — commit `c006b2e` (squash-merged via PR #14), tag
+  `v0.15.0` pushed, GitHub Actions `release.yml` ran clean, [GitHub
+  Release](https://github.com/talgolan/session-continuity/releases/tag/v0.15.0)
+  published 2026-08-17. Verified via `gh run list` + `gh release view`.
+  Per-repo performance logging: every shipped hook invocation (via a new
+  `hooks/lib/perf-wrap.sh` timing wrapper, routed through `hooks.json`)
+  and the heavier batched-bash-call operations inside
+  `/session-continuity:primer` (6 units) and `/session-continuity:end-session`
+  (5 units) now log timing to `.session-continuity/performance.log`
+  (auto-gitignored) via a new shared writer, `hooks/lib/perf-log.sh`.
+  `/session-continuity:learning` intentionally not instrumented — no
+  batched bash operation to time. Built via brainstorming → spec → plan
+  → subagent-driven-development (7 tasks, each independently reviewed;
+  one cross-task fix caught by end-to-end validation — a marker file
+  that wasn't gitignored, silently defeating `end-session`'s fast path
+  after first use; one final whole-branch review caught a stray, never
+  actually reverted out-of-scope edit to this very file from an earlier
+  fix round). No new command surfaces the log yet — read it directly
+  with `jq`/`grep`/`bat`. See CHANGELOG `[0.15.0]` and
+  `meta/superpowers/specs/2026-08-17-performance-logging-design.md`.
 - **v0.14.4 released** — commit `cf29867` (squash-merged via PR #13), tag
   `v0.14.4` pushed, GitHub Actions `release.yml` ran clean, [GitHub
   Release](https://github.com/talgolan/session-continuity/releases/tag/v0.14.4)
@@ -249,11 +294,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+df63267 fix: brace $CLAUDE_PLUGIN_ROOT in perf-log.sh calls (v0.15.1) (#15)
+c006b2e feat: per-repo performance logging (v0.15.0) (#14)
+22fdbfb docs: flip v0.14.4 primer bullet to released (catch-up, per exception)
 cf29867 fix: end-session round-trip batching + jq robustness + test-retry early-exit (#13) (v0.14.4)
 87e9e96 docs: flip v0.14.3 primer bullet to released (catch-up, per new exception)
-e197071 fix: name the tag+push+release exception to the primer-only-commit rule (v0.14.3)
-e1e20c9 fix: end-session perf (fast path + gating) + outstanding-items numbering rule (v0.14.2)
-9d8df5f fix: outstanding-items list-echo rule + smoke suite drift (v0.14.1)
 ```
 
 Regenerate this block whenever you commit — see

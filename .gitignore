@@ -5,3 +5,5 @@ node_modules/
 .worktrees/
 .superpowers/
 .itb.json
+.session-continuity/performance.log
+.session-continuity/.gitignore-ensured
