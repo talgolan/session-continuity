@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.1] — 2026-08-17
+
+### Fixed
+- **v0.15.0's performance-logging instrumentation was completely
+  non-functional.** All 11 self-reported `perf-log.sh` calls added to
+  `commands/primer.md`/`commands/end-session.md` used the unbraced
+  `$CLAUDE_PLUGIN_ROOT/...` form inside bash fences. Claude Code's own
+  template substitution only resolves the braced `${CLAUDE_PLUGIN_ROOT}`
+  form — confirmed live: updating to v0.15.0, reloading, and invoking
+  `/session-continuity:primer` failed every timing call with "No such
+  file or directory" (`$CLAUDE_PLUGIN_ROOT` is not exported as a real
+  shell env var to an agent-run Bash tool call; only Claude Code's text
+  templating resolves the braced form, before the model ever sees the
+  command content). The manual scratch-repo validations in the original
+  implementation (plan tasks 4, 5, 7) didn't catch this because they
+  manually `export`ed the variable themselves, masking the gap. Fixed
+  by bracing all 11 occurrences. The hook-side mechanism
+  (`hooks/hooks.json` → `perf-wrap.sh`) was unaffected — it already used
+  the braced form throughout.
+
 ## [0.15.0] — 2026-08-17
 
 ### Added
