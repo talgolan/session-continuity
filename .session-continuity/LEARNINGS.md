@@ -16,19 +16,37 @@ within each group.
   each time it appends a new entry.
 -->
 
-- Clean-machine acceptance test for v0.4.0. /session-continuity:primer ran init mode cleanly,… — #4
-- Discovered when /session-continuity:end-session was invoked on this v0.6.0 session. — #6
+- Clean-machine acceptance test for v0.4.0. `/session-continuity:primer` ran init mode cleanly, asked for… — #4
+- Denied again, on the same file, despite the escape hatch already being… — #13
+- Discovered when `/session-continuity:end-session` was invoked on this v0.6.0 session. The system-reminder injected… — #6
 - Discovered while hardening the Step 2 transcript-extraction jq filter after a user… — #10
-- In a live Claude session, the hook runs (verified via debug… — #1
-- The /session-continuity:end-session smoke test had two staged files (primer + src/foo.js). — #3
-- The Bash call is refused outright: "This session is isolated in… — #8
-- The first v0.2.0 release fired the workflow, created the GitHub… — #2
-- The self-gate check returned rc=0 (allowed) — but via the… — #7
-- Three hermetic smoke suites under meta/superpowers/validation/ had fixtures hardcoded to… — #9
+- Every run of that one check silently wrote a real entry into… — #12
+- In a live Claude session, the hook runs (verified via debug logs)… — #1
+- Real invocation of `/session-continuity:primer` after installing the change failed every one of… — #11
+- The `/session-continuity:end-session` smoke test had two staged files (primer + `src/foo.js`). The… — #3
+- The Bash call is refused outright: "This session is isolated in the… — #8
+- The first v0.2.0 release fired the workflow, created the GitHub Release, but… — #2
+- The self-gate check returned rc=0 (allowed) — but via the escape hatch… — #7
+- This repo moved everything to `meta/superpowers/` in v0.3 (per CHANGELOG: "Repo layout:… — #5
+- Three hermetic smoke suites under `meta/superpowers/validation/` had fixtures hardcoded to the exact… — #9
 
 ---
 
 ## Claude Code plugin mechanics
+
+### 11. `$CLAUDE_PLUGIN_ROOT` inside a bash fence in a skill/command file is never resolved — only the braced `${CLAUDE_PLUGIN_ROOT}` form is
+Slug: plugin-root-brace-required
+Trigger: Write|Edit /\$CLAUDE_PLUGIN_ROOT\//
+
+**The trap.** `commands/primer.md` already used `${CLAUDE_PLUGIN_ROOT}/skills/...` (braced) in plain prose to reference a template file path, and that worked — Claude Code's own text templating resolves it to a literal absolute cache path before the model ever sees the command content. Natural assumption when adding NEW bash code that needs the same path: write `$CLAUDE_PLUGIN_ROOT/hooks/lib/perf-log.sh` (unbraced, the way you'd reference any other shell variable inside a bash fence meant to run via the Bash tool) and expect the shell to expand it as an environment variable at execution time.
+
+**Symptom.** Real invocation of `/session-continuity:primer` after installing the change failed every one of 11 `perf-log.sh` calls with `bash: /hooks/lib/perf-log.sh: No such file or directory` — the variable expanded to an empty string. `env | grep -i claude_plugin` inside the same Bash tool call confirmed the var is not exported to an agent-run Bash tool call at all.
+
+**Fix.** Claude Code's template substitution only matches the exact `${VAR}` (braced) pattern in skill/command markdown, and it runs as a text-substitution pass over the file content — independent of, and not to be confused with, real shell variable expansion at execution time. `$CLAUDE_PLUGIN_ROOT` (unbraced) inside a bash fence is left as literal text for the shell to expand, and the shell never has it in its environment. Always use the braced form — `${CLAUDE_PLUGIN_ROOT}/...` — for any reference to the plugin root inside a skill or command file, whether in prose or inside a bash fence. A manual scratch-repo test that `export`s the variable yourself before running the block will pass even with the unbraced (broken) form — that masks the bug rather than catching it; the only way to catch this for real is to actually invoke the live slash command after updating/reloading the plugin.
+
+**Diagnostic signal** *(optional)*. "No such file or directory" for a path that starts with `/` where you expected a variable to expand — check whether the reference used `$VAR` or `${VAR}` inside a skill/command markdown file specifically; the two are not interchangeable there the way they are in an ordinary shell script.
+
+---
 
 ### 8. `git -C` and compound commands blocked inside a worktree-isolated session
 Slug: worktree-compound-commands-blocked
@@ -154,6 +172,34 @@ Applies generally: any time command prose tells Claude to produce an inventory f
 
 ## Hook scripting (SessionStart / PreToolUse)
 
+### 12. A smoke test's own hermeticity bug recurred twice, in two unrelated tasks, even after being caught and fixed once
+Slug: smoke-hermeticity-recurs-across-tasks
+Trigger: Write /validation\/.*smoke.*\.zsh/
+
+**The trap.** A smoke test's "real-gate regression check" (invoking a wrapper against an actual gate hook, to prove wrapping doesn't change block/allow behavior) gets written as a plain `bash "$wrap" "$gate_hook"` call, without first `cd`-ing into the test's own hermetic temp repo — because the stub-script loop two lines above it already does `cd "$work" && bash "$wrap" ...`, and it's easy to assume the surrounding function/script context still applies to a later call in the same file.
+
+**Symptom.** Every run of that one check silently wrote a real entry into the actual project repo's own `.session-continuity/performance.log`, modified the real `.gitignore`, and created a real marker file — none of it inside the temp dir, none of it caught by the test's own "hermetic" self-description in its header comment. This happened twice: once when the check was first written (caught in task review, fixed with a `cd "$work" &&` wrapper), and again — independently, in a different, later fix to the same underlying script — when a controller ran a manual verification step outside the hermetic harness entirely.
+
+**Fix.** Hermeticity isn't a property you fix once and trust forever in a file with more than one place that shells out to the thing under test — every single invocation of the wrapped command, anywhere in the test file (or in ad-hoc manual verification during a later fix), needs its own explicit `cd "$work" &&` (or equivalent), not just the first one written. When reviewing or re-reviewing a "hermetic" smoke test, check every invocation individually rather than trusting the file's header comment or the fact that one earlier block does it correctly. After running any manual verification step against a real checkout, always `git status --short` before moving on — don't just check `rc=0`.
+
+**Diagnostic signal** *(optional)*. `git status --short` shows changes to files a task's diff never touched, right after running "hermetic" tests or manual verification — that's stray real-repo pollution from a test/verification step that forgot to `cd` into its own temp dir.
+
+---
+
+### 13. `proven-gate.sh` (and similar word-boundary content gates) re-fire on an `Edit` even when a valid escape-hatch line already exists elsewhere in the same file
+Slug: edit-scope-misses-escape-hatch
+Trigger: Edit /specs\/.*\.md|plans\/.*\.md/
+
+**The trap.** A spec/plan file already has a `Proven-gate: N/A — <reason>` escape-hatch line near the top (added once, after the first denial). Later in the same session, an incremental `Edit` to a different part of the same file mentions the hook by name again (e.g. `proven-gate.sh`) — reasonable to expect the existing escape hatch still covers the whole document.
+
+**Symptom.** Denied again, on the same file, despite the escape hatch already being present — 4 times across one session, on both `Write` and `Edit` calls to the same two files.
+
+**Fix.** `proven-gate.sh` (like other `PreToolUse` content gates in this plugin) reads its payload's `content` field for a `Write`, but its `new_string` field for an `Edit` — an `Edit`'s payload never contains the rest of the file, so an escape-hatch line written earlier is invisible to the gate on a later incremental edit to the same file. `Write` (which sends the full file content) stays covered once the hatch line exists anywhere in the document; `Edit` does not. When an incremental `Edit` to an already-hatched file re-triggers the same gate, either (a) rewrite that specific chunk to avoid the trigger word/phrase, or (b) fall back to a full-file `Write` for that change so the existing hatch line is back in scope. See also [[self-referential-gate-check]] — a related but distinct failure mode in the same family of content gates (that one is about a hatch string matching *by accident*; this one is about a real hatch line being *invisible* to a scoped edit).
+
+**Diagnostic signal** *(optional)*. The same file gets denied by the same gate more than once in one session despite an escape-hatch line already being present — check whether the denied write was an `Edit` (scoped) rather than a `Write` (whole-file).
+
+---
+
 ### 9. Removing a hook's legacy-path scope breaks hermetic smoke fixtures hardcoded to that path — and a release shipped before anyone re-ran them
 Slug: legacy-scope-removal-breaks-smoke-fixtures
 Trigger: Bash /git tag v[0-9]/
@@ -254,7 +300,7 @@ and explains why it loses. -->
 
 ---
 
-*Last entry: 2026-08-15 (#10). Add new entries at the top of each section
+*Last entry: 2026-08-17 (#13). Add new entries at the top of each section
 as they surface. The `/session-continuity:learning` command bumps this
 line automatically (v0.5.1+). Rule of thumb: if a bug takes more than
 15 minutes to diagnose, it goes here.*
