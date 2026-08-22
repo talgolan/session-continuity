@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] — 2026-08-22
+
+### Added
+- **Real end-to-end timing for `/session-continuity:end-session`.** Each
+  step's self-reported timer only covered its own Bash block, not the
+  gaps between steps (transcript mining, checklist review) — so the
+  multi-minute totals a user actually experiences were invisible to
+  `performance.log`. A new final step reads back the invocation's own
+  `step-1-fast-path` timestamp and logs one real end-to-end
+  `step-4-ritual-complete` duration per invocation. Live-tested against
+  a scratch repo via `claude --plugin-dir`.
+
+### Considered and dropped
+- A companion self-logged "session start ready" timing for
+  `session-start.sh`, mirroring the same pattern via a trailing
+  instruction in the injected reminder. Live testing showed Claude
+  reliably answers with primer content in text only and never issues
+  the trailing self-log Bash call — the mechanism doesn't fire in
+  practice. Session-start timing stays hook-only (already logged).
+
 ## [0.15.1] — 2026-08-17
 
 ### Fixed
