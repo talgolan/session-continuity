@@ -663,6 +663,30 @@ Prefix with `→ Suggested:` and wrap in a fenced code block so the user can cop
 
 After the checklist (and suggested-commit block, if any), emit a final closing line so the user knows the ritual completed and they are not blocked waiting for further prompts.
 
+**Before that line, record total ritual time.** Each step above only timed
+its own Bash block, not the gaps between them — this reads back this
+invocation's own `step-1-fast-path` timestamp (always the first thing every
+invocation logs, fast-path or not) and diffs it against now, so the log
+carries one real end-to-end number per invocation alongside the per-step
+ones. Skip the log call entirely rather than record a bogus duration if the
+timestamp is missing or unparseable:
+
+```bash
+last_ts="$(grep '"name":"end-session"' .session-continuity/performance.log 2>/dev/null \
+  | grep '"step":"step-1-fast-path"' | tail -1 \
+  | sed -E 's/.*"ts":"([^"]*)".*/\1/' || true)"
+start_epoch=""
+if [ -n "$last_ts" ]; then
+  start_epoch="$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$last_ts" +%s 2>/dev/null \
+    || date -u -d "$last_ts" +%s 2>/dev/null || true)"
+fi
+if [[ "$start_epoch" =~ ^[0-9]+$ ]]; then
+  now_epoch="$(date -u +%s)"
+  _PERF_DURATION="$(( now_epoch - start_epoch )).000"
+  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-4-ritual-complete --duration="$_PERF_DURATION"
+fi
+```
+
 **Always emit one of these two lines, exactly:**
 
 - If every checklist row was ✓ (no ⚠️ anywhere):
