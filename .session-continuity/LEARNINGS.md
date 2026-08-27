@@ -20,6 +20,7 @@ within each group.
 - Denied again, on the same file, despite the escape hatch already being… — #13
 - Discovered when `/session-continuity:end-session` was invoked on this v0.6.0 session. The system-reminder injected… — #6
 - Discovered while hardening the Step 2 transcript-extraction jq filter after a user… — #10
+- Documented as an accepted tradeoff while designing the commit-time gates… — #14
 - Every run of that one check silently wrote a real entry into… — #12
 - In a live Claude session, the hook runs (verified via debug logs)… — #1
 - Real invocation of `/session-continuity:primer` after installing the change failed every one of… — #11
@@ -172,6 +173,23 @@ Applies generally: any time command prose tells Claude to produce an inventory f
 
 ## Hook scripting (SessionStart / PreToolUse)
 
+### 14. Commit-time content gates only see the git index — `git commit -a` / pathspec bypasses the scan
+Slug: gate-index-only-staging-miss
+Trigger: Bash /git commit (-a|--all)/
+Flaky-gate: N/A — this entry names `flaky-gate.sh` as one of six hook script filenames sharing `gate-common.sh`, not as an unexplained-failure claim.
+
+**The trap.** `hooks/lib/gate-common.sh`'s `gate_staged_files` (used by every commit-time content gate — `proven-gate.sh`, `smoke-gate.sh`, `evidence-gate.sh`, `backend-parity-gate.sh`, `occurrence-gate.sh`, and the sixth sharing this lib) reads `git diff --cached --name-only` — the index exactly as it stands the moment the `PreToolUse` hook fires. Typing `git commit -a` or `git commit <path/to/file.md>` looks, from the keyboard, exactly like committing that file — nothing visibly distinguishes it from a `git add <file> && git commit` the gate can actually see.
+
+**Symptom.** Documented as an accepted tradeoff while designing the commit-time gates (`meta/superpowers/specs/2026-08-27-commit-time-content-gates-design.md`'s Tradeoffs section), not caught as a live false-negative in this repo: a staged spec/plan/LEARNINGS file carrying an unqualified gated claim (e.g. a bare "proven"/"verified" line lacking `Real path:`/`Stubbed:`) committed via `git commit -a` — which stages tracked modifications as part of the commit itself, after the hook already read the index — or via `git commit <pathspec>` — which commits that path without the gate's `--cached` name-only scan ever covering it — reaches the repo with zero gate scan. `pre-commit-check.sh`'s existing non-blocking nudge has the identical index-only blind spot; this isn't a new failure mode, just a new hook family that inherits it.
+
+**Fix.** Accepted as a documented permissive limitation rather than fixed: every gate already errs toward allowing on any ambiguity (miss, never a false block on a save), so a `-a`/pathspec miss is consistent with the whole design's error-handling posture, not an oversight. Mitigation considered and rejected: a git-native `.git/hooks/pre-commit` would see the real final commit contents regardless of how staging happened, but it requires installing/managing a git hook per user repo, risks colliding with hooks already present there, and this machine's `~/.githooks` slot is already occupied by a separate global docs-current setup — too heavy for a limitation that hasn't caused a real incident yet. Prefer `git add <file>` followed by a plain `git commit` (no `-a`, no pathspec) when staging a file one of these gates cares about, until the miss actually bites hard enough to justify the heavier fix.
+
+**Related check, same change (verified, not a second incident).** Each gate sources `hooks/lib/gate-common.sh` via `source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"`, and `hooks/lib/perf-wrap.sh` launches each gate as `bash "$HOOKS_DIR/<gate>.sh"` — a real file invocation, not a second `source`. So `${BASH_SOURCE[0]}` inside the gate script correctly resolves to the gate's own path (not `perf-wrap.sh`'s) whether the gate runs directly or through the timing wrapper, and the relative `lib/gate-common.sh` lookup holds in both cases. Confirmed by reading `perf-wrap.sh`'s invocation and by the full hermetic suite passing gate-by-gate when run through the wrapper.
+
+**Diagnostic signal** *(optional)*. A content-gate violation lands in a commit despite the gate script itself being correct and its hermetic tests green — before doubting the gate logic, check whether the commit used `-a`/`--all` or a bare pathspec instead of committing an already-`git add`-staged tree.
+
+---
+
 ### 12. A smoke test's own hermeticity bug recurred twice, in two unrelated tasks, even after being caught and fixed once
 Slug: smoke-hermeticity-recurs-across-tasks
 Trigger: Write /validation\/.*smoke.*\.zsh/
@@ -300,7 +318,7 @@ and explains why it loses. -->
 
 ---
 
-*Last entry: 2026-08-17 (#13). Add new entries at the top of each section
+*Last entry: 2026-08-27 (#14). Add new entries at the top of each section
 as they surface. The `/session-continuity:learning` command bumps this
 line automatically (v0.5.1+). Rule of thumb: if a bug takes more than
 15 minutes to diagnose, it goes here.*

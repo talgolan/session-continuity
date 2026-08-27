@@ -20,6 +20,28 @@ rarely.
 
 ## Current state
 
+- **v0.17.0 landed** — commit-time content gates. `proven-gate.sh`,
+  `smoke-gate.sh`, `evidence-gate.sh`, `backend-parity-gate.sh`,
+  `occurrence-gate.sh`, and `flaky-gate.sh`'s file check all moved from
+  `PreToolUse` `Write|Edit` hooks to a `Bash(git commit *)` hook — a
+  file always saves now; only a commit that stages a gated claim
+  without its required fields (or an escape hatch) gets denied. New
+  shared `hooks/lib/gate-common.sh` (payload parsing, staged-content
+  access via `git diff --cached`, decoration-tolerant escape check,
+  dot-prefixed scratch-file skip). Fixes two false-trigger bugs found
+  live: the escape line rejected markdown decoration (`> **Gate:** N/A
+  — …` was denied, only the bare form worked), and a dot-prefixed
+  scratch file got blocked four times mid-iteration before it was ever
+  going to be committed. Full hermetic validation suite green
+  (13 files under `meta/superpowers/validation/`), shellcheck clean on
+  all six gates plus the new lib. Accepted, documented limitation:
+  `git commit -a`/pathspec bypasses the staged-index scan — see
+  LEARNINGS #14. `plugin.json` 0.16.0→0.17.0, CHANGELOG `[0.17.0]`
+  entry added. Spec:
+  `meta/superpowers/specs/2026-08-27-commit-time-content-gates-design.md`.
+  Plan: `meta/superpowers/plans/2026-08-27-commit-time-content-gates.md`.
+  Built on branch `worktree-commit-time-content-gates`; not yet
+  merged/tagged/released.
 - **v0.15.1 released** — commit `df63267` (squash-merged via PR #15), tag
   `v0.15.1` pushed, GitHub Actions `release.yml` ran clean, [GitHub
   Release](https://github.com/talgolan/session-continuity/releases/tag/v0.15.1)

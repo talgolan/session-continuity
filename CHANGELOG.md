@@ -2,6 +2,59 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0] — 2026-08-27
+
+### Changed
+- **Content gates now enforce at `git commit`, not at `Write`/`Edit`.**
+  `proven-gate.sh`, `smoke-gate.sh`, `evidence-gate.sh`,
+  `backend-parity-gate.sh`, `occurrence-gate.sh`, and `flaky-gate.sh`'s
+  file check all moved from `PreToolUse` `Write|Edit` hooks to a
+  `Bash(git commit *)` hook. A file always saves now; only the commit
+  that stages a gated claim without its required fields (or an escape
+  hatch) gets denied. Fixes a real workflow harm: a blocked `Write`
+  discards the authored content outright, forcing a full re-derive —
+  observed live, a scratch grounding file was blocked four times in a
+  row by `proven-gate.sh`, each attempt re-writing ~180 lines. Blocking
+  the commit is legitimate; blocking the save never was. Each gate now
+  scans the staged (`git diff --cached`) blob of every matching file at
+  commit time instead of the in-flight tool payload. See
+  `meta/superpowers/specs/2026-08-27-commit-time-content-gates-design.md`.
+- **New `hooks/lib/gate-common.sh`** — shared sourced library factoring
+  out the logic all six gates duplicated: payload parsing
+  (`gate_field`, `gate_command`, `gate_load`), commit detection
+  (`gate_is_commit`), staged-content access (`gate_staged_files`,
+  `gate_staged_blob`), the scratch-file skip (`gate_is_scratch`), the
+  decoration-tolerant escape check (`gate_has_escape`), and the
+  existing `json_escape`/`deny` output contract. Each gate now defines
+  only its own glob and claim/field check.
+
+### Fixed
+- **Escape-hatch line rejected markdown decoration.** `> **Gate:** N/A
+  — <reason>` was denied even though the plain `Gate: N/A — <reason>`
+  form was accepted — the escape regex required `Gate:` immediately
+  followed by whitespace then `N/A`, and the `**`/backtick emphasis
+  markers between the label and the colon broke the match. Every
+  gate's escape check now strips `` ` `` and `*` before matching, so
+  bold/code-decorated escape lines work identically to bare ones.
+- **Dot-prefixed scratch files are now explicitly skipped** at scan
+  time (`gate_is_scratch`), defense-in-depth for the rare case one is
+  staged directly — the dominant fix is commit-time firing itself:
+  scratch files that are written and deleted without ever being
+  committed are never scanned at all, so the observed four-block
+  scratch-file scenario above cannot recur.
+
+### Accepted limitation
+- **`git commit -a` / pathspec is a permissive miss.** The staged-index
+  scan (`git diff --cached`) only sees what's already in the index when
+  the hook fires. `git commit -a` stages tracked modifications at
+  commit time, after the hook has already read the index, and
+  `git commit <pathspec>` bypasses the index scan for that path
+  entirely — either can commit a gated claim uncaught. This is a
+  *permissive* failure (fails to block; never blocks a save) and
+  matches the existing `pre-commit-check.sh` limitation. Documented,
+  not mitigated, in this change — see
+  `.session-continuity/LEARNINGS.md`.
+
 ## [0.16.0] — 2026-08-22
 
 ### Added
