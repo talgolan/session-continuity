@@ -1,90 +1,63 @@
 #!/usr/bin/env zsh
-# Smoke runner for the flaky-gate hook. Hermetic: pipes synthetic PreToolUse
-# payloads (Bash git-commit and Write/Edit LEARNINGS.md shapes) into
-# hooks/flaky-gate.sh, asserts JSON (or silence). See LEARNINGS #7 — the
-# ONLY correct way to verify the gate; never self-scan real commits/LEARNINGS.
+# Smoke runner for the flaky-gate hook (commit-time). Hermetic: stages
+# synthetic content into a throwaway repo, drives `git commit` PreToolUse
+# payloads through hooks/flaky-gate.sh, asserts deny/allow verdict. flaky-gate
+# is the ONE gate that also inspects the commit MESSAGE text (not just staged
+# file content) — cases 1-2 exercise the message path via the command string
+# passed to gt_commit_payload; cases 3-7 exercise the staged LEARNINGS.md path.
 set -uo pipefail
-
-here="${0:A:h}"
-repo="${here:h:h:h}"   # validation -> superpowers -> meta -> repo root
-fg_hook="$repo/hooks/flaky-gate.sh"
-
+HERE="${0:A:h}"
+source "$HERE/lib/gate-test-common.zsh"
 pass=0; fail=0
-ok()  { print -P "%F{green}✓%f $1"; (( pass++ )); return 0; }
-bad() { print -P "%F{red}✗%f $1"; (( fail++ )); return 0; }
+check() { if [[ "$2" == "$3" ]]; then print -r -- "ok   - $1"; ((pass++)); else print -r -- "FAIL - $1 (want $2 got $3)"; ((fail++)); fi }
+verdict() { gt_is_deny "$1" && print deny || print allow; }
 
-assert() {
-  local desc="$1" exp="$2" act="$3"
-  if [[ "$exp" == "EMPTY" ]]; then
-    [[ -z "$act" ]] && ok "$desc" || bad "$desc (expected empty, got: $act)"
-  else
-    [[ "$act" == *"$exp"* ]] && ok "$desc" || bad "$desc (expected '*$exp*', got: $act)"
-  fi
-}
+# 1. commit message "fix flaky test", no staged LEARNINGS -> deny
+repo="$(gt_make_repo)"
+out="$(gt_run flaky-gate.sh "$(gt_commit_payload "$repo" 'git commit -m "fix flaky test"')")"
+check "message: flaky, no Mechanism -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# commit <msg> -> a Bash git-commit payload
-commit() { printf '{"tool_name":"Bash","tool_input":{"command":"git commit -m \\"%s\\""}}' "$1"; }
-# learn <content> -> a Write payload to a canonical LEARNINGS.md path
-learn() { printf '{"file_path":"/x/.session-continuity/LEARNINGS.md","tool_name":"Write","tool_input":{"content":"%s"}}' "$1"; }
+# 2. commit message "fix flaky test. Mechanism: shared temp dir race" -> allow
+repo="$(gt_make_repo)"
+out="$(gt_run flaky-gate.sh "$(gt_commit_payload "$repo" 'git commit -m "fix flaky test. Mechanism: shared temp dir race"')")"
+check "message: flaky + Mechanism -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 1: commit calls it flaky, no mechanism -> deny
-out="$(commit 'fix: retry the flaky upload test' | bash "$fg_hook")"
-assert "1 commit flaky, no mechanism -> deny" 'deny' "$out"
+# 3. staged LEARNINGS.md "Test is flaky." (plain commit msg) -> deny
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'Test is flaky.\n'
+out="$(gt_run flaky-gate.sh "$(gt_commit_payload "$repo")")"
+check "file: flaky, no Mechanism -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 2: commit calls it flaky, names mechanism -> silent
-out="$(commit 'fix: upload race (Mechanism: shared tmp dir across parallel runs)' | bash "$fg_hook")"
-assert "2 commit flaky + mechanism -> silent" EMPTY "$out"
+# 4. staged LEARNINGS.md "Test is flaky. Mechanism: DNS timeout in CI" -> allow
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'Test is flaky. Mechanism: DNS timeout in CI\n'
+out="$(gt_run flaky-gate.sh "$(gt_commit_payload "$repo")")"
+check "file: flaky + Mechanism -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 3: LEARNINGS entry says transient, no mechanism -> deny
-out="$(learn 'The build failed again, looks transient.' | bash "$fg_hook")"
-assert "3 learnings transient, no mechanism -> deny" 'deny' "$out"
+# 5. staged LEARNINGS.md flaky + decorated escape -> allow
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'flaky\n> **Flaky-gate:** N/A — glossary\n'
+out="$(gt_run flaky-gate.sh "$(gt_commit_payload "$repo")")"
+check "decorated escape -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 4: LEARNINGS entry says CDN blip, no mechanism -> deny
-out="$(learn 'Download failed, probably a CDN blip.' | bash "$fg_hook")"
-assert "4 learnings CDN blip, no mechanism -> deny" 'deny' "$out"
+# 6. .session-continuity/.scratch.md with "flaky", plain msg -> allow (scratch + wrong basename)
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/.scratch.md" $'flaky\n'
+out="$(gt_run flaky-gate.sh "$(gt_commit_payload "$repo")")"
+check "scratch + wrong basename -> allow (out of scope)" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 5: LEARNINGS entry names mechanism -> silent
-out="$(learn 'The download failed twice. Mechanism: proxy secret mismatch from a squatting helper on the same port.' | bash "$fg_hook")"
-assert "5 learnings + mechanism -> silent" EMPTY "$out"
+# 7. non-commit Bash (git status) with "flaky" in it -> allow (not a commit);
+# also stage a violating LEARNINGS.md to prove neither check runs.
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'Test is flaky.\n'
+out="$(gt_run flaky-gate.sh "$(gt_commit_payload "$repo" 'git status --flaky')")"
+check "non-commit Bash -> allow (not a commit)" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 6: escape hatch overrides -> silent
-out="$(learn 'This entry quotes a vendor report calling it flaky. Flaky-gate: N/A — quoting a vendor report.' | bash "$fg_hook")"
-assert "6 escape hatch -> silent" EMPTY "$out"
-
-# Case 7: commit with no flaky/transient language -> silent
-out="$(commit 'fix: null pointer in the parser' | bash "$fg_hook")"
-assert "7 no flaky language -> silent" EMPTY "$out"
-
-# Case 8: non-commit Bash command -> silent (out of scope)
-out="$(printf '{"tool_name":"Bash","tool_input":{"command":"grep flaky test.log"}}' | bash "$fg_hook")"
-assert "8 non-commit bash -> silent" EMPTY "$out"
-
-# Case 9: non-LEARNINGS Write path -> silent (out of scope)
-out="$(printf '{"file_path":"/x/specs/s.md","tool_name":"Write","tool_input":{"content":"This test is flaky."}}' | bash "$fg_hook")"
-assert "9 non-LEARNINGS path -> silent" EMPTY "$out"
-
-# Case 10: deny payload is valid hook JSON (LEARNINGS #1 contract)
-out="$(commit 'fix: the flaky test' | bash "$fg_hook")"
-assert "10 deny carries hookSpecificOutput" 'hookSpecificOutput' "$out"
-assert "10 deny names permissionDecision" 'permissionDecision' "$out"
-
-# Case 11: Edit new_string on LEARNINGS path also gated (canonical path —
-# v0.14.0 dropped the legacy docs/ fallback, .session-continuity/ is the
-# only recognized location now)
-out="$(printf '{"file_path":"/x/.session-continuity/LEARNINGS.md","tool_name":"Edit","tool_input":{"new_string":"Still transient, re-ran and it passed."}}' | bash "$fg_hook")"
-assert "11 Edit new_string transient, no mechanism -> deny" 'deny' "$out"
-
-# Case 12: word-boundary guard — "flakiness" as a topic word in a Mechanism
-# discussion should not be blocked once Mechanism: is present
-out="$(learn 'Discussing flaky test theory. Mechanism: none — this entry is about the concept, not a real failure.' | bash "$fg_hook")"
-assert "12 flaky + mechanism present -> silent" EMPTY "$out"
-
-# Case 13: legacy docs/LEARNINGS.md path is out of scope (v0.14.0 dropped
-# the dual-path fallback — .session-continuity/ is the only recognized
-# location now)
-out="$(printf '{"file_path":"/x/docs/LEARNINGS.md","tool_name":"Write","tool_input":{"content":"Still transient, no mechanism."}}' | bash "$fg_hook")"
-assert "13 legacy docs/ path out of scope -> silent" EMPTY "$out"
-
-print ""
-print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"
-(( fail == 0 ))
+print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]
