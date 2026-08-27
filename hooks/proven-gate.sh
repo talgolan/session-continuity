@@ -25,7 +25,7 @@ gate_check() {
   local has_claim=0
   if printf '%s' "$content" | grep -Eiqw 'proven|verified'; then has_claim=1; fi
   if printf '%s' "$content" | grep -Eiq 'spike[[:space:]]+conclusive'; then has_claim=1; fi
-  [ "$has_claim" -eq 0 ] && return 0
+  if [ "$has_claim" -eq 0 ]; then return 0; fi
   local has_real=0 has_stub=0
   if printf '%s' "$content" | grep -Eiq 'Real path:[[:space:]]*[^[:space:]]'; then has_real=1; fi
   if printf '%s' "$content" | grep -Eiq 'Stubbed:[[:space:]]*[^[:space:]]'; then has_stub=1; fi
