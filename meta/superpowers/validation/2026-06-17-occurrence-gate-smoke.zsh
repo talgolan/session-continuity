@@ -1,77 +1,54 @@
 #!/usr/bin/env zsh
-# Smoke runner for the occurrence-gate hook. Hermetic: pipes synthetic
-# PreToolUse payloads into hooks/occurrence-gate.sh, asserts JSON (or silence).
-# See LEARNINGS #7 — the ONLY correct way to verify the gate; never self-scan a
-# real LEARNINGS.md.
+# Smoke runner for the occurrence-gate hook (commit-time). Hermetic: stages
+# synthetic content into a throwaway repo, drives a `git commit` PreToolUse
+# payload through hooks/occurrence-gate.sh, asserts deny/allow verdict.
 set -uo pipefail
-
-here="${0:A:h}"
-repo="${here:h:h:h}"   # validation -> superpowers -> meta -> repo root
-og_hook="$repo/hooks/occurrence-gate.sh"
-
+HERE="${0:A:h}"
+source "$HERE/lib/gate-test-common.zsh"
 pass=0; fail=0
-ok()  { print -P "%F{green}✓%f $1"; (( pass++ )); return 0; }
-bad() { print -P "%F{red}✗%f $1"; (( fail++ )); return 0; }
+check() { if [[ "$2" == "$3" ]]; then print -r -- "ok   - $1"; ((pass++)); else print -r -- "FAIL - $1 (want $2 got $3)"; ((fail++)); fi }
+verdict() { gt_is_deny "$1" && print deny || print allow; }
 
-# assert <desc> <expected-substr-or-EMPTY> <actual>
-assert() {
-  local desc="$1" exp="$2" act="$3"
-  if [[ "$exp" == "EMPTY" ]]; then
-    [[ -z "$act" ]] && ok "$desc" || bad "$desc (expected empty, got: $act)"
-  else
-    [[ "$act" == *"$exp"* ]] && ok "$desc" || bad "$desc (expected '*$exp*', got: $act)"
-  fi
-}
+# 1. Occurrence count 2 of 2, no Invariant -> deny
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'Occurrence count: 2 of 2\nFix: patched it again.\n'
+out="$(gt_run occurrence-gate.sh "$(gt_commit_payload "$repo")")"
+check "occ2, no invariant -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# learn <content> -> Write payload to a canonical LEARNINGS.md path
-learn() { printf '{"file_path":"/x/.session-continuity/LEARNINGS.md","tool_name":"Write","tool_input":{"content":"%s"}}' "$1"; }
+# 2. Occurrence count 3 of 3, WITH an Invariant line -> allow
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'Occurrence count: 3 of 3\nInvariant: reconciler enforces X on every path.\n'
+out="$(gt_run occurrence-gate.sh "$(gt_commit_payload "$repo")")"
+check "occ3 + invariant -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 1: occurrence 2 + invariant -> silent (allow)
-out="$(learn 'Occurrence count: 2 of 2\nInvariant: host-global port implies host-global secret.' | bash "$og_hook")"
-assert "1 occ2 + invariant -> silent" EMPTY "$out"
+# 3. Occurrence count 1 of 2 (N<2) -> allow (nothing owed yet)
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'Occurrence count: 1 of 2\nFirst time we hit this.\n'
+out="$(gt_run occurrence-gate.sh "$(gt_commit_payload "$repo")")"
+check "occ1 (N<2) -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 2: occurrence 2, no invariant -> deny
-out="$(learn 'Occurrence count: 2 of 2\nFix: reaped the stale port again.' | bash "$og_hook")"
-assert "2 occ2, no invariant -> deny" 'deny' "$out"
+# 4. decorated escape line overrides an occ2/no-invariant violation -> allow
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'> **Occurrence-gate:** N/A — quoting\nOccurrence count: 2 of 2\nFix: patched it again.\n'
+out="$(gt_run occurrence-gate.sh "$(gt_commit_payload "$repo")")"
+check "decorated escape -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 3: occurrence 1, no invariant -> silent (nothing owed)
-out="$(learn 'Occurrence count: 1 of 2\nFirst time we hit this.' | bash "$og_hook")"
-assert "3 occ1 -> silent" EMPTY "$out"
+# 5. same violation, wrong basename (NOTES.md) under .session-continuity/ -> allow (out of scope)
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/NOTES.md" $'Occurrence count: 2 of 2\nFix: patched it again.\n'
+out="$(gt_run occurrence-gate.sh "$(gt_commit_payload "$repo")")"
+check "wrong basename NOTES.md -> allow (out of scope)" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 4: no occurrence line -> silent (ordinary entry)
-out="$(learn 'A normal learning with a Fix and a Symptom.' | bash "$og_hook")"
-assert "4 no occurrence line -> silent" EMPTY "$out"
+# 6. same violation, right basename but NOT under .session-continuity/ -> allow (out of scope)
+repo="$(gt_make_repo)"
+gt_stage "$repo" "LEARNINGS.md" $'Occurrence count: 2 of 2\nFix: patched it again.\n'
+out="$(gt_run occurrence-gate.sh "$(gt_commit_payload "$repo")")"
+check "top-level LEARNINGS.md -> allow (out of scope)" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 5: occurrence 3 of 5, no invariant -> deny (N>=2)
-out="$(learn 'Occurrence count: 3 of 5\nYet another trigger patch.' | bash "$og_hook")"
-assert "5 occ3, no invariant -> deny" 'deny' "$out"
-
-# Case 6: escape hatch overrides -> silent
-out="$(learn 'Occurrence count: 2 of 2\nOccurrence-gate: N/A — quoting #149 in a glossary.' | bash "$og_hook")"
-assert "6 escape hatch -> silent" EMPTY "$out"
-
-# Case 7: non-LEARNINGS path -> silent (out of scope)
-out="$(printf '{"file_path":"/x/specs/s.md","tool_name":"Write","tool_input":{"content":"Occurrence count: 2 of 2\\nno invariant"}}' | bash "$og_hook")"
-assert "7 non-LEARNINGS path -> silent" EMPTY "$out"
-
-# Case 8: Edit new_string on a LEARNINGS path -> deny
-out="$(printf '{"file_path":"/x/.session-continuity/LEARNINGS.md","tool_name":"Edit","tool_input":{"new_string":"Occurrence count: 2 of 2\\nFix only, no invariant"}}' | bash "$og_hook")"
-assert "8 Edit new_string occ2, no invariant -> deny" 'deny' "$out"
-
-# Case 9: deny payload is valid hook JSON (LEARNINGS #1 contract)
-out="$(learn 'Occurrence count: 2 of 2\nno invariant here.' | bash "$og_hook")"
-assert "9 deny carries hookSpecificOutput" 'hookSpecificOutput' "$out"
-assert "9 deny names permissionDecision" 'permissionDecision' "$out"
-
-# Case 10: Invariant label present but value EMPTY -> deny
-out="$(learn 'Occurrence count: 2 of 2\nInvariant: \nFix: patched it.' | bash "$og_hook")"
-assert "10 empty Invariant value -> deny" 'deny' "$out"
-
-# Case 11: legacy docs/LEARNINGS.md path is out of scope (v0.14.0 dropped the
-# dual-path fallback — .session-continuity/ is the only recognized location)
-out="$(printf '{"file_path":"/x/docs/LEARNINGS.md","tool_name":"Write","tool_input":{"content":"Occurrence count: 2 of 2\\nno invariant"}}' | bash "$og_hook")"
-assert "11 legacy docs/ path out of scope -> silent" "EMPTY" "$out"
-
-print ""
-print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"
-(( fail == 0 ))
+print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

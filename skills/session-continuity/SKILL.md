@@ -20,14 +20,36 @@ If installed as a plugin, four commands are available: `/session-continuity:prim
 - **`session-start.sh`** (SessionStart) — reminds Claude to read the primer, and injects the outstanding-items shortlist. **Standing rule: whenever you discuss or echo outstanding items to the user — in this reminder, in `/session-continuity:end-session`'s prompts, or in free-form chat when directly asked — render them as a numbered list matching the primer's own item numbers, always starting at 1, never 0.** Paraphrasing the list into unnumbered prose (e.g. "same question stand: X or Y") drops the numbering the user relies on to reply with a bare number. This applies even to a one-line summary reply — number it, don't collapse it, and don't zero-index it.
 - **`pre-commit-check.sh`** (PreToolUse, before `git commit`) — non-blocking nudge when code is staged without a primer refresh.
 - **`learnings-surface.sh`** (PreToolUse, before Bash/Write/Edit) — the retrieval hook: surfaces any LEARNINGS entry carrying a `Trigger: <tool> /<regex>/` line when the imminent action matches, so the lesson lands *before* the mistake instead of after.
-- **`smoke-gate.sh`** (PreToolUse, before Write/Edit) — blocks writing a plan file that touches binary/engine work but lacks a MANDATORY smoke task.
-- **`proven-gate.sh`** — blocks a spec/plan's "proven"/"verified" claim unless it also names the real path exercised and what was stubbed.
-- **`occurrence-gate.sh`** — blocks a LEARNINGS entry recording a 2nd-or-later occurrence of a mistake-class unless it also names the end-state invariant.
-- **`evidence-gate.sh`** — blocks a spec/plan's smoke design if it tears down before capturing failure evidence, or polls for success only.
-- **`flaky-gate.sh`** — blocks a commit message or LEARNINGS entry that calls a failure "flaky"/"transient" without naming the deterministic mechanism behind it.
-- **`backend-parity-gate.sh`** — blocks a plan that frames its smoke coverage as multi-backend but names only one concrete backend.
+The six content gates below all fire at **commit time**, not on save:
+each one is a `PreToolUse` hook scoped to `Bash(git commit *)` that
+scans the files already staged in the git index, not the `Write`/`Edit`
+payload. Iterate on a spec/plan/LEARNINGS file freely — a `Write` or
+`Edit` never gets blocked — and the gate only asks its question when
+you run `git commit`, naming the offending staged file in its denial.
+(`git commit -a` and pathspec commits are a documented, accepted
+permissive miss — see CHANGELOG `[0.17.0]` and LEARNINGS.)
 
-Every blocking gate has an explicit skip-with-reason escape hatch (e.g. `Smoke: N/A — <reason>`) documented in that hook's own header comment.
+- **`smoke-gate.sh`** — blocks a staged plan file that touches binary/engine work but lacks a MANDATORY smoke task.
+- **`proven-gate.sh`** — blocks a staged spec/plan's "proven"/"verified" claim unless it also names the real path exercised and what was stubbed.
+- **`occurrence-gate.sh`** — blocks a staged LEARNINGS entry recording a 2nd-or-later occurrence of a mistake-class unless it also names the end-state invariant.
+- **`evidence-gate.sh`** — blocks a staged spec/plan's smoke design if it tears down before capturing failure evidence, or polls for success only.
+- **`flaky-gate.sh`** — blocks a commit message or staged LEARNINGS entry that calls a failure "flaky"/"transient" without naming the deterministic mechanism behind it.
+- **`backend-parity-gate.sh`** — blocks a staged plan that frames its smoke coverage as multi-backend but names only one concrete backend.
+
+Every blocking gate has an explicit skip-with-reason escape hatch (e.g.
+`Smoke: N/A — <reason>`) documented in that hook's own header comment.
+The escape line tolerates markdown decoration — `> **Smoke:** N/A —
+<reason>` (blockquote, bold) works exactly like the bare
+`Smoke: N/A — <reason>` form; only the `Label:`, `N/A`, and a dash then
+a non-blank reason are required, wrapped in any combination of `>`,
+`#`, `**`, or `` ` ``.
+
+`proven-gate.sh` specifically: rather than escaping a real
+"proven"/"verified" claim, prefer meeting its requirement directly —
+add two fields next to the claim, `Real path: <which production code
+path actually ran>` and `Stubbed: <what stood in, or "nothing">`. If
+the stubbed thing is the feature under test, the claim isn't proven;
+say so instead of asserting it.
 
 ## When to use this skill
 

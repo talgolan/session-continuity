@@ -1,71 +1,48 @@
 #!/usr/bin/env zsh
-# Smoke runner for the backend-parity-gate hook. Hermetic: pipes synthetic
-# PreToolUse payloads into hooks/backend-parity-gate.sh, asserts JSON (or
-# silence). See LEARNINGS #7 — the ONLY correct way to verify the gate;
-# never self-scan a real plan.
+# Smoke runner for the backend-parity-gate hook (commit-time). Hermetic: stages
+# synthetic content into a throwaway repo, drives a `git commit` PreToolUse
+# payload through hooks/backend-parity-gate.sh, asserts deny/allow verdict.
 set -uo pipefail
-
-here="${0:A:h}"
-repo="${here:h:h:h}"   # validation -> superpowers -> meta -> repo root
-bp_hook="$repo/hooks/backend-parity-gate.sh"
-
+HERE="${0:A:h}"
+source "$HERE/lib/gate-test-common.zsh"
 pass=0; fail=0
-ok()  { print -P "%F{green}✓%f $1"; (( pass++ )); return 0; }
-bad() { print -P "%F{red}✗%f $1"; (( fail++ )); return 0; }
+check() { if [[ "$2" == "$3" ]]; then print -r -- "ok   - $1"; ((pass++)); else print -r -- "FAIL - $1 (want $2 got $3)"; ((fail++)); fi }
+verdict() { gt_is_deny "$1" && print deny || print allow; }
 
-assert() {
-  local desc="$1" exp="$2" act="$3"
-  if [[ "$exp" == "EMPTY" ]]; then
-    [[ -z "$act" ]] && ok "$desc" || bad "$desc (expected empty, got: $act)"
-  else
-    [[ "$act" == *"$exp"* ]] && ok "$desc" || bad "$desc (expected '*$exp*', got: $act)"
-  fi
-}
+# 1. framed as multi-backend, names only ONE concrete backend -> deny
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'Smoke on the docker backend only.\n'
+out="$(gt_run backend-parity-gate.sh "$(gt_commit_payload "$repo")")"
+check "one backend named -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# plan <content> -> a Write payload to a */plans/*.md path
-plan() { printf '{"file_path":"/x/plans/p.md","tool_input":{"content":"%s"}}' "$1"; }
+# 2. framed as multi-backend, names TWO concrete backends -> allow
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'Smoke on docker and the apple container backend.\n'
+out="$(gt_run backend-parity-gate.sh "$(gt_commit_payload "$repo")")"
+check "two backends named -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 1: mentions backends + two named backends -> silent
-out="$(plan 'Smoke covers both backends: Docker and Apple container parity sections.' | bash "$bp_hook")"
-assert "1 backends + 2 names -> silent" EMPTY "$out"
+# 3. no "backend"/"backends" word at all (names only docker) -> allow
+# (out of scope: the gate only fires once a plan frames coverage as multi-backend)
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'Smoke test runs against docker only.\n'
+out="$(gt_run backend-parity-gate.sh "$(gt_commit_payload "$repo")")"
+check "no backend word, names docker -> allow (out of scope)" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 2: mentions backends, only one named -> deny
-out="$(plan 'Smoke covers backend parity, tested against Docker.' | bash "$bp_hook")"
-assert "2 backends, 1 name -> deny" 'deny' "$out"
+# 4. decorated escape line overrides one-backend violation -> allow
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'> **Backend-parity:** N/A — single backend\nSmoke on the backend docker only.\n'
+out="$(gt_run backend-parity-gate.sh "$(gt_commit_payload "$repo")")"
+check "decorated escape -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 3: mentions backends, zero named -> deny
-out="$(plan 'This plan needs full backend parity coverage in smoke.' | bash "$bp_hook")"
-assert "3 backends, 0 names -> deny" 'deny' "$out"
+# 5. dot-prefixed scratch file with a case-1 violation -> allow (skipped)
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/.scratch.md" $'Smoke on the docker backend only.\n'
+out="$(gt_run backend-parity-gate.sh "$(gt_commit_payload "$repo")")"
+check "scratch file skipped -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 4: no mention of backend(s) at all -> silent (out of scope)
-out="$(plan 'This plan adds a new CLI flag and a unit test.' | bash "$bp_hook")"
-assert "4 no backend mention -> silent" EMPTY "$out"
-
-# Case 5: escape hatch overrides -> silent
-out="$(plan 'Backend parity is required in general. Backend-parity: N/A — this project only ships one engine.' | bash "$bp_hook")"
-assert "5 escape hatch -> silent" EMPTY "$out"
-
-# Case 6: two different named engines (podman + docker) -> silent
-out="$(plan 'Backend coverage: Podman and Docker both smoke-tested.' | bash "$bp_hook")"
-assert "6 podman+docker -> silent" EMPTY "$out"
-
-# Case 7: non-plan path -> silent (out of scope)
-out="$(printf '{"file_path":"/x/src/foo.ts","tool_input":{"content":"backend parity only on Docker"}}' | bash "$bp_hook")"
-assert "7 non-plan path -> silent" EMPTY "$out"
-
-# Case 8: deny payload is valid hook JSON (LEARNINGS #1 contract)
-out="$(plan 'Backend parity, Docker only.' | bash "$bp_hook")"
-assert "8 deny carries hookSpecificOutput" 'hookSpecificOutput' "$out"
-assert "8 deny names permissionDecision" 'permissionDecision' "$out"
-
-# Case 9: Edit new_string path also gated
-out="$(printf '{"file_path":"/x/plans/2026-07-01-plan.md","tool_input":{"new_string":"Smoke needs backend parity, only Apple covered."}}' | bash "$bp_hook")"
-assert "9 Edit new_string, 1 name -> deny" 'deny' "$out"
-
-# Case 10: basename *plan*.md outside a plans/ dir also in scope
-out="$(printf '{"file_path":"/x/notes/my-plan-draft.md","tool_input":{"content":"backend parity coverage, Docker only"}}' | bash "$bp_hook")"
-assert "10 *plan*.md basename, 1 name -> deny" 'deny' "$out"
-
-print ""
-print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"
-(( fail == 0 ))
+print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

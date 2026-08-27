@@ -24,6 +24,9 @@ assert() {
 }
 
 tmp="$(mktemp -d)"
+git -C "$tmp" init -q
+git -C "$tmp" config user.email "t@t.t"
+git -C "$tmp" config user.name "t"
 mkdir -p "$tmp/.session-continuity"
 cat > "$tmp/.session-continuity/LEARNINGS.md" <<'EOF'
 ### 124. smoke SUT dist != local bin
@@ -57,26 +60,35 @@ out="$(printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"never fir
 assert "ls: untagged entry silent" EMPTY "$out"
 
 # --- smoke-gate ---
-plan() { printf '{"file_path":"/x/plans/p.md","tool_name":"Write","tool_input":{"content":"%s"}}' "$1"; }
+# smoke-gate.sh fires on Bash(git commit *), not Write|Edit (Task 3) — stage
+# the violating content and drive it through a real git-commit payload.
+sg_commit() {  # <content> [relpath, default meta/plans/p.md] -> sg_hook stdout
+  local content="$1" relpath="${2:-meta/plans/p.md}"
+  mkdir -p "$tmp/${relpath:h}"
+  print -rn -- "$content" > "$tmp/$relpath"
+  git -C "$tmp" add "$relpath"
+  printf '{"tool_name":"Bash","cwd":"%s","tool_input":{"command":"git commit -m msg"}}' "$tmp" | bash "$sg_hook"
+  git -C "$tmp" rm --cached -q "$relpath" >/dev/null 2>&1 || true
+}
 
-out="$(plan 'Task 7: smoke runner (optional, after merge).' | bash "$sg_hook")"
+out="$(sg_commit 'Task 7: smoke runner (optional, after merge).')"
 assert "sg: weak-smoke -> deny" 'deny' "$out"
 
-out="$(plan 'Task 1: bun build --compile the binary.' | bash "$sg_hook")"
+out="$(sg_commit 'Task 1: bun build --compile the binary.')"
 assert "sg: engine keyword no smoke -> deny" 'deny' "$out"
 
-out="$(plan 'Task 7: smoke runner (MANDATORY). bun build the binary.' | bash "$sg_hook")"
+out="$(sg_commit 'Task 7: smoke runner (MANDATORY). bun build the binary.')"
 assert "sg: mandatory smoke -> allow/silent" EMPTY "$out"
 
 # escape hatch on content that WOULD otherwise deny (engine keyword, no smoke task)
-out="$(plan 'Task 1: bun build --compile the binary. Smoke: N/A — pure refactor, no behavior change.' | bash "$sg_hook")"
+out="$(sg_commit 'Task 1: bun build --compile the binary. Smoke: N/A — pure refactor, no behavior change.')"
 assert "sg: escape hatch overrides a would-be deny" EMPTY "$out"
 
-out="$(printf '{"file_path":"/x/src/foo.ts","tool_name":"Write","tool_input":{"content":"bun build optional smoke deferred"}}' | bash "$sg_hook")"
+out="$(sg_commit 'bun build optional smoke deferred' 'src/foo.ts')"
 assert "sg: non-plan path -> silent" EMPTY "$out"
 
 # plan with NO engine keyword and NO smoke -> silent (not every plan needs smoke)
-out="$(plan 'Task 1: rename a variable in the docs.' | bash "$sg_hook")"
+out="$(sg_commit 'Task 1: rename a variable in the docs.')"
 assert "sg: non-engine plan -> silent" EMPTY "$out"
 
 rm -rf "$tmp"
