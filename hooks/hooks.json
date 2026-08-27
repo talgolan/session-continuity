@@ -1,63 +1,26 @@
 {
   "hooks": {
     "SessionStart": [
-      {
-        "hooks": [
-          { "type": "command", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh session-start.sh" }
-        ]
-      }
+      { "hooks": [ { "type": "command", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh session-start.sh" } ] }
     ],
     "PreToolUse": [
       {
         "matcher": "Bash",
         "hooks": [
-          {
-            "type": "command",
-            "if": "Bash(git commit *)",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh pre-commit-check.sh"
-          },
-          {
-            "type": "command",
-            "if": "Bash(git commit *)",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh flaky-gate.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh learnings-surface.sh"
-          }
+          { "type": "command", "if": "Bash(git commit *)", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh pre-commit-check.sh" },
+          { "type": "command", "if": "Bash(git commit *)", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh flaky-gate.sh" },
+          { "type": "command", "if": "Bash(git commit *)", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh proven-gate.sh" },
+          { "type": "command", "if": "Bash(git commit *)", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh smoke-gate.sh" },
+          { "type": "command", "if": "Bash(git commit *)", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh evidence-gate.sh" },
+          { "type": "command", "if": "Bash(git commit *)", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh backend-parity-gate.sh" },
+          { "type": "command", "if": "Bash(git commit *)", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh occurrence-gate.sh" },
+          { "type": "command", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh learnings-surface.sh" }
         ]
       },
       {
         "matcher": "Write|Edit",
         "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh learnings-surface.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh smoke-gate.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh proven-gate.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh occurrence-gate.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh evidence-gate.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh flaky-gate.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh backend-parity-gate.sh"
-          }
+          { "type": "command", "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-wrap.sh learnings-surface.sh" }
         ]
       }
     ]

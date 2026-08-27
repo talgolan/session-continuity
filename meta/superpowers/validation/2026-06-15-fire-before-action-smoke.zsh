@@ -24,6 +24,9 @@ assert() {
 }
 
 tmp="$(mktemp -d)"
+git -C "$tmp" init -q
+git -C "$tmp" config user.email "t@t.t"
+git -C "$tmp" config user.name "t"
 mkdir -p "$tmp/.session-continuity"
 cat > "$tmp/.session-continuity/LEARNINGS.md" <<'EOF'
 ### 124. smoke SUT dist != local bin
@@ -59,10 +62,21 @@ assert "ls: untagged entry silent" EMPTY "$out"
 # --- smoke-gate ---
 plan() { printf '{"file_path":"/x/plans/p.md","tool_name":"Write","tool_input":{"content":"%s"}}' "$1"; }
 
-out="$(plan 'Task 7: smoke runner (optional, after merge).' | bash "$sg_hook")"
+# smoke-gate.sh fires on Bash(git commit *), not Write|Edit (Task 3) — stage
+# the violating content and drive it through a real git-commit payload.
+sg_commit() {  # <content> -> sg_hook stdout
+  local content="$1" relpath="meta/plans/p.md"
+  mkdir -p "$tmp/${relpath:h}"
+  print -rn -- "$content" > "$tmp/$relpath"
+  git -C "$tmp" add "$relpath"
+  printf '{"tool_name":"Bash","cwd":"%s","tool_input":{"command":"git commit -m msg"}}' "$tmp" | bash "$sg_hook"
+  git -C "$tmp" rm --cached -q "$relpath" >/dev/null 2>&1 || true
+}
+
+out="$(sg_commit 'Task 7: smoke runner (optional, after merge).')"
 assert "sg: weak-smoke -> deny" 'deny' "$out"
 
-out="$(plan 'Task 1: bun build --compile the binary.' | bash "$sg_hook")"
+out="$(sg_commit 'Task 1: bun build --compile the binary.')"
 assert "sg: engine keyword no smoke -> deny" 'deny' "$out"
 
 out="$(plan 'Task 7: smoke runner (MANDATORY). bun build the binary.' | bash "$sg_hook")"

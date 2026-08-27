@@ -62,13 +62,15 @@ else
 fi
 
 # Real-gate regression check: wrapping this plugin's claim-checking gate
-# hook must not change its deny decision. Fixture matches the one already
-# used in 2026-08-12-hook-json-contract-smoke.zsh.
+# hook must not change its deny decision. Fixture mirrors the one in
+# 2026-08-12-hook-json-contract-smoke.zsh, staged via a git-commit payload —
+# Task 2 moved proven-gate.sh off Write|Edit onto Bash(git commit *), so the
+# old Write-shaped fixture here now silently allows instead of denying.
 # Proven-gate: N/A — this smoke test names proven-gate.sh as its fixture
 # target, not a verification claim about this plan.
-spec_payload() { printf '{"file_path":"/x/specs/s.md","tool_name":"Write","tool_input":{"content":"%s"}}' "$1"; }
-payload="$(spec_payload 'Approach is proven, option A.')"
+mkdir -p "$work/meta/specs" && print -rn -- 'Approach is proven, option A.' > "$work/meta/specs/s.md" && git -C "$work" add meta/specs/s.md
 gate_hook="proven-gate.sh"
+payload="{\"tool_name\":\"Bash\",\"cwd\":\"$work\",\"tool_input\":{\"command\":\"git commit -m msg\"}}"
 out="$(cd "$work" && printf '%s' "$payload" | bash "$wrap" "$gate_hook" 2>/dev/null)"
 rc=$?
 if [[ "$rc" == "0" ]] && printf '%s' "$out" | python3 -c 'import sys, json; d=json.load(sys.stdin); assert d["hookSpecificOutput"]["permissionDecision"]=="deny"' 2>/dev/null; then
