@@ -1,87 +1,58 @@
 #!/usr/bin/env zsh
-# Smoke runner for the smoke-gate hook. Hermetic: pipes synthetic PreToolUse
-# payloads into hooks/smoke-gate.sh, asserts the JSON (or silence) on stdout.
-# See LEARNINGS #7 — the ONLY correct way to verify the gate; never self-scan
-# a real spec/plan.
 set -uo pipefail
-
-here="${0:A:h}"
-repo="${here:h:h:h}"   # validation -> superpowers -> meta -> repo root
-sg_hook="$repo/hooks/smoke-gate.sh"
-
+HERE="${0:A:h}"
+source "$HERE/lib/gate-test-common.zsh"
 pass=0; fail=0
-ok()  { print -P "%F{green}✓%f $1"; (( pass++ )); return 0; }
-bad() { print -P "%F{red}✗%f $1"; (( fail++ )); return 0; }
+check() { if [[ "$2" == "$3" ]]; then print -r -- "ok   - $1"; ((pass++)); else print -r -- "FAIL - $1 (want $2 got $3)"; ((fail++)); fi }
+verdict() { gt_is_deny "$1" && print deny || print allow; }
 
-# assert <desc> <expected-substr-or-EMPTY> <actual>
-assert() {
-  local desc="$1" exp="$2" act="$3"
-  if [[ "$exp" == "EMPTY" ]]; then
-    [[ -z "$act" ]] && ok "$desc" || bad "$desc (expected empty, got: $act)"
-  else
-    [[ "$act" == *"$exp"* ]] && ok "$desc" || bad "$desc (expected '*$exp*', got: $act)"
-  fi
-}
+# 1. binary/engine mention, no smoke at all -> deny
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'binary build step; deploy the engine.\n'
+out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
+check "no-smoke binary/engine -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# plan <content> -> a Write payload to a */plans/*.md path
-plan() { printf '{"file_path":"/x/plans/p.md","tool_name":"Write","tool_input":{"content":"%s"}}' "$1"; }
+# 2. smoke mentioned, not weak -> allow
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'Run the smoke test after building the binary.\n'
+out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
+check "smoke mentioned, not weak -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# --- MANDATORY honoring (new) --------------------------------------------
+# 3. weak-smoke adjacent ("optional") -> deny
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'smoke test is optional for the binary.\n'
+out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
+check "weak-smoke adjacent -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 1 (REGRESSION): incidental weak-word near an unrelated thing on one
-# line, PLUS an explicit Smoke: MANDATORY line -> allow.
-out="$(plan 'Task 8: document the optional mcp.config.json and how to run zsh smoke/run.zsh.\n**Smoke:** MANDATORY — part of done.' | bash "$sg_hook")"
-assert "1 incidental co-occurrence + MANDATORY line -> silent" EMPTY "$out"
+# 4. explicit MANDATORY short-circuits before weak-smoke check -> allow
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'smoke is MANDATORY — never deferred. builds a binary.\n'
+out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
+check "explicit MANDATORY -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 2 (NEGATION): smoke + MANDATORY co-occur on one line, weak-words are
-# negated ("never deferred/after-merge") -> allow.
-out="$(plan 'Smoke is MANDATORY — never deferred/after-merge.' | bash "$sg_hook")"
-assert "2 negation line (MANDATORY, never deferred) -> silent" EMPTY "$out"
+# 5. decorated escape line -> allow (even with binary mention)
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'> **Smoke:** N/A — pure docs change.\nThis plan touches a binary component.\n'
+out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
+check "decorated escape -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# --- Genuine weak-smoke denies -------------------------------------------
+# 6. dot-prefixed scratch file with a case-1 violation -> allow (skipped)
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/.scratch.md" $'binary build step; deploy the engine.\n'
+out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
+check "scratch file skipped -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 3: "smoke test is optional", no MANDATORY marker -> deny, and the deny
-# reason echoes the offending line text.
-out="$(plan 'The smoke test is optional for this change.' | bash "$sg_hook")"
-assert "3 smoke test optional -> deny" 'deny' "$out"
-assert "3 deny reason contains offending line" 'The smoke test is optional' "$out"
+# 7. no binary/engine/smoke words at all -> allow
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'Update the documentation for the primer.\n'
+out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
+check "no binary/engine/smoke words -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 
-# Case 4: weak-word ADJACENT to smoke, no MANDATORY -> deny (adjacency scope).
-out="$(plan 'We can add a smoke test later — deferred until after-merge.' | bash "$sg_hook")"
-assert "4 smoke ... deferred (adjacent) -> deny" 'deny' "$out"
-
-# Case 5 (was the false positive): weak-word FAR from smoke on the same long
-# line, no MANDATORY -> allow (adjacency scope kills incidental prose).
-out="$(plan 'Document the optional mcp.config.json prerequisite, the activity log feature, and how to run zsh smoke/run.zsh at the end.' | bash "$sg_hook")"
-assert "5 weak-word far from smoke, no MANDATORY -> silent" EMPTY "$out"
-
-# --- Escape hatch + branches (existing behavior, keep green) -------------
-
-# Case 6: escape hatch overrides everything -> silent.
-out="$(plan 'The smoke test is optional. Smoke: N/A — pure docs change, no binary.' | bash "$sg_hook")"
-assert "6 escape hatch -> silent" EMPTY "$out"
-
-# Case 7: no-smoke branch — engine keyword, no smoke mention at all -> deny.
-out="$(plan 'This plan rebuilds the binary and restarts the daemon.' | bash "$sg_hook")"
-assert "7 engine keyword, no smoke -> deny" 'deny' "$out"
-
-# Case 8: mentions smoke, no weak-word, no MANDATORY -> silent (nothing wrong).
-out="$(plan 'Smoke section 01 asserts the config file was written correctly.' | bash "$sg_hook")"
-assert "8 smoke, no weak-word -> silent" EMPTY "$out"
-
-# Case 9: non-plan path -> silent (out of scope).
-out="$(printf '{"file_path":"/x/src/foo.ts","tool_name":"Write","tool_input":{"content":"The smoke test is optional."}}' | bash "$sg_hook")"
-assert "9 non-plan path -> silent" EMPTY "$out"
-
-# Case 10: deny payload is valid hook JSON (LEARNINGS #1 contract).
-out="$(plan 'The smoke test is optional.' | bash "$sg_hook")"
-assert "10 deny carries hookSpecificOutput" 'hookSpecificOutput' "$out"
-assert "10 deny names permissionDecision" 'permissionDecision' "$out"
-
-# Case 11: Edit new_string path also gated (weak-smoke, no MANDATORY) -> deny.
-out="$(printf '{"file_path":"/x/plans/p.md","tool_name":"Edit","tool_input":{"new_string":"The smoke check is nice-to-have."}}' | bash "$sg_hook")"
-assert "11 Edit new_string weak-smoke -> deny" 'deny' "$out"
-
-print ""
-print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"
-(( fail == 0 ))
+print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]
