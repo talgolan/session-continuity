@@ -1,109 +1,33 @@
 #!/usr/bin/env bash
-#
-# backend-parity-gate.sh — PreToolUse hook (session-continuity plugin).
-#
-# Fires before Write / Edit. Self-scopes to plan files (path under a
-# */plans/ dir or a *plan*.md basename — same scope as smoke-gate.sh).
-# BLOCKS the write when the plan explicitly frames its smoke coverage as
-# multi-backend (mentions the word "backend"/"backends") but names only ONE
-# concrete backend, instead of naming a second one for parity coverage.
-#
-# Rationale (feedback_smoke_backend_parity): a smoke runner proven on only
-# one backend has an unverified half — Apple `container` and Docker (or any
-# two engines a project ships) genuinely differ on ports, networking,
-# inspect schema, and exec semantics. Scope both into the plan's smoke task
-# from the start; don't ship one and backfill the other later.
-#
-# Deliberately narrow trigger: this gate only activates when the plan text
-# itself says "backend"/"backends" — so single-backend projects that never
-# use that word are never touched. It is NOT itb-specific; the concrete
-# name list below is a superset covering common container engines, not a
-# requirement that a project use exactly these.
-#
-# Escape hatch (explicit skip-with-reason): a line matching
-#   Backend-parity: N/A — <reason>   (em-dash or --, non-empty reason)
-# passes the gate unconditionally.
-#
-# Output contract (LEARNINGS #1): permissionDecision:"deny" blocks and shows
-# the reason. Silent exit 0 allows. PreToolUse does NOT inject plain stdout.
-#
-# Self-reference (LEARNINGS #7): verify ONLY via the hermetic fixture runner,
-# never by self-scanning a real plan. The loose hatch is intentional.
-#
-# Security: $file_path / $content used only in path tests + grep; never eval'd.
-
+# backend-parity-gate.sh — commit-time content gate (session-continuity plugin).
+# Fires before Bash(git commit *). For each staged plan file that frames smoke as
+# multi-backend (mentions "backend(s)"), BLOCKS when fewer than two concrete
+# backends are named. Escape: `Backend-parity: N/A — <reason>`.
 set -euo pipefail
+# shellcheck disable=SC1091 # dynamically-resolved path; gate-common.sh is shellcheck-clean standalone
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
 
-payload="$(cat || true)"
-[ -z "${payload:-}" ] && exit 0
-
-file_path="$(printf '%s' "$payload" \
-  | grep -oE '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' \
-  | head -1 \
-  | sed -E 's/.*:[[:space:]]*"([^"]*)".*/\1/' \
-  || true)"
-[ -z "${file_path:-}" ] && exit 0
-
-# Self-scope: only plan files. */plans/*.md OR basename *plan*.md
-base="${file_path##*/}"
-case "$file_path" in
-  */plans/*) : ;;
-  *)
-    case "$base" in
-      *plan*.md) : ;;
-      *) exit 0 ;;
-    esac
-    ;;
-esac
-case "$base" in *.md) : ;; *) exit 0 ;; esac
-
-raw="$(printf '%s' "$payload" \
-  | sed -nE 's/.*"content"[[:space:]]*:[[:space:]]*"(.*)/\1/p' \
-  | head -1)"
-[ -z "$raw" ] && raw="$(printf '%s' "$payload" \
-  | sed -nE 's/.*"new_string"[[:space:]]*:[[:space:]]*"(.*)/\1/p' \
-  | head -1)"
-[ -z "$raw" ] && exit 0
-
-content="$(printf '%s' "$raw" \
-  | sed -E 's/\\n/\n/g; s/\\t/\t/g; s/\\"/"/g; s/\\\\/\\/g')"
-
-# Only in scope when the plan itself frames this as multi-backend.
-printf '%s' "$content" | grep -Eiq 'backends?\b' || exit 0
-
-# Escape hatch first.
-if printf '%s' "$content" | grep -Eiq 'Backend-parity:[[:space:]]*N/A[[:space:]]*(—|--)[[:space:]]*[^[:space:]]'; then
-  exit 0
-fi
-
-# Escape a value for embedding in a JSON string literal. Backslash first, then
-# double-quote — the reverse order re-escapes the backslashes the quote rule
-# just inserted. Raw control characters are illegal inside a JSON string
-# (RFC 8259) and make the payload unparseable, so every C0 byte (0x00-0x1F —
-# tab and newline are the ones a grep capture is likely to carry, but the
-# fold covers the whole range, not just those) collapses to a space.
-json_escape() {
-  printf '%s' "$1" | sed -E 's/\\/\\\\/g; s/"/\\"/g' | tr '\000-\037' ' '
+# shellcheck disable=SC2329 # called indirectly by gate_scan_staged
+gate_in_scope() {
+  case "${1##*/}" in *.md) : ;; *) return 1 ;; esac
+  case "$1" in */plans/*) return 0 ;; esac
+  case "${1##*/}" in *plan*.md) return 0 ;; *) return 1 ;; esac
 }
 
-deny() {
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' \
-    "$(json_escape "$1")"
-  exit 0
-}
-
-# Count distinct named backends from a generic container/VM-engine name
-# list. >=2 distinct hits -> parity named; <2 -> deny.
-names="docker apple podman containerd colima kata lima orbstack"
-hit_count=0
-for n in $names; do
-  if printf '%s' "$content" | grep -Eiq "\\b${n}\\b"; then
-    hit_count=$((hit_count + 1))
+# shellcheck disable=SC2329 # called indirectly by gate_scan_staged
+gate_check() {
+  local content="$1" path="$2" n hit_count=0
+  printf '%s' "$content" | grep -Eiq 'backends?\b' || return 0
+  if gate_has_escape "$content" "Backend-parity"; then return 0; fi
+  for n in docker apple podman containerd colima kata lima orbstack; do
+    if printf '%s' "$content" | grep -Eiq "\\b${n}\\b"; then hit_count=$((hit_count + 1)); fi
+  done
+  if [ "$hit_count" -lt 2 ]; then
+    deny "In staged file $path: mentions 'backend(s)' but names fewer than two concrete backends. A smoke runner proven on only one backend has an unverified half — pair every backend-specific section with the other (e.g. Docker + Apple container). Name the second backend, or add: Backend-parity: N/A — <reason> (decoration fine) if there genuinely is only one."
   fi
-done
+}
 
-if [ "$hit_count" -lt 2 ]; then
-  deny "This plan mentions 'backend(s)' but names fewer than two concrete backends. A smoke runner proven on only one backend has an unverified half (feedback_smoke_backend_parity) — pair every backend-specific section with an equivalent for the other backend(s) (e.g. Docker + Apple container). Name the second backend, or add: Backend-parity: N/A — <reason> if this plan genuinely has only one backend to cover."
-fi
-
+gate_load
+gate_is_commit || exit 0
+gate_scan_staged gate_in_scope gate_check
 exit 0
