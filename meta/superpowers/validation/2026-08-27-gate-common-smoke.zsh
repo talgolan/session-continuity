@@ -11,6 +11,11 @@ check() {  # <desc> <expected> <actual>
   else print -r -- "FAIL - $1 (expected [$2] got [$3])"; ((fail++)); fi
 }
 
+# gate_command with trailing "description" field
+payload='{"tool_name":"Bash","cwd":"/tmp","tool_input":{"command":"git commit -m test","description":"ignored"}}'
+out="$(bash -c 'export GATE_PAYLOAD='"'"''"$payload"''"'"'; source "'"$HOOKS"'/lib/gate-common.sh"; gate_command')"
+check "gate_command stops at closing quote (no description)" "git commit -m test" "$out"
+
 # gate_is_scratch
 out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_is_scratch ".x.md" && echo yes || echo no')"
 check "dot-prefixed is scratch" "yes" "$out"
@@ -36,6 +41,20 @@ check "staged file listed" "meta/plans/x.md" "$files"
 blob="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_CWD="'"$repo"'"; gate_staged_blob "meta/plans/x.md"' | head -1)"
 check "staged blob read" "line one" "$blob"
 gt_cleanup "$repo"
+
+# _GT_HOOKS_DIR is captured at source time and resolves to repo root/hooks
+hooks_dir_test="$(zsh -c 'source "'"$HERE"'/lib/gate-test-common.zsh"; echo "$_GT_HOOKS_DIR"')"
+real_hooks="$HOOKS"
+check "_GT_HOOKS_DIR resolves correctly" "$real_hooks" "$hooks_dir_test"
+
+# Verify the resolved directory contains hooks.json (exists at repo root/hooks/)
+if [[ -f "$hooks_dir_test/hooks.json" ]]; then
+  check "_GT_HOOKS_DIR contains hooks.json" "true" "true"
+  ((pass++))
+else
+  print -r -- "FAIL - _GT_HOOKS_DIR should contain hooks.json"
+  ((fail++))
+fi
 
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"
 [[ $fail -eq 0 ]]

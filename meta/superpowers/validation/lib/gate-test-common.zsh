@@ -1,5 +1,11 @@
 #!/usr/bin/env zsh
 # Shared hermetic harness for the gate runners.
+
+# Captured at source time: $0 here is this file's own path (zsh sets $0 to
+# the sourced file during `source`) — this file's location relative to repo
+# root is fixed, so this is invariant regardless of which runner sources it.
+_GT_HOOKS_DIR="${0:A:h:h:h:h:h}/hooks"
+
 gt_make_repo() {
   local d; d="$(mktemp -d)"
   git -C "$d" init -q
@@ -22,9 +28,8 @@ gt_commit_payload() {  # <repo> <command> ; command defaults to a plain commit
 }
 gt_run() {  # <gate-name> <payload>  -> gate stdout
   local gate="$1" payload="$2"
-  local hooks="${0:A:h:h:h}/hooks"   # runner is in meta/superpowers/validation
-  print -rn -- "$payload" | bash "$hooks/$gate"
+  print -rn -- "$payload" | bash "$_GT_HOOKS_DIR/$gate"
 }
 gt_is_deny() { print -rn -- "$1" | grep -q '"permissionDecision":"deny"'; }
 gt_is_allow() { ! gt_is_deny "$1"; }   # allow == not a deny (silent or allow JSON)
-gt_cleanup() { [[ -n "${1:-}" && -d "$1" ]] && rm -rf "$1"; }
+gt_cleanup() { if [[ -n "${1:-}" && -d "$1" ]]; then rm -rf "$1"; fi; }

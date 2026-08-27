@@ -14,7 +14,7 @@ gate_field() {  # <json-key> -> scalar string value from $GATE_PAYLOAD
 
 gate_command() {  # decoded git command string from $GATE_PAYLOAD
   printf '%s' "${GATE_PAYLOAD:-}" \
-    | sed -nE 's/.*"command"[[:space:]]*:[[:space:]]*"(.*)/\1/p' \
+    | sed -nE 's/.*"command"[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)".*/\1/p' \
     | head -1 \
     | sed -E 's/\\n/\n/g; s/\\t/\t/g; s/\\"/"/g; s/\\\\/\\/g' \
     || true
@@ -83,7 +83,7 @@ gate_scan_staged() {
     if gate_is_scratch "$f"; then continue; fi
     content="$(gate_staged_blob "$f")"
     [ -z "$content" ] && continue
-    "$check" "$content" "$f"
+    "$check" "$content" "$f" || true
   done <<EOF
 $(gate_staged_files)
 EOF
