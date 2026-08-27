@@ -32,9 +32,10 @@ rarely.
   live: the escape line rejected markdown decoration (`> **Gate:** N/A
   — …` was denied, only the bare form worked), and a dot-prefixed
   scratch file got blocked four times mid-iteration before it was ever
-  going to be committed. Full hermetic validation suite green
-  (13 files under `meta/superpowers/validation/`), shellcheck clean on
-  all six gates plus the new lib. Accepted, documented limitation:
+  going to be committed. Full hermetic validation suite green (12
+  `2026-*-smoke.zsh` suites under `meta/superpowers/validation/`),
+  shellcheck clean on all six gates plus the new lib. Accepted,
+  documented limitation:
   `git commit -a`/pathspec bypasses the staged-index scan — see
   LEARNINGS #14. `plugin.json` 0.16.0→0.17.0, CHANGELOG `[0.17.0]`
   entry added. Spec:
