@@ -68,16 +68,32 @@ from the fast-path check above). This same list feeds both this section's
 overlap gate below and the Refresh flow's overlay further down — compute it
 here, don't recompute it there.
 
-**Skip conditions.** Same as the overlay's existing skip clause (the "Skip
-conditions" bullet in the Refresh flow): if the primer has no
-`^## Outstanding items` heading (custom-modified primer), skip verification
-silently. Additionally, when skipped, the Step 3 row reads
-`Outstanding items: none tracked`. Likewise skip if the section is present but
-empty.
+**Data source.** Read `.session-continuity/OUTSTANDING_ITEMS.md`, not a
+heading inside the primer — the backlog lives in its own file now.
 
-**For each top-level numbered item** under `## Outstanding items` (scope the
-item exactly as the overlay does: the numbered line plus indented continuation
-lines until the next top-level number; sub-bullets roll up to their parent):
+**Skip conditions.**
+- If `.session-continuity/OUTSTANDING_ITEMS.md` doesn't exist AND the
+  primer has no leftover inline outstanding-items heading from before the
+  split either: skip verification silently (fresh/already-flat project).
+  Step 3's row reads `Outstanding items: none tracked`.
+- If `.session-continuity/OUTSTANDING_ITEMS.md` doesn't exist BUT the
+  primer still has the inline heading: this is an unmigrated project.
+  Skip only the outstanding-items verification sub-flow (this whole
+  section) — everything else in Step 1 (fast path, drift check, git-log
+  regeneration, test-count rerun) proceeds normally, independent of this
+  condition. Tell the user once: "This project's outstanding items
+  haven't migrated to `.session-continuity/OUTSTANDING_ITEMS.md` yet —
+  run `/session-continuity:primer` first (it migrates automatically),
+  then re-run `/session-continuity:end-session`." Step 3's row reads
+  `Outstanding items: not migrated — run /session-continuity:primer`.
+- If `.session-continuity/OUTSTANDING_ITEMS.md` exists but is empty
+  (no `### N.` entries): skip verification, Step 3's row reads `none
+  tracked`, same as the fresh-project case.
+
+**For each `### N.` entry** in `.session-continuity/OUTSTANDING_ITEMS.md`
+(scope the item exactly as the overlay does: the heading line plus every line
+until the next `### N.` heading or end of file; sub-bullets roll up to their
+parent):
 
 **Overlap gate (cost control) — run this before classifying.** Tokenize the
 item (same rule as the overlay below: lowercase, split on non-alphanumeric,
@@ -200,7 +216,7 @@ A lighter-weight alternative to the refresh flow below — no git-log regenerati
 
    > "Outstanding items — N appears-DONE (see list). Close any, or leave as-is?"
 3. **Wait for the answer before continuing.** Same refusal rule as the refresh flow: never close an item without explicit confirmation.
-4. If the user closes any items, edit only the primer's `## Outstanding items` section (do not touch the `git log --oneline -5` block — the drift check already confirmed it's current) and stage the primer. Step 3's Primer refresh row reads ✓ "Primer updated (outstanding item(s) closed)".
+4. If the user closes any items, edit only `.session-continuity/OUTSTANDING_ITEMS.md` (the drift check already confirmed the primer's `git log --oneline -5` block is current and untouched, so the primer itself needs no edit here) and stage that file: `git diff --quiet .session-continuity/OUTSTANDING_ITEMS.md 2>/dev/null || git add .session-continuity/OUTSTANDING_ITEMS.md`. Step 3's Primer refresh row reads ✓ "Primer updated (outstanding item(s) closed)".
 5. If the user declines, skip the rest of Step 1. Step 3's Primer refresh row reads ✓ "Primer already current (no-op)", and the still-open `appears-DONE` item(s) surface again as a ⚠️ in the Outstanding items row (same standing-reminder behavior as before — it'll be offered again next session).
 
 ### Refresh flow (runs only when drift was detected)
@@ -214,7 +230,7 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
    Then compute an **outstanding-items overlay** for each subject:
 
    - Tokenize the subject: lowercase, split on non-alphanumeric, drop tokens of length <3, drop the stopword list below.
-   - For each top-level numbered item under the primer's `## Outstanding items` heading: tokenize the item text the same way, capped at the first 200 characters of the item (numbered line plus indented continuation lines until the next top-level number; sub-bullets roll up to their parent item).
+   - For each `### N.` entry in `.session-continuity/OUTSTANDING_ITEMS.md`: tokenize the item text the same way, capped at the first 200 characters of the item (the heading line through everything up to the next `### N.` heading or end of file; sub-bullets roll up to their parent item).
    - Match if the intersection of subject tokens and item tokens has cardinality ≥ 3.
 
    **Stopwords** (extend per project as needed):
@@ -239,18 +255,21 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
    **Refusal.** Never close an outstanding item without explicit user confirmation. The overlay is a candidate list, not an auto-close.
 
-   **Skip conditions.** If the primer lacks an `^## Outstanding items` heading (custom-modified primer), skip the overlay silently — the raw subject list still appears.
+   **Skip conditions.** If `.session-continuity/OUTSTANDING_ITEMS.md` doesn't exist (unmigrated project, or the file was deleted), skip the overlay silently — the raw subject list still appears.
 4. **Single combined prompt.** After printing the subject list (and overlay block if any), ask the user one question covering both close-candidates and free-form edits:
 
    > "Outstanding items — close any from the overlay, add new follow-ups, or no changes?"
 
    **Wait for the answer before continuing.** Do not preemptively edit the list, clear items you interpret as "stale," or proceed based on your own reading. Do not split this into two sequential prompts — one prompt covers the same answer space.
 5. Apply the edits the user specified. If the user replied "no changes" (or similar), skip this step.
-6. Stage the updated primer, and `PROJECT_CONTEXT.md` too if it has unstaged changes (e.g. the session edited repo layout / conventions):
+6. Stage the updated primer and `OUTSTANDING_ITEMS.md` (if the user closed or
+   edited any items in step 5 above), and `PROJECT_CONTEXT.md` too if it has
+   unstaged changes (e.g. the session edited repo layout / conventions):
 
    ```bash
    git add .session-continuity/SESSION_PRIMER.md
    git diff --quiet .session-continuity/PROJECT_CONTEXT.md 2>/dev/null || git add .session-continuity/PROJECT_CONTEXT.md
+   git diff --quiet .session-continuity/OUTSTANDING_ITEMS.md 2>/dev/null || git add .session-continuity/OUTSTANDING_ITEMS.md
    ```
 
 **Do not** commit. Staging only.
@@ -591,7 +610,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --nam
 ```
 
 - **Outstanding-items verdicts** — reuse the per-item verdicts from Step 1's
-  verification sub-block; re-read the primer's `## Outstanding items` section to
+  verification sub-block; re-read `.session-continuity/OUTSTANDING_ITEMS.md` to
   get the post-edit item set. No new git command — the evidence was already
   gathered in Step 1.
 
@@ -618,12 +637,13 @@ Output using this structure. Use ✓ (green), ⚠️ (yellow), or → (suggestio
 | Unpushed commits | ✓ / ⚠️ | "Up to date with origin/<branch>" OR "⚠️ Branch <name> is N commits ahead of origin — push before closing?" OR the detached-HEAD / no-upstream variants |
 | Suggested commit | → | Derived from staged files + captured learnings. Omit row entirely if nothing is staged. |
 
-**Outstanding-items row — re-derive, do not cache.** Step 3 re-reads the
-`## Outstanding items` section from the primer AFTER any Step 1 closures the
+**Outstanding-items row — re-derive, do not cache.** Step 3 re-reads
+`.session-continuity/OUTSTANDING_ITEMS.md` AFTER any Step 1 closures the
 user confirmed. The *set* of items and the counts are recomputed against the
-post-edit primer; only the per-item verdicts (`still-open` / `appears-DONE` /
-`manual`) computed in Step 1 are reused. If the user closed an item at the Step
-1 prompt, it is gone from the primer and absent from this row. Marker: ✓ if
+post-edit `.session-continuity/OUTSTANDING_ITEMS.md`; only the per-item
+verdicts (`still-open` / `appears-DONE` / `manual`) computed in Step 1 are
+reused. If the user closed an item at the Step 1 prompt, it is gone from the
+file and absent from this row. Marker: ✓ if
 every remaining item is `still-open` or `manual` (nothing stale lingering);
 ⚠️ if any remaining item is `appears-DONE` (a resolved item still listed).
 Cite the evidence for each `appears-DONE` item inline. A `manual` item's
