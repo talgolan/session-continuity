@@ -44,7 +44,8 @@ Four states result:
 2. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/SESSION_PRIMER.md` to `.session-continuity/SESSION_PRIMER.md`.
 3. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/LEARNINGS.md` to `.session-continuity/LEARNINGS.md`.
 4. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/PROJECT_CONTEXT.md` to `.session-continuity/PROJECT_CONTEXT.md`.
-5. Fill in placeholders Claude can derive automatically. Gather the raw
+5. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/OUTSTANDING_ITEMS.md` to `.session-continuity/OUTSTANDING_ITEMS.md`.
+6. Fill in placeholders Claude can derive automatically. Gather the raw
    data in **one Bash call**, timed:
 
    ```bash
@@ -86,11 +87,22 @@ Four states result:
    - `{{TEST_COMMAND_SUMMARY}}` — if `TEST_RUN_EXIT=0` and the captured output contains a recognizable count (`N pass`, `N passed`, `test result: ok. N passed`, etc.), seed this as "`<TEST_CMD>` — N pass / M fail" from that single run. If `TEST_CMD` was empty, the run timed out (`TEST_RUN_EXIT=124`), or the output has no parseable count, fall back to the bare `scripts.test` string (or `TBD`) — never invent a count.
    - `{{REPO_LAYOUT_SUMMARY}}` — from the `find` output above, plus a one-line description Claude infers from the file extensions present.
    - `{{MODULES_TABLE}}` — if the `@module` grep above found matches, build one table row per file: Component = file path, Purpose = the `@module` value (plus the docblock's one-line description if present), Notes = the adjacent `Exports:` line if present. If it found nothing, leave `TBD` as before — don't invent structure that isn't there.
-   - `{{WORKFLOW_CONVENTIONS}} (draft)` — if `CLAUDE.md` exists (cat output above), draft this field by quoting its relevant conventions (runtime choice, commit style, workflow/never-do rules) under a "Conventions inherited from CLAUDE.md" sub-heading, instead of leaving it blank for the user to retype. Present the draft in Step 6 for confirmation rather than asking cold.
-6. Ask the user for the blanks that can't be derived: `{{GROUND_RULES}}`, `{{WHERE_TO_LOOK_ROWS}}`, `{{STUCK_ESCALATION_STEPS}}`, `{{OUTSTANDING_ITEMS}}`, and `{{WORKFLOW_CONVENTIONS}}` only if no `CLAUDE.md` draft was produced above. If a draft was produced, show it and ask the user to confirm or amend it rather than asking a blank question. **Wait for their answer.** Do not proceed to Step 8 until the user responds.
-7. **Replace any remaining `{{PLACEHOLDER}}` tokens with `TBD` before staging.** If the user skipped a field, declined to answer, or asked you to stage/commit without filling everything in, substitute `TBD` (with an empty body line where the template had prose). Never leave `{{...}}` syntax in a file you are about to stage — `grep -n '{{' .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md` must return nothing after this step.
-8. Stage all three files: `git add .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md`.
-9. Tell the user: "Primer, PROJECT_CONTEXT, and LEARNINGS staged. Review and commit with `git commit -m 'docs: initialize session continuity'` when ready." Include a one-line note listing any fields that were set to `TBD` so the user knows what to fill in later.
+   - `{{WORKFLOW_CONVENTIONS}} (draft)` — if `CLAUDE.md` exists (cat output above), draft this field by quoting its relevant conventions (runtime choice, commit style, workflow/never-do rules) under a "Conventions inherited from CLAUDE.md" sub-heading, instead of leaving it blank for the user to retype. Present the draft in Step 7 for confirmation rather than asking cold.
+7. Ask the user for the blanks that can't be derived: `{{GROUND_RULES}}`, `{{WHERE_TO_LOOK_ROWS}}`, `{{STUCK_ESCALATION_STEPS}}`, `{{OUTSTANDING_ITEMS}}`, and `{{WORKFLOW_CONVENTIONS}}` only if no `CLAUDE.md` draft was produced above. If a draft was produced, show it and ask the user to confirm or amend it rather than asking a blank question. **Wait for their answer.** Do not proceed to Step 9 until the user responds.
+
+   **Outstanding-items conversion rule.** The user's answer for
+   `{{OUTSTANDING_ITEMS}}` is free-form prose — a list, a paragraph, however
+   they typed it. Convert it into one `### N.` entry per distinct item in
+   `.session-continuity/OUTSTANDING_ITEMS.md`, numbered sequentially
+   starting at 1, trimming each to a title plus 1-3 sentences (the same
+   length cap every item in that file follows). Never paste the raw answer
+   in as a single unstructured blob. If the user said "none" or skipped the
+   question, leave the file's `{{OUTSTANDING_ITEMS}}` placeholder area empty
+   (substituted per the existing placeholder-cleanup step below, same as any
+   other skipped field).
+8. **Replace any remaining `{{PLACEHOLDER}}` tokens with `TBD` before staging.** If the user skipped a field, declined to answer, or asked you to stage/commit without filling everything in, substitute `TBD` (with an empty body line where the template had prose). Never leave `{{...}}` syntax in a file you are about to stage — `grep -n '{{' .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md .session-continuity/OUTSTANDING_ITEMS.md` must return nothing after this step.
+9. Stage all four files: `git add .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md .session-continuity/OUTSTANDING_ITEMS.md`.
+10. Tell the user: "Primer, PROJECT_CONTEXT, OUTSTANDING_ITEMS, and LEARNINGS staged. Review and commit with `git commit -m 'docs: initialize session continuity'` when ready." Include a one-line note listing any fields that were set to `TBD` so the user knows what to fill in later.
 
 **Do not commit automatically.** The user commits when ready.
 
