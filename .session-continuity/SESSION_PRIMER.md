@@ -20,7 +20,7 @@ rarely.
 
 ## Current state
 
-- **v0.17.0 landed** — commit-time content gates. `proven-gate.sh`,
+- **v0.17.0 released** — commit-time content gates. `proven-gate.sh`,
   `smoke-gate.sh`, `evidence-gate.sh`, `backend-parity-gate.sh`,
   `occurrence-gate.sh`, and `flaky-gate.sh`'s file check all moved from
   `PreToolUse` `Write|Edit` hooks to a `Bash(git commit *)` hook — a
@@ -41,8 +41,42 @@ rarely.
   entry added. Spec:
   `meta/superpowers/specs/2026-08-27-commit-time-content-gates-design.md`.
   Plan: `meta/superpowers/plans/2026-08-27-commit-time-content-gates.md`.
-  Built on branch `worktree-commit-time-content-gates`; not yet
-  merged/tagged/released.
+  Merged via PR #17 (`a168e4a`), tag `v0.17.0` pushed, GitHub Release
+  published.
+- **In flight this session (staged, uncommitted): Init-mode enrichment in
+  `commands/primer.md`.** Three additions to Step 2's fact-gathering +
+  derivation so a fresh `/session-continuity:primer` init produces a
+  richer first primer instead of leaving fields for the user to hand-fill:
+  (1) run the project's test command once during init and seed
+  `{{TEST_COMMAND_SUMMARY}}` with the parsed count when the run exits 0
+  and has a recognizable count (`N pass`/`N passed`/`test result: ok`),
+  else fall back to the bare command string or `TBD` — never invent a
+  count; (2) derive `{{MODULES_TABLE}}` from `@module` docblock grep hits
+  (one row per file) instead of always `TBD`; (3) draft
+  `{{WORKFLOW_CONVENTIONS}}` by quoting relevant `CLAUDE.md` conventions
+  under a "Conventions inherited from CLAUDE.md" sub-heading, presented
+  for confirmation in Step 6 rather than asked cold. Step 6's ask-list
+  narrowed accordingly (workflow-conventions only asked cold when no
+  CLAUDE.md draft was produced). Refresh/split/check modes untouched.
+  Not yet released — no version bump; stage this primer refresh in the
+  same commit as the `commands/primer.md` change (do not primer-commit
+  alone).
+- **v0.16.0 released** — tag `v0.16.0` pushed, GitHub Release published
+  2026-08-22 (verified `draft:false`/`prerelease:false` via `gh release
+  view`), merged via PR #16 (`1573de2`), plugin.json bumped
+  0.15.1→0.16.0 (`10fc553`). Adds real end-to-end timing for
+  `/session-continuity:end-session`: each step's self-reported timer only
+  covered its own Bash block, not the gaps between steps (transcript
+  mining, checklist review), so the multi-minute totals a user actually
+  experiences were invisible to `performance.log`. A new final step reads
+  back the invocation's own `step-1-fast-path` timestamp and logs one
+  real end-to-end `step-4-ritual-complete` duration per invocation.
+  Live-tested against a scratch repo via `claude --plugin-dir`.
+  **Considered and dropped:** a companion self-logged "session start
+  ready" timing for `session-start.sh` — live testing showed Claude
+  answers with primer content in text only and never issues the trailing
+  self-log Bash call, so the mechanism doesn't fire; session-start timing
+  stays hook-only. See CHANGELOG `[0.16.0]`.
 - **v0.15.1 released** — commit `df63267` (squash-merged via PR #15), tag
   `v0.15.1` pushed, GitHub Actions `release.yml` ran clean, [GitHub
   Release](https://github.com/talgolan/session-continuity/releases/tag/v0.15.1)
@@ -317,11 +351,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-dbe6dd7 docs: capture 3 learnings from v0.15.0/v0.15.1 release session
-12badfd docs: flip v0.15.0/v0.15.1 primer bullets to released (catch-up, per exception)
-df63267 fix: brace $CLAUDE_PLUGIN_ROOT in perf-log.sh calls (v0.15.1) (#15)
-c006b2e feat: per-repo performance logging (v0.15.0) (#14)
-22fdbfb docs: flip v0.14.4 primer bullet to released (catch-up, per exception)
+a168e4a Merge pull request #17 from talgolan/worktree-commit-time-content-gates
+02d13c4 fix: correct invented smoke-suite count in SESSION_PRIMER.md (13 → 12)
+c81e251 docs: v0.17.0 — commit-time content gates (CHANGELOG, SKILL, LEARNINGS, primer)
+7f7320a fix: convert remaining smoke-gate Write fixtures to commit-time payloads
+aca1305 feat: wire content gates to Bash(git commit *), off Write|Edit
 ```
 
 Regenerate this block whenever you commit — see
@@ -331,25 +365,17 @@ Regenerate this block whenever you commit — see
 
 1. **Submit to the Anthropic marketplace.** Form answers in `meta/administrative/marketplace-submission.md` (version field synced to 0.14.0 in the docs-accuracy sweep on 2026-08-13 — re-check against `.claude-plugin/plugin.json` at actual submission time, this field drifts every release).
 
-2. **Deferred recommendations from `meta/superpowers/recommendations/improvements_20260521.md`** (rejected or not-yet-prioritized — v0.5.1 + v0.6.0 shipped the items deemed high-value; re-triaged 2026-08-13, see below):
-   - §2 branch-aware primer-only rule (rejected: edge case, current escape hatch sufficient).
-   - §3 init-mode auto-derivation (deferred — friction is real but bounded).
-   - §4.2 slug-based cross-refs `[[name]]` in LEARNINGS — **shipped 2026-08-13**, overriding the earlier "defer until cross-ref count >20" note (only 8 entries existed; re-approved anyway on request).
-   - §4.3 auto-generated symptoms index at top of LEARNINGS — **shipped 2026-08-13** alongside §4.2, same override.
-   - §6 split primer into volatile/stable halves — **shipped 2026-08-13**, overriding the prior rejection ("doubles maintenance, one file = one mental model") on explicit request. See `.session-continuity/PROJECT_CONTEXT.md` and `commands/primer.md`'s Split mode.
-   - §7 JSON sidecar lock for primer fields (still rejected: kills `vim docs/SESSION_PRIMER.md` flow).
-   - §8 caveman/cavecrew cross-plugin integration (still skip — was presumed on §6's rejection, which is now moot since §6 shipped; revisit if there's real appetite).
-   - §9.1 merge primer with auto-memory `MEMORY.md` (still deferred — separate-systems boundary worth keeping).
-   - §9.5 outstanding-items as YAML (still deferred — markdown sub-bullets work today).
-   - §9.6 dev-mode plugin install template-path fallback (still low priority, one-line fix when it bites).
+2. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The Split mode in `commands/primer.md`, the `learning`-skill duplicate-detection guard, v0.14.2's end-session fast-path/overlap-gate logic, and v0.14.4's test-count skip/escalate logic (all untested beyond prose review — no fixture repo yet exercises "nothing changed" vs. "item touched by a commit" vs. "item untouched," or "no relevant file changed" vs. "changed but count holds" vs. "genuinely drifted") are good candidates.
 
-3. **Automated integration tests.** Manual validation only right now. Consider a bats or similar shell test harness to exercise the slash commands against a fixture repo. The Split mode in `commands/primer.md`, the `learning`-skill duplicate-detection guard, v0.14.2's end-session fast-path/overlap-gate logic, and v0.14.4's test-count skip/escalate logic (all untested beyond prose review — no fixture repo yet exercises "nothing changed" vs. "item touched by a commit" vs. "item untouched," or "no relevant file changed" vs. "changed but count holds" vs. "genuinely drifted") are good candidates.
+3. **Scratch-project smoke test for the primer split (deferred from this session).** The v0.13.0 implementation plan's Task 6 validated the split mechanically against this repo's own files but explicitly deferred the spec's Testing items 1-2 (fresh init in a scratch project, and Split mode against a throwaway unsplit primer) since they need a directory outside this repo. Run both before the next `/session-continuity:primer` change lands.
 
-4. **Scratch-project smoke test for the primer split (deferred from this session).** The v0.13.0 implementation plan's Task 6 validated the split mechanically against this repo's own files but explicitly deferred the spec's Testing items 1-2 (fresh init in a scratch project, and Split mode against a throwaway unsplit primer) since they need a directory outside this repo. Run both before the next `/session-continuity:primer` change lands.
-
-5. **Global docs-current hooks check "touched," not "accurate" — generalize the existing pass-count mechanism.** Investigated 2026-08-13, after verifying the hooks themselves exist and work exactly as documented (`~/.githooks/pre-commit` + the global Claude Code `Stop` hook `~/.claude/hooks/docs-current-check.sh`; see the `reference-global-docs-current-hooks` memory). **The gap:** both hooks only check whether *a* doc file was touched in a commit/turn, never whether a specific claim in that doc is still *true*. The one exception — `pre-commit`'s hard block when a primer's `"NN pass"` line disagrees with the real `bun test` count — is a single hard-coded special case, not a generalizable check. Every drift found in this session's doc sweep (file counts, command counts, hook counts, a stale marketplace repo name) is a claim-vs-reality mismatch that neither hook would have caught, because none of it is the one pattern they special-case.
+4. **Global docs-current hooks check "touched," not "accurate" — generalize the existing pass-count mechanism.** Investigated 2026-08-13, after verifying the hooks themselves exist and work exactly as documented (`~/.githooks/pre-commit` + the global Claude Code `Stop` hook `~/.claude/hooks/docs-current-check.sh`; see the `reference-global-docs-current-hooks` memory). **The gap:** both hooks only check whether *a* doc file was touched in a commit/turn, never whether a specific claim in that doc is still *true*. The one exception — `pre-commit`'s hard block when a primer's `"NN pass"` line disagrees with the real `bun test` count — is a single hard-coded special case, not a generalizable check. Every drift found in this session's doc sweep (file counts, command counts, hook counts, a stale marketplace repo name) is a claim-vs-reality mismatch that neither hook would have caught, because none of it is the one pattern they special-case.
    **Invariant (per CLAUDE.md rule 4):** every count or named-entity-list claim in a repo's shipped docs must match the actual repo state at commit time — enforced at the gate that runs on every commit, not left to whoever's authoring the next PR to remember.
    **Design sketch (not built — lives outside any git repo, needs separate buy-in before touching `~/.githooks`):** generalize the existing `"NN pass"` special case into a declarative per-repo config (e.g. `.docguard.yml`): a list of `{doc: <glob>, claim_pattern: <regex w/ capture>, actual_command: <shell>}` entries. On each staged doc file matching an entry, extract the claimed value, run the command, hard-block on mismatch — reusing the same code path and escape-hatch pattern (`DOCGUARD_SKIP_COUNT=1`, generalized) the pass-count check already has, rather than inventing a second mechanism.
    **Why not build it now:** touches `~/.githooks` and `~/.claude/hooks`, not this repo; changes behavior for every git commit on the machine, not just this project. Bigger blast radius, deserves its own session and explicit go-ahead.
 
-6. **Review `.session-continuity/performance.log`.** Real timing data has been accumulating in this repo's own log since v0.15.1's release (hook-side entries for `session-start.sh`, `pre-commit-check.sh`, `flaky-gate.sh`, `proven-gate.sh`, etc. — confirmed working live; command-side entries from `primer.md`/`end-session.md` should also start appearing now that v0.15.1 fixed the `$CLAUDE_PLUGIN_ROOT` bracing bug). Look at what it actually shows before deciding whether any hook or command-step is slow enough to warrant more work — this is the first real data the whole feature was built to produce.
+5. **Review `.session-continuity/performance.log`.** Real timing data has been accumulating since v0.15.1 fixed the `$CLAUDE_PLUGIN_ROOT` bracing bug — hook-side entries (`session-start.sh`, `pre-commit-check.sh`, gate hooks) plus command-side entries from `primer.md`/`end-session.md`, and now v0.16.0's end-to-end `step-4-ritual-complete` measurement. v0.16.0 added the end-to-end *instrument*; it did not analyze the accumulated log. Look at what it actually shows before deciding whether any hook or command-step is slow enough to warrant more work — this is the first real data the whole feature was built to produce.
+
+6. **Release the staged Init-mode enrichment in `commands/primer.md`.** The Init-mode changes (test-run seeding of `{{TEST_COMMAND_SUMMARY}}`, `@module`-derived `{{MODULES_TABLE}}`, `CLAUDE.md`-drafted `{{WORKFLOW_CONVENTIONS}}`) are staged this session but carry no version bump. Once committed, cut the version bump + CHANGELOG entry + tag + GitHub release per the established ritual. Also worth doing before release: exercise the enriched Init mode against a scratch project (overlaps outstanding item 3) — none of the three new derivations has been run end-to-end against a real fresh repo yet.
+
+7. **Two optional follow-ups from v0.17.0's final review (non-blocking, not fixed in that session).** (a) `hooks/lib/gate-common.sh`'s `gate_scan_staged` still uses `[ -z "$f" ] && continue`/`[ -z "$content" ] && continue` — confirmed safe (non-tail position, doesn't abort under `set -e`), but it's now the only spot in the gate codebase still using the idiom every gate file converted to `if/fi`. (b) Document in SKILL.md/spec that a gate's escape hatch is file-scoped, not entry-scoped — one `Gate: N/A` line in a LEARNINGS.md whitelists the whole file for that gate.
