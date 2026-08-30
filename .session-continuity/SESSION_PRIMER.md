@@ -20,14 +20,35 @@ rarely.
 
 ## Current state
 
-- **In flight this session (staged, uncommitted): closed outstanding item
-  7.** Both halves: (a) `hooks/lib/gate-common.sh`'s `gate_scan_staged`
+- **In flight this session (staged, uncommitted): new `/session-continuity:doctor`
+  command, closing outstanding item 8.** Read-only, zero-arg diagnostic —
+  five ✓/⚠️ rows: install mode (plugin vs vendored), hooks registered
+  (`hooks.json` in plugin mode, grep of `.claude/settings.json` in
+  vendored mode), all four `.session-continuity/` files exist + primer
+  not stale, `CLAUDE_PLUGIN_ROOT` resolves and isn't pointing at a stale
+  cache dir (checkable now — this is exactly the bug hit earlier this
+  session, session resolved to a cached v0.17.0 after v0.18.0 was
+  already installed), gate scripts executable. Live-tested the gather
+  block directly (plugin mode, vendored mode, and the stale-cache case
+  by pointing `CLAUDE_PLUGIN_ROOT` at the old 0.17.0 cache dir) — all
+  three produce the data needed for the report. Also updated: `SKILL.md`
+  and `README.md`'s command counts (four → five), `README.md`'s "PRs
+  that expand the surface will be declined" line softened to require a
+  concrete failure mode behind any new command; `PRIVACY.md` and
+  `CONTRIBUTING.md`'s file-tree listing both still said "three files"
+  (missing `OUTSTANDING_ITEMS.md`, pre-existing drift from the v0.18.0
+  migration, not caused by this item) and were missing `REFERENCE.md`
+  (missed when item 9 shipped it earlier this session) — fixed both
+  while already touching these lines. Not yet released — no version
+  bump.
+- **Closed outstanding item 7.** Both halves: (a) `hooks/lib/gate-common.sh`'s `gate_scan_staged`
   converted its last two `[ -z "$x" ] && continue` spots to `if/fi`,
   matching the idiom every gate file already uses; shellcheck clean, all
   12 smoke suites (112 assertions) still pass. (b) The escape-hatch
   file-scoped-not-entry-scoped clarification was already added to
   `REFERENCE.md` during item 9's split earlier this session — verified
-  present, no further doc change needed. Not yet released — no version
+  present, no further doc change needed. Merged via PR #21 (`e90c5cb`
+  fast-forward merged as `33888d9`). Not yet released — no version
   bump.
 - **Trimmed `SKILL.md` (248 → 170 lines), split gate/hook internals, the
   decision tree, customization guidance, team-wide rollout steps, red
@@ -395,11 +416,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+33888d9 fix: convert gate-common.sh's last && continue idiom to if/fi (#21)
 216a53c docs: trim SKILL.md, split detail into REFERENCE.md (#20)
 cd23e09 chore: bump to v0.18.0 — standalone OUTSTANDING_ITEMS.md
 69772c2 Merge pull request #19 from talgolan/feat/outstanding-items-file
 80df6b1 fix: close 3 cross-consumer gaps from OUTSTANDING_ITEMS.md migration
-91583f3 fix: restore third case of item 2's second dropped triad
 ```
 
 Regenerate this block whenever you commit — see

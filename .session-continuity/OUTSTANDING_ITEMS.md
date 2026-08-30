@@ -77,15 +77,3 @@ release per the established ritual. Also worth doing first: exercise the
 enriched Init mode against a scratch project (overlaps item 3) — none of
 the three new derivations has run end-to-end against a real fresh repo
 yet.
-
-
-### 8. `/session-continuity:doctor` command
-
-Checks: hooks actually registered (`hooks.json` wired vs `settings.json`),
-all four `.session-continuity/` files exist and aren't stale,
-`CLAUDE_PLUGIN_ROOT` resolves, gate scripts are executable. Right now a
-project has no way to ask "is this actually working" — they find out by
-hitting a gate denial cold, or by a mechanism silently never firing (the
-exact class LEARNINGS already has one instance of: v0.16.0's dropped
-session-start self-log). Flagged during the architect-workbench "Read
-first" review session, 2026-08-30.
