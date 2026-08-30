@@ -272,7 +272,7 @@ Gather the report data in **one Bash call**, timed:
 _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 git rev-parse --short HEAD
 stat -f '%Sm' .session-continuity/SESSION_PRIMER.md 2>/dev/null || stat -c '%y' .session-continuity/SESSION_PRIMER.md
-grep -c '^[0-9]\+\.' .session-continuity/SESSION_PRIMER.md 2>/dev/null || echo 0
+grep -cE '^### [0-9]+\.' .session-continuity/OUTSTANDING_ITEMS.md 2>/dev/null || echo 0
 grep -c '^### [0-9]\+\.' .session-continuity/LEARNINGS.md 2>/dev/null || echo 0
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
@@ -284,7 +284,7 @@ Report:
 ```
 .session-continuity/SESSION_PRIMER.md: up to date against HEAD (<short-sha>)
 Last refresh: <primer mtime>
-Outstanding items: <count from primer>
+Outstanding items: <count from OUTSTANDING_ITEMS.md>
 Learnings: <count from .session-continuity/LEARNINGS.md>
 ```
 

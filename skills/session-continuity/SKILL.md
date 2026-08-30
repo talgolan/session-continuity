@@ -7,7 +7,7 @@ description: Establish and maintain cross-session memory for a project via four 
 
 Four in-repo files act as a handoff between Claude sessions on the same project:
 
-- **`.session-continuity/SESSION_PRIMER.md`** — current-state snapshot (latest commits, outstanding items). **Refresh alongside substantive commits** (stage the update in the same commit as the real change). Always reflects "what's true right now."
+- **`.session-continuity/SESSION_PRIMER.md`** — current-state snapshot (latest commits, working state). **Refresh alongside substantive commits** (stage the update in the same commit as the real change). Always reflects "what's true right now."
 - **`.session-continuity/OUTSTANDING_ITEMS.md`** — backlog of explicitly deferred follow-ups and decisions (not bugs, not current state). Permanent numbering (delete-on-close, never renumber, never reuse a number), title + 1-3 sentence length cap per item — anything longer moves to a linked file under `meta/superpowers/`.
 - **`.session-continuity/PROJECT_CONTEXT.md`** — stable repo context (layout, module table, workflow conventions, test expectations, "where to look for what"). Changes rarely — only when the project's shape itself changes.
 - **`.session-continuity/LEARNINGS.md`** — accumulated wisdom (numbered entries, grouped by layer). Append-only log of bugs that were painful enough to not want to rediscover. **Update when a bug takes 15+ minutes to diagnose.**
@@ -18,7 +18,7 @@ If installed as a plugin, four commands are available: `/session-continuity:prim
 
 `hooks/hooks.json` also wires up several non-blocking and blocking hooks:
 
-- **`session-start.sh`** (SessionStart) — reminds Claude to read the primer, and injects the outstanding-items shortlist. **Standing rule: whenever you discuss or echo outstanding items to the user — in this reminder, in `/session-continuity:end-session`'s prompts, or in free-form chat when directly asked — render them as a numbered list matching the primer's own item numbers, always starting at 1, never 0.** Paraphrasing the list into unnumbered prose (e.g. "same question stand: X or Y") drops the numbering the user relies on to reply with a bare number. This applies even to a one-line summary reply — number it, don't collapse it, and don't zero-index it.
+- **`session-start.sh`** (SessionStart) — reminds Claude to read the primer, and injects the outstanding-items shortlist. **Standing rule: whenever you discuss or echo outstanding items to the user — in this reminder, in `/session-continuity:end-session`'s prompts, or in free-form chat when directly asked — render them as a numbered list matching OUTSTANDING_ITEMS.md's own item numbers, always starting at 1, never 0.** Paraphrasing the list into unnumbered prose (e.g. "same question stand: X or Y") drops the numbering the user relies on to reply with a bare number. This applies even to a one-line summary reply — number it, don't collapse it, and don't zero-index it.
 - **`pre-commit-check.sh`** (PreToolUse, before `git commit`) — non-blocking nudge when code is staged without a primer refresh.
 - **`learnings-surface.sh`** (PreToolUse, before Bash/Write/Edit) — the retrieval hook: surfaces any LEARNINGS entry carrying a `Trigger: <tool> /<regex>/` line when the imminent action matches, so the lesson lands *before* the mistake instead of after.
 The six content gates below all fire at **commit time**, not on save:
@@ -72,7 +72,7 @@ first time a chained add+commit gets denied.
 Invoke when:
 
 - Starting work on a project that does not yet have `.session-continuity/SESSION_PRIMER.md`, `.session-continuity/PROJECT_CONTEXT.md`, and `.session-continuity/LEARNINGS.md` — initialize from the templates.
-- About to commit code changes — refresh the primer's "Current state" and "Outstanding items" sections so the next session sees the truth.
+- About to commit code changes — refresh the primer's "Current state" section and `.session-continuity/OUTSTANDING_ITEMS.md` so the next session sees the truth.
 - A bug has just been resolved after significant effort (15+ min, or required reading unfamiliar code, or surprised you) — add a LEARNINGS entry.
 - The user says something like "help me preserve session memory," "how do I hand this off to the next session," "create a primer," or "add this to learnings."
 - Picking up work on a project that already has these files — read them as the first step, before touching anything else.
@@ -109,13 +109,22 @@ boundaries before committing.
 commit even if the primer didn't exist. For every such commit, stage
 the primer refresh alongside the real diff so they land together.
 
-Sections most likely to be stale:
+Sections of the primer most likely to be stale:
 
 - **Current state / latest commits.** Regenerate the `git log --oneline -5` block to include the commit you are about to make.
-- **Outstanding items.** Remove things you just finished. Add newly-flagged follow-ups from code review or user feedback. **Before marking any item DONE, verify it against the actual code** — one grep or read per load-bearing claim, not against memory and not against a commit subject line alone. A commit whose subject mentions an item's keywords does not prove the item shipped; a fix landing inside an unrelated commit can leave an item reading OPEN when it already shipped. Both directions are real drift.
 - **Test expectations.** If you added, removed, or skipped tests, bump the count so it matches `<test command>` output.
 
 Other sections (layout, packages, conventions) drift more slowly but are fair game if the repo shifted.
+
+Alongside the primer, also update the separate file
+`.session-continuity/OUTSTANDING_ITEMS.md`: remove things you just
+finished, add newly-flagged follow-ups from code review or user
+feedback. **Before marking any item DONE, verify it against the actual
+code** — one grep or read per load-bearing claim, not against memory
+and not against a commit subject line alone. A commit whose subject
+mentions an item's keywords does not prove the item shipped; a fix
+landing inside an unrelated commit can leave an item reading OPEN when
+it already shipped. Both directions are real drift.
 
 **Numbering convention for OUTSTANDING_ITEMS.md — mirrors LEARNINGS.**
 A new item takes the next unused number across the whole file. A closed

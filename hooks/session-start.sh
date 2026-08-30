@@ -73,7 +73,8 @@ status_learnings="${status_learnings:-0}"
 # plugin today, so we push migration instead of tolerating both formats —
 # no awk range-scan against the primer survives this change.
 if [ -f "$outstanding_path" ]; then
-  status_outstanding="$(grep -cE '^### [0-9]+\.' "$outstanding_path" 2>/dev/null || echo '?')"
+  status_outstanding="$(grep -cE '^### [0-9]+\.' "$outstanding_path" 2>/dev/null || true)"
+  status_outstanding="${status_outstanding:-0}"
   outstanding_items="$(grep -E '^### [0-9]+\.' "$outstanding_path" 2>/dev/null || true)"
   if [ -n "$outstanding_items" ]; then
     outstanding_block=$'\nOutstanding items:\n'"$outstanding_items"$'\n\nPresent these to the user as a numbered list, numbered starting at 1 (never 0), keeping the numbers above even in a short reply, and ask which of these (if any) they want to tackle this session.\n'
