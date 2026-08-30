@@ -58,7 +58,7 @@ git commit -m "init"
 claude --plugin-dir /Users/YOU/path/to/session-continuity
 ```
 
-Inside Claude, exercise the slash commands (`/session-continuity:primer`, `/session-continuity:learning`, `/session-continuity:end-session`, `/session-continuity:spike-check`) and check that the hooks fire when expected.
+Inside Claude, exercise the slash commands (`/session-continuity:primer`, `/session-continuity:learning`, `/session-continuity:end-session`, `/session-continuity:spike-check`, `/session-continuity:doctor`) and check that the hooks fire when expected.
 
 ### Hook smoke tests
 
@@ -96,15 +96,18 @@ session-continuity/
 ├── skills/
 │   └── session-continuity/
 │       ├── SKILL.md             # main skill description (shown in marketplace)
+│       ├── REFERENCE.md         # gate/hook internals, decision tree, customization, philosophy
 │       └── templates/
 │           ├── SESSION_PRIMER.md
 │           ├── PROJECT_CONTEXT.md
+│           ├── OUTSTANDING_ITEMS.md
 │           └── LEARNINGS.md
 ├── commands/
 │   ├── primer.md                # /session-continuity:primer
 │   ├── learning.md              # /session-continuity:learning
 │   ├── end-session.md           # /session-continuity:end-session
-│   └── spike-check.md           # /session-continuity:spike-check
+│   ├── spike-check.md           # /session-continuity:spike-check
+│   └── doctor.md                # /session-continuity:doctor
 ├── hooks/
 │   ├── hooks.json               # hook registration
 │   ├── session-start.sh         # SessionStart event
