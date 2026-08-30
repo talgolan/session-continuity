@@ -20,46 +20,31 @@ rarely.
 
 ## Current state
 
-- **In flight this session (staged, uncommitted): new `/session-continuity:doctor`
-  command, closing outstanding item 8.** Read-only, zero-arg diagnostic —
-  five ✓/⚠️ rows: install mode (plugin vs vendored), hooks registered
-  (`hooks.json` in plugin mode, grep of `.claude/settings.json` in
-  vendored mode), all four `.session-continuity/` files exist + primer
-  not stale, `CLAUDE_PLUGIN_ROOT` resolves and isn't pointing at a stale
-  cache dir (checkable now — this is exactly the bug hit earlier this
-  session, session resolved to a cached v0.17.0 after v0.18.0 was
-  already installed), gate scripts executable. Live-tested the gather
-  block directly (plugin mode, vendored mode, and the stale-cache case
-  by pointing `CLAUDE_PLUGIN_ROOT` at the old 0.17.0 cache dir) — all
-  three produce the data needed for the report. Also updated: `SKILL.md`
-  and `README.md`'s command counts (four → five), `README.md`'s "PRs
-  that expand the surface will be declined" line softened to require a
-  concrete failure mode behind any new command; `PRIVACY.md` and
-  `CONTRIBUTING.md`'s file-tree listing both still said "three files"
-  (missing `OUTSTANDING_ITEMS.md`, pre-existing drift from the v0.18.0
-  migration, not caused by this item) and were missing `REFERENCE.md`
-  (missed when item 9 shipped it earlier this session) — fixed both
-  while already touching these lines. Not yet released — no version
-  bump.
-- **Closed outstanding item 7.** Both halves: (a) `hooks/lib/gate-common.sh`'s `gate_scan_staged`
-  converted its last two `[ -z "$x" ] && continue` spots to `if/fi`,
-  matching the idiom every gate file already uses; shellcheck clean, all
-  12 smoke suites (112 assertions) still pass. (b) The escape-hatch
-  file-scoped-not-entry-scoped clarification was already added to
-  `REFERENCE.md` during item 9's split earlier this session — verified
-  present, no further doc change needed. Merged via PR #21 (`e90c5cb`
-  fast-forward merged as `33888d9`). Not yet released — no version
-  bump.
-- **Trimmed `SKILL.md` (248 → 170 lines), split gate/hook internals, the
-  decision tree, customization guidance, team-wide rollout steps, red
-  flags, and philosophy into a new `skills/session-continuity/REFERENCE.md`
-  (108 lines) that `SKILL.md` links to instead of inlining.** Closed
-  outstanding item 9. Merged via PR #20 (`0b5f946` squash-merged as
-  `216a53c`). Bundled in the same squash: an earlier
-  local-only commit (`5657173`, smoke-suite rewrite for the
-  OUTSTANDING_ITEMS.md contract) that had never been pushed — content
-  intact, just landed inside PR #20's squash instead of on its own.
-  Local `main` reset to match `origin/main` after the squash-merge
+- **v0.19.0 in flight this session — bundles three merged PRs plus a
+  retroactive fix, being cut as one release.** PR #20 (`216a53c`): closed
+  item 9 — trimmed `SKILL.md` 248→170 lines, split gate/hook internals,
+  the decision tree, customization guidance, team-wide rollout, red
+  flags, and philosophy into new `skills/session-continuity/REFERENCE.md`
+  (108 lines). PR #21 (`33888d9`): closed item 7 — `gate-common.sh`'s
+  `gate_scan_staged` converted its last two `[ -z "$x" ] && continue`
+  spots to `if/fi`. PR #22 (`d7a9470`): closed item 8 — new
+  `/session-continuity:doctor` command (read-only, five ✓/⚠️ rows: install
+  mode, hooks registered, all four `.session-continuity/` files present +
+  primer not stale, `CLAUDE_PLUGIN_ROOT` resolves and not a stale cache,
+  gate scripts executable); also fixed `PRIVACY.md`/`CONTRIBUTING.md`
+  still saying "three files" and missing `REFERENCE.md` from the tree.
+  **Also this session:** closed item 6 by tracing it — the Init-mode
+  enrichment it described as unreleased was actually already shipped
+  inside v0.18.0's code (confirmed via `git merge-base --is-ancestor`
+  against `cd23e09`); it just never got a CHANGELOG bullet, added
+  retroactively to the `[0.18.0]` section instead of re-releasing
+  already-shipped code. **Also fixed: the pushed `v0.18.0` tag/release
+  had been orphaned** — PR #20's squash-merge absorbed a local-only
+  unpushed commit's diff into `216a53c`, leaving the original commit
+  (and the tag pointing at it) unreachable from `main`. Re-pointed the
+  tag (local delete/recreate + `git push origin :refs/tags/v0.18.0` then
+  a fresh push) to `cd23e09`, the actual ancestor; verified via
+  `gh release view` that the GitHub Release re-associated correctly.
   diverged local history. Not yet released — no version bump.
 - **In flight this session (committed on branch
   `docs/gate-chain-trap-and-primer-drift-check`, not yet merged/released):
@@ -416,11 +401,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+d7a9470 feat: add /session-continuity:doctor command (#22)
 33888d9 fix: convert gate-common.sh's last && continue idiom to if/fi (#21)
 216a53c docs: trim SKILL.md, split detail into REFERENCE.md (#20)
 cd23e09 chore: bump to v0.18.0 — standalone OUTSTANDING_ITEMS.md
 69772c2 Merge pull request #19 from talgolan/feat/outstanding-items-file
-80df6b1 fix: close 3 cross-consumer gaps from OUTSTANDING_ITEMS.md migration
 ```
 
 Regenerate this block whenever you commit — see

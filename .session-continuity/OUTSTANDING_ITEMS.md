@@ -43,7 +43,10 @@ The v0.13.0 implementation plan's Task 6 validated the split mechanically
 against this repo's own files but explicitly deferred the spec's Testing
 items 1-2 (fresh init in a scratch project, and Split mode against a
 throwaway unsplit primer) since they need a directory outside this repo.
-Run both before the next `/session-continuity:primer` change lands.
+Also covers the Init-mode enrichment's test-run/`{{MODULES_TABLE}}`/
+`{{WORKFLOW_CONVENTIONS}}` derivations (v0.18.0), none of which has run
+end-to-end against a real fresh repo yet either. Run all of it before the
+next `/session-continuity:primer` change lands.
 
 ### 4. Global docs-current hooks check "touched," not "accurate" — generalize the existing pass-count mechanism
 
@@ -66,14 +69,3 @@ Real timing data has been accumulating since v0.15.1 fixed the
 before deciding whether any hook or command-step is slow enough to
 warrant more work; this is the first real data the whole feature was
 built to produce.
-
-### 6. Release the Init-mode enrichment in `commands/primer.md`
-
-The Init-mode changes (test-run seeding of `{{TEST_COMMAND_SUMMARY}}`,
-`@module`-derived `{{MODULES_TABLE}}`, `CLAUDE.md`-drafted
-`{{WORKFLOW_CONVENTIONS}}`) merged to main via PR #18 but carry no
-version bump. Cut the version bump + CHANGELOG entry + tag + GitHub
-release per the established ritual. Also worth doing first: exercise the
-enriched Init mode against a scratch project (overlaps item 3) — none of
-the three new derivations has run end-to-end against a real fresh repo
-yet.

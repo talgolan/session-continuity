@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] — 2026-08-30
+
+### Added
+- **New `/session-continuity:doctor` command** — read-only, zero-arg diagnostic answering "is this actually working?" directly, instead of finding out by hitting a gate denial cold or discovering a mechanism silently never fired (v0.16.0's dropped session-start self-log was one instance of that class). Five ✓/⚠️ rows: install mode (plugin vs vendored), hooks registered (`hooks.json` in plugin mode, a grep of `.claude/settings.json` in vendored mode), all four `.session-continuity/` files present with the primer's staleness re-checked, `CLAUDE_PLUGIN_ROOT` resolves and isn't pointing at a stale plugin-cache dir, gate scripts executable. Never mutates anything — every fix is a printed command the user runs themselves.
+- New `skills/session-continuity/REFERENCE.md` — gate/hook internals, the "what goes where" decision tree, customization guidance, team-wide rollout steps, red flags, and philosophy, split out of `SKILL.md` so the skill itself stays a short operational quick-ref (248 → 170 lines).
+
+### Fixed
+- `hooks/lib/gate-common.sh`'s `gate_scan_staged` converted its last two `[ -z "$x" ] && continue` spots to `if/fi`, matching the idiom every gate file already uses. Confirmed safe either way; purely a consistency fix.
+- `PRIVACY.md` and `CONTRIBUTING.md` still described three `.session-continuity/` files (missing `OUTSTANDING_ITEMS.md`, drift left over from v0.18.0's migration); `CONTRIBUTING.md`'s directory-tree listing was also missing `REFERENCE.md` and the `OUTSTANDING_ITEMS.md` template.
+
+### Changed
+- `SKILL.md` and `README.md` now describe five commands instead of four.
+- `README.md`'s "PRs that expand the surface will be declined" line now names the actual bar — a concrete failure mode behind a new command, not an absolute cap — since `/doctor` itself is evidence the surface isn't perfectly frozen.
+
 ## [0.18.0] — 2026-08-30
 
 ### Added
@@ -26,6 +40,16 @@ All notable changes to this project are documented here. The format follows [Kee
   verbatim-copy section for consuming projects, bundling the read-first
   pointer, the primer-refresh rule, a warning about a gate-chained-commit
   trap, and the verify-before-close rule for outstanding items.
+- **Retroactive note: Init-mode enrichment in `commands/primer.md`'s Step
+  2**, merged in the same PR as the gate-chain-commit trap fix above but
+  never itemized here. A fresh `/session-continuity:primer` init now: (1)
+  runs the project's test command once and seeds `{{TEST_COMMAND_SUMMARY}}`
+  with the parsed pass/fail count when the run exits 0 with a recognizable
+  count, falling back to the bare command string or `TBD` otherwise —
+  never inventing a count; (2) derives `{{MODULES_TABLE}}` from `@module`
+  docblock grep hits instead of always leaving it `TBD`; (3) drafts
+  `{{WORKFLOW_CONVENTIONS}}` by quoting relevant `CLAUDE.md` conventions,
+  presented for confirmation rather than asked cold.
 
 ### Changed
 - `SKILL.md`, `README.md`, and `.claude-plugin/plugin.json` now describe
