@@ -44,7 +44,7 @@ Run `/reload-plugins` once the install finishes. Once the plugin is live on the 
 
 Everything else is machinery around these four documents. Each has a different update contract.
 
-**`.session-continuity/SESSION_PRIMER.md`** is the high-churn current-state snapshot: latest commits, outstanding items. It's the fastest path for a fresh session to get productive. Refresh it alongside substantive commits so it always reflects what's true right now. It's meant to be overwritten freely and short enough to re-read on every session start.
+**`.session-continuity/SESSION_PRIMER.md`** is the high-churn current-state snapshot: latest commits, working state. It's the fastest path for a fresh session to get productive. Refresh it alongside substantive commits so it always reflects what's true right now. It's meant to be overwritten freely and short enough to re-read on every session start.
 
 **`.session-continuity/PROJECT_CONTEXT.md`** is stable reference material: repo layout, module table, workflow conventions, test expectations, "where to look for what." It changes rarely — only when the project's shape itself changes — so a fresh session skims it once and doesn't need to re-check it every turn.
 
