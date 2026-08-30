@@ -20,8 +20,14 @@ rarely.
 
 ## Current state
 
-- **v0.19.0 in flight this session — bundles three merged PRs plus a
-  retroactive fix, being cut as one release.** PR #20 (`216a53c`): closed
+- **v0.19.0 released** — commit `460f507` pushed to `main`, tag `v0.19.0`
+  pushed, GitHub Actions `release.yml` ran clean (12s), [GitHub
+  Release](https://github.com/talgolan/session-continuity/releases/tag/v0.19.0)
+  published 2026-08-30, verified `draft:false`/`prerelease:false` and the
+  release body via `gh release view`. Full 12-suite smoke run (112
+  assertions) rechecked green on the pushed state before tagging.
+  Bundles three merged PRs plus a retroactive fix, cut as one release.
+  PR #20 (`216a53c`): closed
   item 9 — trimmed `SKILL.md` 248→170 lines, split gate/hook internals,
   the decision tree, customization guidance, team-wide rollout, red
   flags, and philosophy into new `skills/session-continuity/REFERENCE.md`
@@ -401,11 +407,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+460f507 chore: bump to 0.19.0 — doctor command, SKILL.md split, gate-common fix
 d7a9470 feat: add /session-continuity:doctor command (#22)
 33888d9 fix: convert gate-common.sh's last && continue idiom to if/fi (#21)
 216a53c docs: trim SKILL.md, split detail into REFERENCE.md (#20)
 cd23e09 chore: bump to v0.18.0 — standalone OUTSTANDING_ITEMS.md
-69772c2 Merge pull request #19 from talgolan/feat/outstanding-items-file
 ```
 
 Regenerate this block whenever you commit — see
