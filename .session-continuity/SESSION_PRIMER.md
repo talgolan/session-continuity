@@ -20,6 +20,18 @@ rarely.
 
 ## Current state
 
+- **In flight this session (staged, uncommitted): trimmed `SKILL.md`
+  (248 → 170 lines), split gate/hook internals, the decision tree,
+  customization guidance, team-wide rollout steps, red flags, and
+  philosophy into a new `skills/session-continuity/REFERENCE.md` (108
+  lines) that `SKILL.md` links to instead of inlining.** Closes
+  outstanding item 9. `SKILL.md` now keeps only: the four-file intro,
+  when-to-use, the three quick-starts, the maintenance rules (primer
+  refresh cadence, primer-only-commit exceptions, outstanding-item
+  verify-before-close, LEARNINGS entry format), and the gate-chain-commit
+  trap — verified no cross-file anchor links or `{{...}}` placeholders
+  broke in the split (`grep`-checked). Not yet released — no version
+  bump.
 - **In flight this session (committed on branch
   `docs/gate-chain-trap-and-primer-drift-check`, not yet merged/released):
   three doc fixes found by reviewing a consuming project's
@@ -369,17 +381,17 @@ rarely.
 - Three slash commands are stable (`primer`, `learning`, `end-session`).
 - `hooks/hooks.json` uses `if: "Bash(git commit *)"` to scope the `PreToolUse` hook; it does not fire on every Bash call.
 - `.claude-plugin/marketplace.json` present so the repo is installable via `/plugin marketplace add talgolan/session-continuity`.
-- `.session-continuity/` holds `SESSION_PRIMER.md`, `PROJECT_CONTEXT.md` (new in v0.13.0), and `LEARNINGS.md`. Dev artifacts (marketplace-submission notes, specs, plans, recommendation docs) live under `meta/`.
+- `.session-continuity/` holds `SESSION_PRIMER.md`, `PROJECT_CONTEXT.md` (new in v0.13.0), `OUTSTANDING_ITEMS.md` (new in v0.18.0), and `LEARNINGS.md`. Dev artifacts (marketplace-submission notes, specs, plans, recommendation docs) live under `meta/`.
 - No known open bugs; outstanding items are feature-level.
 
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-a168e4a Merge pull request #17 from talgolan/worktree-commit-time-content-gates
-02d13c4 fix: correct invented smoke-suite count in SESSION_PRIMER.md (13 → 12)
-c81e251 docs: v0.17.0 — commit-time content gates (CHANGELOG, SKILL, LEARNINGS, primer)
-7f7320a fix: convert remaining smoke-gate Write fixtures to commit-time payloads
-aca1305 feat: wire content gates to Bash(git commit *), off Write|Edit
+5657173 test: rewrite session-start smoke suite for OUTSTANDING_ITEMS.md
+cd23e09 chore: bump to v0.18.0 — standalone OUTSTANDING_ITEMS.md
+69772c2 Merge pull request #19 from talgolan/feat/outstanding-items-file
+80df6b1 fix: close 3 cross-consumer gaps from OUTSTANDING_ITEMS.md migration
+91583f3 fix: restore third case of item 2's second dropped triad
 ```
 
 Regenerate this block whenever you commit — see

@@ -98,13 +98,3 @@ hitting a gate denial cold, or by a mechanism silently never firing (the
 exact class LEARNINGS already has one instance of: v0.16.0's dropped
 session-start self-log). Flagged during the architect-workbench "Read
 first" review session, 2026-08-30.
-
-### 9. Trim `SKILL.md`
-
-216 lines is a lot for every consuming session to load. Split into a
-short operational quick-ref (what to read, when to refresh, the
-gate-chain-commit and outstanding-item-verify traps) + push
-gate-internals/customization-guidance detail into a `REFERENCE.md` the
-skill links to instead of inlining. Lower urgency than item 8 — same
-"cognitive load on the adopting project" problem in miniature; flagged
-same session.
