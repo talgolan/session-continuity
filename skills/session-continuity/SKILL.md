@@ -203,8 +203,7 @@ Different projects have different shapes, but the core file pattern adapts well:
 If multiple people are working on the same project and should all benefit from this:
 
 1. All three files are **checked-in** artifacts, not gitignored. Commit them in the project repo under `.session-continuity/`.
-2. In the project's `CLAUDE.md`, add a line like:
-   > Before making changes, read `.session-continuity/SESSION_PRIMER.md` and `.session-continuity/PROJECT_CONTEXT.md`. Refresh the primer alongside substantive commits (in the same commit as the real change). For debug-worthy bugs, update `.session-continuity/LEARNINGS.md`.
+2. Copy [`templates/CLAUDE_MD_SNIPPET.md`](templates/CLAUDE_MD_SNIPPET.md) into the project's `CLAUDE.md` verbatim. It covers the read-first pointer, the primer-refresh-alongside-commits rule, the outstanding-item verify-before-close rule, and the gate-chain-commit trap — the things a project otherwise has to rediscover and hand-write for itself (as architect-workbench did before this snippet existed).
 3. Document the maintenance rules in the primer itself (last section). Templates include this.
 4. Human teammates benefit too — LEARNINGS.md doubles as a living post-mortem log, and the primer is a great onboarding handoff.
 
