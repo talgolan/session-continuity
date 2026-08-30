@@ -17,6 +17,8 @@ _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 [ -f .session-continuity/SESSION_PRIMER.md ] && echo "PRIMER_EXISTS=1" || echo "PRIMER_EXISTS=0"
 [ -f .session-continuity/LEARNINGS.md ] && echo "LEARNINGS_EXISTS=1" || echo "LEARNINGS_EXISTS=0"
 [ -f .session-continuity/PROJECT_CONTEXT.md ] && echo "PROJECT_CONTEXT_EXISTS=1" || echo "PROJECT_CONTEXT_EXISTS=0"
+[ -f .session-continuity/OUTSTANDING_ITEMS.md ] && echo "OUTSTANDING_ITEMS_EXISTS=1" || echo "OUTSTANDING_ITEMS_EXISTS=0"
+grep -q '^## Outstanding items' .session-continuity/SESSION_PRIMER.md 2>/dev/null && echo "PRIMER_HAS_INLINE_OUTSTANDING=1" || echo "PRIMER_HAS_INLINE_OUTSTANDING=0"
 git log --oneline -5
 git diff --cached --name-only
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
@@ -37,6 +39,15 @@ Four states result:
 - **Primer exists but unsplit** (no `PROJECT_CONTEXT.md` yet) → split mode (Step 3)
 - **Primer exists but stale** (log block drifted or code staged for commit) → refresh mode (Step 4)
 - **Primer exists and current** (nothing staged) → check mode (Step 5)
+
+If `PRIMER_HAS_INLINE_OUTSTANDING=1` AND `OUTSTANDING_ITEMS_EXISTS=0`,
+outstanding-items migration is needed — run it (Step 3b below) in addition
+to whichever of the four states above applies. **Sequencing:** if the
+primer is also unsplit (no `PROJECT_CONTEXT.md`), run the existing Split
+mode (Step 3) to completion first, then run Step 3b against the resulting
+primer, as two sequential edits — not simultaneous partitioning. The two
+splits touch disjoint sections of the primer (stable-context headings vs.
+the Outstanding items heading), so sequencing avoids any edit conflict.
 
 ## Step 2 — Init mode
 
@@ -146,6 +157,41 @@ contains).
    (Step 5) applies against the now-split primer.
 
 **Do not commit automatically.** Staging only.
+
+## Step 3b — Outstanding-items split
+
+Runs whenever `PRIMER_HAS_INLINE_OUTSTANDING=1` and
+`OUTSTANDING_ITEMS_EXISTS=0` (see Step 1). Extract the primer's inline
+`## Outstanding items` section into the new file; this is a one-time
+content move, no numbering changes — the items keep whatever numbers
+they currently have, and those become the first permanent IDs.
+
+1. Read the existing `.session-continuity/SESSION_PRIMER.md` in full.
+2. Copy every top-level numbered item under `## Outstanding items`
+   (the numbered line plus indented continuation lines until the next
+   top-level number) into a new `.session-continuity/OUTSTANDING_ITEMS.md`
+   — or into the existing empty-skeleton file from Init mode if one was
+   just created by Step 2/Step 3 above. Reformat each into the `### N.
+   <Title>` heading shape (bold title text becomes the heading text; the
+   rest of the item's prose becomes the body). If an item exceeds the
+   title + 1-3 sentence length cap (a design sketch, an invariant
+   statement, a rejected-alternatives discussion), extract the excess
+   into a new file under `meta/superpowers/recommendations/` or
+   `meta/superpowers/specs/` (name it descriptively — e.g.
+   `<topic>-design-sketch.md`) and replace it in the item with a one-line
+   pointer: `Design: <path>.` Preserve item order (ascending by number).
+3. Verify content preservation before deleting the primer's section: `diff <(grep -E '^[0-9]+\.' .session-continuity/SESSION_PRIMER.md) <(grep -E '^### [0-9]+\.' .session-continuity/OUTSTANDING_ITEMS.md | sed -E 's/^### ([0-9]+)\. (.*)$/\1. **\2.**/')` — expect the item numbers and titles to line up; investigate any mismatch before proceeding rather than deleting the source section.
+4. Delete the `## Outstanding items` section from
+   `.session-continuity/SESSION_PRIMER.md` entirely.
+5. Stage both: `git add .session-continuity/SESSION_PRIMER.md .session-continuity/OUTSTANDING_ITEMS.md`.
+6. Tell the user: "Extracted the primer's inline Outstanding items section
+   into `.session-continuity/OUTSTANDING_ITEMS.md` (N items, numbers
+   preserved as permanent IDs). Both staged — review before committing."
+7. Fall through to whichever of refresh mode (Step 4) or check mode
+   (Step 5) applies against the now-split primer, same as Step 3's
+   existing fall-through behavior.
+
+**Do not commit automatically.** Staging only, same as every other split.
 
 ## Step 4 — Refresh mode
 
