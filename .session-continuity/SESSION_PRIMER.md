@@ -20,18 +20,26 @@ rarely.
 
 ## Current state
 
-- **In flight this session (staged, uncommitted): trimmed `SKILL.md`
-  (248 → 170 lines), split gate/hook internals, the decision tree,
-  customization guidance, team-wide rollout steps, red flags, and
-  philosophy into a new `skills/session-continuity/REFERENCE.md` (108
-  lines) that `SKILL.md` links to instead of inlining.** Closes
-  outstanding item 9. `SKILL.md` now keeps only: the four-file intro,
-  when-to-use, the three quick-starts, the maintenance rules (primer
-  refresh cadence, primer-only-commit exceptions, outstanding-item
-  verify-before-close, LEARNINGS entry format), and the gate-chain-commit
-  trap — verified no cross-file anchor links or `{{...}}` placeholders
-  broke in the split (`grep`-checked). Not yet released — no version
+- **In flight this session (staged, uncommitted): closed outstanding item
+  7.** Both halves: (a) `hooks/lib/gate-common.sh`'s `gate_scan_staged`
+  converted its last two `[ -z "$x" ] && continue` spots to `if/fi`,
+  matching the idiom every gate file already uses; shellcheck clean, all
+  12 smoke suites (112 assertions) still pass. (b) The escape-hatch
+  file-scoped-not-entry-scoped clarification was already added to
+  `REFERENCE.md` during item 9's split earlier this session — verified
+  present, no further doc change needed. Not yet released — no version
   bump.
+- **Trimmed `SKILL.md` (248 → 170 lines), split gate/hook internals, the
+  decision tree, customization guidance, team-wide rollout steps, red
+  flags, and philosophy into a new `skills/session-continuity/REFERENCE.md`
+  (108 lines) that `SKILL.md` links to instead of inlining.** Closed
+  outstanding item 9. Merged via PR #20 (`0b5f946` squash-merged as
+  `216a53c`). Bundled in the same squash: an earlier
+  local-only commit (`5657173`, smoke-suite rewrite for the
+  OUTSTANDING_ITEMS.md contract) that had never been pushed — content
+  intact, just landed inside PR #20's squash instead of on its own.
+  Local `main` reset to match `origin/main` after the squash-merge
+  diverged local history. Not yet released — no version bump.
 - **In flight this session (committed on branch
   `docs/gate-chain-trap-and-primer-drift-check`, not yet merged/released):
   three doc fixes found by reviewing a consuming project's
@@ -387,7 +395,7 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-5657173 test: rewrite session-start smoke suite for OUTSTANDING_ITEMS.md
+216a53c docs: trim SKILL.md, split detail into REFERENCE.md (#20)
 cd23e09 chore: bump to v0.18.0 — standalone OUTSTANDING_ITEMS.md
 69772c2 Merge pull request #19 from talgolan/feat/outstanding-items-file
 80df6b1 fix: close 3 cross-consumer gaps from OUTSTANDING_ITEMS.md migration

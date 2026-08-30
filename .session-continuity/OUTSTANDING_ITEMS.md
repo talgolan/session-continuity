@@ -78,15 +78,6 @@ enriched Init mode against a scratch project (overlaps item 3) — none of
 the three new derivations has run end-to-end against a real fresh repo
 yet.
 
-### 7. Two optional follow-ups from v0.17.0's final review (non-blocking, not fixed in that session)
-
-(a) `hooks/lib/gate-common.sh`'s `gate_scan_staged` still uses `[ -z "$f"
-] && continue`/`[ -z "$content" ] && continue` — confirmed safe (non-tail
-position, doesn't abort under `set -e`), but it's now the only spot in
-the gate codebase still using the idiom every gate file converted to
-`if/fi`. (b) Document in SKILL.md/spec that a gate's escape hatch is
-file-scoped, not entry-scoped — one `Gate: N/A` line in a LEARNINGS.md
-whitelists the whole file for that gate.
 
 ### 8. `/session-continuity:doctor` command
 
