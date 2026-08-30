@@ -34,8 +34,8 @@ exercises the slash commands against a fixture repo. Good candidates:
 Split mode in `commands/primer.md`, the `learning`-skill
 duplicate-detection guard, v0.14.2's end-session fast-path/overlap-gate
 logic, and v0.14.4's test-count skip/escalate logic — none exercise the
-nothing-changed / touched / untouched, or changed-but-count-holds /
-genuinely-drifted cases beyond prose review.
+nothing-changed / touched / untouched, or no-relevant-file-changed /
+changed-but-count-holds / genuinely-drifted cases beyond prose review.
 
 ### 3. Scratch-project smoke test for the primer split (deferred from this session)
 
