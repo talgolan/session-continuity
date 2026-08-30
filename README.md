@@ -1,24 +1,25 @@
 # session-continuity
 
-Cross-session memory for Claude Code projects. A skill Claude loads on its own, three plain-Markdown docs committed to your repo, four slash commands, and a set of session hooks that surface the right knowledge at the right moment.
+Cross-session memory for Claude Code projects. A skill Claude loads on its own, four plain-Markdown docs committed to your repo, four slash commands, and a set of session hooks that surface the right knowledge at the right moment.
 
 ## Why this exists
 
 LLMs start every session cold. Claude doesn't remember yesterday's debugging, last week's refactor, or the three-hour bug you eventually cornered. The usual fixes reach for clever infrastructure: vector databases, MCP memory servers, auto-generated notes stored in vendor-specific ways that hide the knowledge outside the repo, away from human eyes and tangled with whichever tool happens to be installed.
 
-This plugin takes a different route: plain Markdown files, committed to git, alongside the code they describe. Three files hold the memory, four slash commands keep them honest, and a handful of hooks nudge or gate when the habit slips. That's the whole system.
+This plugin takes a different route: plain Markdown files, committed to git, alongside the code they describe. Four files hold the memory, four slash commands keep them honest, and a handful of hooks nudge or gate when the habit slips. That's the whole system.
 
 The choice buys three properties most AI memory systems lack. Humans and Claude read the same files, so there's no opaque layer between you and what's remembered. Every change is a git commit, so history is auditable and every edit has an author. The storage is plain text, so it's portable: any tool that reads Markdown can use it, including future LLMs that don't exist yet.
 
-There's a second reason, less obvious than the first: **shorter Claude Code sessions are better sessions**. Less accumulated context means lower cost per turn, better accuracy, and less context rot. Retrieval accuracy at large context sizes varies sharply by model, and every model degrades as the window fills. A workflow that lets you end a session and start a fresh one without losing context isn't just convenient; it's how you keep Claude sharp across a long-running project. That's what `.session-continuity/SESSION_PRIMER.md`, `.session-continuity/PROJECT_CONTEXT.md`, and `.session-continuity/LEARNINGS.md` buy you: the ability to close the laptop at any point, come back cold, and have a new session up to speed in three file reads instead of rebuilding context by re-prompting.
+There's a second reason, less obvious than the first: **shorter Claude Code sessions are better sessions**. Less accumulated context means lower cost per turn, better accuracy, and less context rot. Retrieval accuracy at large context sizes varies sharply by model, and every model degrades as the window fills. A workflow that lets you end a session and start a fresh one without losing context isn't just convenient; it's how you keep Claude sharp across a long-running project. That's what `.session-continuity/SESSION_PRIMER.md`, `.session-continuity/PROJECT_CONTEXT.md`, `.session-continuity/OUTSTANDING_ITEMS.md`, and `.session-continuity/LEARNINGS.md` buy you: the ability to close the laptop at any point, come back cold, and have a new session up to speed in four file reads instead of rebuilding context by re-prompting.
 
 ## What's in the box
 
 | Component | What it does |
 |---|---|
-| **`session-continuity` skill** | Claude loads it automatically based on the task. It teaches Claude the three-file pattern, the maintenance rules, and the decision tree for what belongs where, even before you run any command. |
+| **`session-continuity` skill** | Claude loads it automatically based on the task. It teaches Claude the four-file pattern, the maintenance rules, and the decision tree for what belongs where, even before you run any command. |
 | **`.session-continuity/SESSION_PRIMER.md`** | The current-state snapshot. What's true about the project right now. |
 | **`.session-continuity/PROJECT_CONTEXT.md`** | Stable repo context — layout, conventions, module table. Changes rarely, only when the project's shape itself changes. |
+| **`.session-continuity/OUTSTANDING_ITEMS.md`** | Backlog of explicitly deferred follow-ups and decisions. Permanent numbering, delete-on-close, title + 1-3 sentence cap per item. |
 | **`.session-continuity/LEARNINGS.md`** | Append-only wisdom. A numbered graveyard of bugs that were painful enough to never want to rediscover. |
 | **`/session-continuity:primer`** | Init, split, refresh, or check the primer. State-dispatching. |
 | **`/session-continuity:learning`** | Append a new LEARNINGS entry interactively, with stable numbering. |
@@ -39,26 +40,34 @@ From inside Claude Code, add the `talgolan` catalog as a plugin marketplace, the
 
 Run `/reload-plugins` once the install finishes. Once the plugin is live on the official Anthropic marketplace (`claude-plugins-official`), you'll also be able to discover it via `/plugin` → **Discover**; until then, the two-step sequence above works on any recent Claude Code install.
 
-## The three files
+## The four files
 
-Everything else is machinery around these three documents. Each has a different update contract.
+Everything else is machinery around these four documents. Each has a different update contract.
 
 **`.session-continuity/SESSION_PRIMER.md`** is the high-churn current-state snapshot: latest commits, outstanding items. It's the fastest path for a fresh session to get productive. Refresh it alongside substantive commits so it always reflects what's true right now. It's meant to be overwritten freely and short enough to re-read on every session start.
 
 **`.session-continuity/PROJECT_CONTEXT.md`** is stable reference material: repo layout, module table, workflow conventions, test expectations, "where to look for what." It changes rarely — only when the project's shape itself changes — so a fresh session skims it once and doesn't need to re-check it every turn.
 
-**`.session-continuity/LEARNINGS.md`** is the opposite of both: append-only, numbered, preserved. Each entry is a bug that took 15+ minutes to diagnose, written as a recipe (the trap, the symptom, the fix, an optional diagnostic signal). Numbers are stable so cross-references never rot. New entries go to the top of their section but take the next available number.
+**`.session-continuity/OUTSTANDING_ITEMS.md`** is the backlog: explicitly
+deferred decisions and follow-ups, not bugs and not current state. Item
+numbers are permanent — a closed item is deleted outright, never
+renumbered — so a cross-reference to "item 4" stays valid for as long as
+item 4 exists. Each item is capped at a title plus 1-3 sentences; anything
+longer belongs in a linked spec, not inlined here.
 
-All three files ship as templates, so you start from a real structure instead of a blank page.
+**`.session-continuity/LEARNINGS.md`** is the opposite of the rest: append-only, numbered, preserved. Each entry is a bug that took 15+ minutes to diagnose, written as a recipe (the trap, the symptom, the fix, an optional diagnostic signal). Numbers are stable so cross-references never rot. New entries go to the top of their section but take the next available number.
+
+All four files ship as templates, so you start from a real structure instead of a blank page.
 
 ## The commands
 
 ### `/session-continuity:primer`
 
-One command, four behaviors, dispatched on the repo's current state:
+One command, five behaviors, dispatched on the repo's current state:
 
-- **No primer yet** → copies the templates into `.session-continuity/`, fills every placeholder it can derive (project name, latest commits, working directory, test command), asks you for the rest, and stages all three files. Any field you skip becomes `TBD` rather than a leftover `{{PLACEHOLDER}}`.
+- **No primer yet** → copies the templates into `.session-continuity/`, fills every placeholder it can derive (project name, latest commits, working directory, test command), asks you for the rest, and stages all four files. Any field you skip becomes `TBD` rather than a leftover `{{PLACEHOLDER}}`.
 - **Primer exists but not yet split** → partitions its stable sections (layout, conventions, module table, "where to look for what") into a new `.session-continuity/PROJECT_CONTEXT.md`, leaving the primer with only the volatile shortlist. One-time content move, no file move.
+- **Primer has an inline Outstanding items section, no OUTSTANDING_ITEMS.md yet** → extracts that section verbatim into the new file, preserving item numbers as permanent IDs, and removes it from the primer. Runs immediately on detection — this plugin has one consumer today, so migration is pushed, not offered indefinitely.
 - **Primer exists but drifted** → regenerates the `git log --oneline -5` block, re-runs the primer's test commands (retrying flaky suites up to three times so a single bad sample doesn't cry wolf), surfaces every commit since the last refresh as a candidate, and prompts you for outstanding-items changes before staging.
 - **Primer current** → reports a four-line status (HEAD, last refresh, outstanding-item count, learnings count) and exits without touching anything.
 
@@ -118,7 +127,7 @@ The hooks are bash scripts wired through `hooks/hooks.json`. They split into two
 /session-continuity:primer
 ```
 
-Detects no primer exists, copies templates into `.session-continuity/`, fills derivable placeholders, asks you for the rest, and stages all three files.
+Detects no primer exists, copies templates into `.session-continuity/`, fills derivable placeholders, asks you for the rest, and stages all four files.
 
 **Before a commit:**
 
@@ -155,7 +164,7 @@ The SessionStart hook reminds Claude to read `.session-continuity/SESSION_PRIMER
 | Observation | Where |
 |---|---|
 | "The latest commit is X" | `.session-continuity/SESSION_PRIMER.md` → Current state |
-| "We should refactor Y" | `.session-continuity/SESSION_PRIMER.md` → Outstanding items |
+| "We should follow up on X" | `.session-continuity/OUTSTANDING_ITEMS.md` → new numbered entry |
 | "How is this repo laid out" | `.session-continuity/PROJECT_CONTEXT.md` → Repo layout |
 | "What are our workflow conventions" | `.session-continuity/PROJECT_CONTEXT.md` → Workflow conventions |
 | "Bun replaces the CA trust store" | `.session-continuity/LEARNINGS.md` → new numbered entry |
@@ -164,17 +173,19 @@ The SessionStart hook reminds Claude to read `.session-continuity/SESSION_PRIMER
 
 **Do not put in these files:** secrets (ever — use `<redacted>`), information trivially rederivable from code, narrative fluff.
 
-## Why three files
+## Why four files
 
-Most memory systems lump everything together: notes, decisions, observations, bug reports, all blended in a searchable soup. That fails in a specific way for software projects, because current state, stable context, and accumulated wisdom have three different update contracts.
+Most memory systems lump everything together: notes, decisions, observations, bug reports, all blended in a searchable soup. That fails in a specific way for software projects, because current state, stable context, deferred decisions, and accumulated wisdom have four different update contracts.
 
 The **primer** is high-churn. Yesterday's commit is already out of date; next week's priorities will look different again. It needs to be overwritten freely, refreshed with every substantive change, and short enough to re-read on every session start. A primer that accumulates forever becomes a scroll tomb.
 
 **PROJECT_CONTEXT** is low-churn. Repo layout, module boundaries, and workflow conventions don't change every commit — they change when the project's shape itself changes. It's still overwritten (not append-only) when it does change, but a fresh session only needs to skim it once, not re-check it every turn like the primer.
 
-**LEARNINGS** is the outlier of the three: append-only, numbered, preserved. Each entry is hard-won knowledge that would cost the same hours again if lost. It needs stable numbering so cross-references don't rot, and preservation exactly as written when the author's memory was sharpest. A LEARNINGS file that gets rewritten loses the point.
+**LEARNINGS** is the outlier of the four: append-only, numbered, preserved. Each entry is hard-won knowledge that would cost the same hours again if lost. It needs stable numbering so cross-references don't rot, and preservation exactly as written when the author's memory was sharpest. A LEARNINGS file that gets rewritten loses the point.
 
-Blending any of these forces bad tradeoffs. Current-state notes drown stable context or accumulated wisdom; wisdom gets edited away when someone trims "stale" entries. Keeping them in separate files with separate update contracts means the primer answers "what is true right now," PROJECT_CONTEXT answers "what is true about this project generally," and LEARNINGS answers "what should I know to avoid rediscovering pain" — and none of the three pretends to answer another's question.
+**OUTSTANDING_ITEMS** shares PROJECT_CONTEXT's slow pace, but not its permanence: unlike LEARNINGS' append-only history, closed items are deleted outright, so the file only ever holds the live backlog, never a full record of everything ever deferred.
+
+Blending any of these forces bad tradeoffs. Current-state notes drown stable context or accumulated wisdom; wisdom gets edited away when someone trims "stale" entries. Keeping them in separate files with separate update contracts means the primer answers "what is true right now," PROJECT_CONTEXT answers "what is true about this project generally," OUTSTANDING_ITEMS answers "what have we deliberately deferred," and LEARNINGS answers "what should I know to avoid rediscovering pain" — and none of the four pretends to answer another's question.
 
 ## What it is not
 
@@ -184,13 +195,13 @@ Understanding what this plugin deliberately avoids is as useful as understanding
 
 **Not a framework.** There's no extension API, no plugin architecture, no abstraction layer waiting for you to subclass it. The surface is one skill, four commands, and a handful of hooks, and that's the whole product. PRs that expand the surface will be declined.
 
-**Not a replacement for `CLAUDE.md`, vector search, or MCP memory servers.** Each solves a different problem. `CLAUDE.md` is for durable project conventions ("always use Bun, never commit to main"). Vector search is for semantic retrieval across large unstructured corpora. MCP memory servers are for cross-project context that needs rich querying. This plugin is for *the three specific questions above*, in *a single project's repo*, with *plain text in git* as the storage. When one of the other tools fits your need better, use it instead.
+**Not a replacement for `CLAUDE.md`, vector search, or MCP memory servers.** Each solves a different problem. `CLAUDE.md` is for durable project conventions ("always use Bun, never commit to main"). Vector search is for semantic retrieval across large unstructured corpora. MCP memory servers are for cross-project context that needs rich querying. This plugin is for *the four specific questions above*, in *a single project's repo*, with *plain text in git* as the storage. When one of the other tools fits your need better, use it instead.
 
 **Not an LLM-only tool.** Every file is human-readable and human-editable. You can open `.session-continuity/LEARNINGS.md` in any editor, add an entry by hand, and Claude will see it on the next session. The slash commands are conveniences, not gates.
 
 ## Team-wide use
 
-All three files are checked-in artifacts, not gitignored. Commit them under `.session-continuity/` and the whole team benefits:
+All four files are checked-in artifacts, not gitignored. Commit them under `.session-continuity/` and the whole team benefits:
 
 - Add a line to the project's `CLAUDE.md` pointing every session at the primer and the maintenance rules.
 - LEARNINGS doubles as a living post-mortem log for human teammates, not just Claude.
@@ -213,7 +224,7 @@ The weekly freshness check in SessionStart will nudge you inside Claude when a n
 
 ## Contributing
 
-Issues and PRs welcome at [github.com/talgolan/session-continuity](https://github.com/talgolan/session-continuity). See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide: scope policy, local development, authoring conventions for commands and hooks, and the release process. TL;DR: this plugin ships a three-file pattern, not a framework. PRs that fit the existing shape will move quickly; PRs that expand scope will be declined or redirected.
+Issues and PRs welcome at [github.com/talgolan/session-continuity](https://github.com/talgolan/session-continuity). See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide: scope policy, local development, authoring conventions for commands and hooks, and the release process. TL;DR: this plugin ships a four-file pattern, not a framework. PRs that fit the existing shape will move quickly; PRs that expand scope will be declined or redirected.
 
 ## Privacy
 
