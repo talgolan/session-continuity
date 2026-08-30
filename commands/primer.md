@@ -235,6 +235,8 @@ they currently have, and those become the first permanent IDs.
    bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-activity-surface --duration="$_PERF_DURATION"
    ```
 
+   Read `.session-continuity/OUTSTANDING_ITEMS.md` for the current item
+   list (not the primer — the backlog lives in the dedicated file now).
    Present the subject list from the `git log` output above to the
    user as candidate prompts:
    > "Since the last primer refresh, these commits landed:
@@ -244,8 +246,22 @@ they currently have, and those become the first permanent IDs.
    > Any of these resolve outstanding items, or warrant a new LEARNINGS entry?"
    This is a candidate list, not an auto-close. Do not modify outstanding items based on subject heuristics — wait for the user's answer.
 5. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?"
-6. Apply the edits. **Before removing any item as DONE, verify it against the actual code** — one grep or read per load-bearing claim, even if the user confirms it from memory or a commit subject matched the item's keywords. A subject-line match does not prove the change shipped, and a fix landing inside an unrelated commit can leave an item reading OPEN when it already shipped — verify both directions, not just the one the candidate list surfaced.
-7. Stage the updated primer: `git add .session-continuity/SESSION_PRIMER.md`.
+6. Apply the edits to `.session-continuity/OUTSTANDING_ITEMS.md` (not the
+   primer). **Before removing any item as DONE, verify it against the
+   actual code** — one grep or read per load-bearing claim, even if the
+   user confirms it from memory or a commit subject matched the item's
+   keywords. A subject-line match does not prove the change shipped, and
+   a fix landing inside an unrelated commit can leave an item reading
+   OPEN when it already shipped — verify both directions, not just the
+   one the candidate list surfaced. **Before deleting a closed item, grep
+   the whole repo for references to its number** (e.g. `\bitem #?N\b`) —
+   a hit means fix the referencing text first, per the numbering rule in
+   `.session-continuity/OUTSTANDING_ITEMS.md`'s own intro block. New
+   items take the next unused number across the whole file, never a
+   reused or renumbered one.
+7. Stage the updated primer and, if outstanding items changed, the items
+   file too: `git add .session-continuity/SESSION_PRIMER.md` and (only
+   when Step 6 touched it) `git add .session-continuity/OUTSTANDING_ITEMS.md`.
 8. Tell the user: "Primer refreshed and staged. Include it in your next commit (same commit as the substantive change — do not primer-commit alone)."
 
 ## Step 5 — Check mode
