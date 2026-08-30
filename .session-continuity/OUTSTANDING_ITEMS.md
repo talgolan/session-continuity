@@ -33,8 +33,9 @@ Manual validation only right now — no bats-style shell test harness
 exercises the slash commands against a fixture repo. Good candidates:
 Split mode in `commands/primer.md`, the `learning`-skill
 duplicate-detection guard, v0.14.2's end-session fast-path/overlap-gate
-logic, and v0.14.4's test-count skip/escalate logic — none tested beyond
-prose review.
+logic, and v0.14.4's test-count skip/escalate logic — none exercise the
+nothing-changed / touched / untouched, or changed-but-count-holds /
+genuinely-drifted cases beyond prose review.
 
 ### 3. Scratch-project smoke test for the primer split (deferred from this session)
 
@@ -57,8 +58,9 @@ commit time, enforced at the gate that runs on every commit. Design:
 ### 5. Review `.session-continuity/performance.log`
 
 Real timing data has been accumulating since v0.15.1 fixed the
-`$CLAUDE_PLUGIN_ROOT` bracing bug — hook-side entries plus command-side
-entries from `primer.md`/`end-session.md`, and v0.16.0's end-to-end
+`$CLAUDE_PLUGIN_ROOT` bracing bug — hook-side entries (`session-start.sh`,
+`pre-commit-check.sh`, gate hooks) plus command-side entries from
+`primer.md`/`end-session.md`, and v0.16.0's end-to-end
 `step-4-ritual-complete` measurement. v0.16.0 added the end-to-end
 *instrument* but never analyzed the log — look at what it actually shows
 before deciding whether any hook or command-step is slow enough to
