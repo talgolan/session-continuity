@@ -1,10 +1,11 @@
 # Session Primer — {{PROJECT_NAME}}
 
 You are picking up work on {{PROJECT_NAME}} from a previous session. This
-file is the shortest path to what changed recently and what's outstanding.
-For stable repo context (layout, conventions, modules), read
+file is the shortest path to what changed recently. For stable repo
+context (layout, conventions, modules), read
 `.session-continuity/PROJECT_CONTEXT.md` once per session — it changes
-rarely.
+rarely. For the backlog of deferred decisions and follow-ups, read
+`.session-continuity/OUTSTANDING_ITEMS.md`.
 
 ## First things first (read these before touching anything)
 
@@ -31,9 +32,3 @@ rarely.
 
 Regenerate this block whenever you commit — see
 `.session-continuity/PROJECT_CONTEXT.md`'s "Maintenance" section.
-
-## Outstanding items (explicitly deferred — not bugs, decisions)
-
-{{OUTSTANDING_ITEMS}}
-
-<!-- Numbered list. One decision/deferral per item, with a one-line reason. -->
