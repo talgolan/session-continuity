@@ -57,6 +57,23 @@ Four states result:
    git log --oneline -5
    [ -f package.json ] && grep -A1 '"scripts"' package.json | grep '"test"'
    find . -maxdepth 2 -not -path './node_modules/*' -not -path './.git/*'
+   [ -f CLAUDE.md ] && echo "--- CLAUDE.md ---" && cat CLAUDE.md
+   grep -rn -B1 -A2 '@module' --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' -- src lib 2>/dev/null | head -100
+   TEST_CMD=""
+   if [ -f package.json ]; then
+     TEST_CMD=$(grep -A1 '"scripts"' package.json | grep '"test"' | sed -E 's/.*"test":[[:space:]]*"([^"]+)".*/\1/')
+   elif [ -f Cargo.toml ] && command -v cargo >/dev/null 2>&1; then
+     TEST_CMD="cargo test"
+   elif [ -f pyproject.toml ] && command -v pytest >/dev/null 2>&1; then
+     TEST_CMD="pytest"
+   fi
+   if [ -n "$TEST_CMD" ]; then
+     echo "--- test run: $TEST_CMD ---"
+     TEST_OUTPUT=$(timeout 120 bash -c "$TEST_CMD" 2>&1)
+     TEST_EXIT=$?
+     echo "$TEST_OUTPUT" | tail -20
+     echo "TEST_RUN_EXIT=$TEST_EXIT"
+   fi
    _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
    _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
    bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-2-init-derive-placeholders --duration="$_PERF_DURATION"
@@ -66,10 +83,11 @@ Four states result:
    - `{{PROJECT_NAME}}` — from `package.json` `name`, `Cargo.toml` `name`, `pyproject.toml` `name`, or the current directory basename.
    - `{{LATEST_COMMIT_HASH_N}}` / `{{LATEST_COMMIT_SUBJECT_N}}` — from the `git log --oneline -5` output above.
    - `{{WORKING_DIRECTORY_ABSOLUTE_PATH}}` — from the `pwd` output above.
-   - `{{TEST_COMMAND_SUMMARY}}` — from the `scripts.test` grep above, if present.
+   - `{{TEST_COMMAND_SUMMARY}}` — if `TEST_RUN_EXIT=0` and the captured output contains a recognizable count (`N pass`, `N passed`, `test result: ok. N passed`, etc.), seed this as "`<TEST_CMD>` — N pass / M fail" from that single run. If `TEST_CMD` was empty, the run timed out (`TEST_RUN_EXIT=124`), or the output has no parseable count, fall back to the bare `scripts.test` string (or `TBD`) — never invent a count.
    - `{{REPO_LAYOUT_SUMMARY}}` — from the `find` output above, plus a one-line description Claude infers from the file extensions present.
-   - `{{MODULES_TABLE}}` — leave as `TBD` unless the project has an obvious package/module manifest to read (`package.json` workspaces, Cargo workspace members, etc.) — don't invent structure that isn't there.
-6. Ask the user for the blanks that can't be derived: `{{GROUND_RULES}}`, `{{WORKFLOW_CONVENTIONS}}`, `{{WHERE_TO_LOOK_ROWS}}`, `{{STUCK_ESCALATION_STEPS}}`, `{{OUTSTANDING_ITEMS}}`. **Wait for their answer.** Do not proceed to Step 8 until the user responds.
+   - `{{MODULES_TABLE}}` — if the `@module` grep above found matches, build one table row per file: Component = file path, Purpose = the `@module` value (plus the docblock's one-line description if present), Notes = the adjacent `Exports:` line if present. If it found nothing, leave `TBD` as before — don't invent structure that isn't there.
+   - `{{WORKFLOW_CONVENTIONS}} (draft)` — if `CLAUDE.md` exists (cat output above), draft this field by quoting its relevant conventions (runtime choice, commit style, workflow/never-do rules) under a "Conventions inherited from CLAUDE.md" sub-heading, instead of leaving it blank for the user to retype. Present the draft in Step 6 for confirmation rather than asking cold.
+6. Ask the user for the blanks that can't be derived: `{{GROUND_RULES}}`, `{{WHERE_TO_LOOK_ROWS}}`, `{{STUCK_ESCALATION_STEPS}}`, `{{OUTSTANDING_ITEMS}}`, and `{{WORKFLOW_CONVENTIONS}}` only if no `CLAUDE.md` draft was produced above. If a draft was produced, show it and ask the user to confirm or amend it rather than asking a blank question. **Wait for their answer.** Do not proceed to Step 8 until the user responds.
 7. **Replace any remaining `{{PLACEHOLDER}}` tokens with `TBD` before staging.** If the user skipped a field, declined to answer, or asked you to stage/commit without filling everything in, substitute `TBD` (with an empty body line where the template had prose). Never leave `{{...}}` syntax in a file you are about to stage — `grep -n '{{' .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md` must return nothing after this step.
 8. Stage all three files: `git add .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md`.
 9. Tell the user: "Primer, PROJECT_CONTEXT, and LEARNINGS staged. Review and commit with `git commit -m 'docs: initialize session continuity'` when ready." Include a one-line note listing any fields that were set to `TBD` so the user knows what to fill in later.
@@ -168,7 +186,7 @@ contains).
    > Any of these resolve outstanding items, or warrant a new LEARNINGS entry?"
    This is a candidate list, not an auto-close. Do not modify outstanding items based on subject heuristics — wait for the user's answer.
 5. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?"
-6. Apply the edits.
+6. Apply the edits. **Before removing any item as DONE, verify it against the actual code** — one grep or read per load-bearing claim, even if the user confirms it from memory or a commit subject matched the item's keywords. A subject-line match does not prove the change shipped, and a fix landing inside an unrelated commit can leave an item reading OPEN when it already shipped — verify both directions, not just the one the candidate list surfaced.
 7. Stage the updated primer: `git add .session-continuity/SESSION_PRIMER.md`.
 8. Tell the user: "Primer refreshed and staged. Include it in your next commit (same commit as the substantive change — do not primer-commit alone)."
 
