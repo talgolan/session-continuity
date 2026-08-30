@@ -78,11 +78,11 @@ deny() {
 gate_scan_staged() {
   local in_scope="$1" check="$2" f content
   while IFS= read -r f; do
-    [ -z "$f" ] && continue
+    if [ -z "$f" ]; then continue; fi
     "$in_scope" "$f" || continue
     if gate_is_scratch "$f"; then continue; fi
     content="$(gate_staged_blob "$f")"
-    [ -z "$content" ] && continue
+    if [ -z "$content" ]; then continue; fi
     "$check" "$content" "$f" || true
   done <<EOF
 $(gate_staged_files)
