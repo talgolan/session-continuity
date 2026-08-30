@@ -2,6 +2,54 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] — 2026-08-30
+
+### Added
+- **A fourth peer file, `.session-continuity/OUTSTANDING_ITEMS.md`.** The
+  "Outstanding items" backlog moves out of `SESSION_PRIMER.md` into its own
+  file, reusing LEARNINGS' `### N. <Title>` heading format so no consumer
+  needed a new parsing convention. Permanent numbering (a closed item is
+  deleted outright, never renumbered, never reused) and a title + 1-3
+  sentence length cap, with a pointer-to-spec escape valve for anything
+  longer. `hooks/session-start.sh`, `commands/primer.md` (Init mode, a new
+  Step 3b split-mode migration detector, and the Refresh flow), and
+  `commands/end-session.md`'s verification pipeline are all repointed at
+  the new file.
+- **Migration is pushed, not tolerated.** Since this plugin has one known
+  consumer today, both `session-start.sh` and `end-session.md` detect an
+  old-format primer (inline `## Outstanding items` heading, no new file
+  yet) and nudge immediate migration via `/session-continuity:primer`
+  rather than maintaining a permanent dual-parsing path.
+- New template: `skills/session-continuity/templates/OUTSTANDING_ITEMS.md`.
+- New CLAUDE.md snippet template:
+  `skills/session-continuity/templates/CLAUDE_MD_SNIPPET.md` — a
+  verbatim-copy section for consuming projects, bundling the read-first
+  pointer, the primer-refresh rule, a warning about a gate-chained-commit
+  trap, and the verify-before-close rule for outstanding items.
+
+### Changed
+- `SKILL.md`, `README.md`, and `.claude-plugin/plugin.json` now describe
+  four files instead of three throughout.
+- `SKILL.md`'s maintenance rules require verifying an outstanding item
+  against the actual code (grep/read) before marking it DONE — not memory,
+  not a commit-subject match alone — generalizing a rule discovered via an
+  external consuming project's own hand-rolled equivalent.
+- This repo's own primer was migrated as a dogfood proof: all 9 original
+  items moved to `.session-continuity/OUTSTANDING_ITEMS.md`, one (a design
+  sketch exceeding the length cap) extracted to
+  `meta/superpowers/recommendations/docguard-design-sketch.md`.
+
+### Fixed
+- `hooks/session-start.sh` produced a malformed two-line status value when
+  `OUTSTANDING_ITEMS.md` existed but had zero entries (`grep -c` prints `0`
+  and exits 1 on no match, so the `|| echo '?'` fallback fired too).
+- `commands/primer.md`'s Check mode (Step 5) still counted
+  `SESSION_PRIMER.md`'s unrelated "First things first" numbered list
+  instead of the new file.
+
+See `meta/superpowers/specs/2026-08-30-outstanding-items-file-design.md`
+and `meta/superpowers/plans/2026-08-30-outstanding-items-file.md`.
+
 ## [0.17.0] — 2026-08-27
 
 ### Changed
