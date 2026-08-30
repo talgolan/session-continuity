@@ -1,17 +1,18 @@
 ---
 name: session-continuity
-description: Establish and maintain cross-session memory for a project via three in-repo docs — .session-continuity/SESSION_PRIMER.md (current state, refreshed alongside substantive commits), .session-continuity/PROJECT_CONTEXT.md (stable repo context, changes rarely), and .session-continuity/LEARNINGS.md (append-only wisdom for 15+ min bugs). Use when starting, before commits, or after hard-won bugs.
+description: Establish and maintain cross-session memory for a project via four in-repo docs — .session-continuity/SESSION_PRIMER.md (current state, refreshed alongside substantive commits), .session-continuity/OUTSTANDING_ITEMS.md (explicitly deferred work), .session-continuity/PROJECT_CONTEXT.md (stable repo context, changes rarely), and .session-continuity/LEARNINGS.md (append-only wisdom for 15+ min bugs). Use when starting, before commits, or after hard-won bugs.
 ---
 
 # Session Continuity
 
-Three in-repo files act as a handoff between Claude sessions on the same project:
+Four in-repo files act as a handoff between Claude sessions on the same project:
 
 - **`.session-continuity/SESSION_PRIMER.md`** — current-state snapshot (latest commits, outstanding items). **Refresh alongside substantive commits** (stage the update in the same commit as the real change). Always reflects "what's true right now."
+- **`.session-continuity/OUTSTANDING_ITEMS.md`** — backlog of explicitly deferred follow-ups and decisions (not bugs, not current state). Permanent numbering (delete-on-close, never renumber, never reuse a number), title + 1-3 sentence length cap per item — anything longer moves to a linked file under `meta/superpowers/`.
 - **`.session-continuity/PROJECT_CONTEXT.md`** — stable repo context (layout, module table, workflow conventions, test expectations, "where to look for what"). Changes rarely — only when the project's shape itself changes.
 - **`.session-continuity/LEARNINGS.md`** — accumulated wisdom (numbered entries, grouped by layer). Append-only log of bugs that were painful enough to not want to rediscover. **Update when a bug takes 15+ minutes to diagnose.**
 
-The three files are complementary: primer is volatile current-state, PROJECT_CONTEXT is stable reference, LEARNINGS is durable wisdom. A fresh session reads the primer first to get oriented, skims PROJECT_CONTEXT once per session for the shape of the repo, then consults LEARNINGS when something surprising happens.
+The four files are complementary: primer is volatile current-state, OUTSTANDING_ITEMS captures explicitly deferred work, PROJECT_CONTEXT is stable reference, LEARNINGS is durable wisdom. A fresh session reads the primer first to get oriented, skims PROJECT_CONTEXT once per session for the shape of the repo, consults OUTSTANDING_ITEMS for the decision backlog, then consults LEARNINGS when something surprising happens.
 
 If installed as a plugin, four commands are available: `/session-continuity:primer` (init/split/refresh/check the primer), `/session-continuity:learning` (append a new LEARNINGS entry interactively), `/session-continuity:end-session` (close-out ritual — refresh the primer, capture any new learnings from this session, and report a ✓/⚠️ checklist before you close the laptop), and `/session-continuity:spike-check` (force a spike to be designed against the real load-bearing path before it's built).
 
@@ -78,11 +79,11 @@ Invoke when:
 
 ## Quick start (new project)
 
-Run `/session-continuity:primer`. The command detects that no primer exists, copies all three templates from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/` into the project's `.session-continuity/`, fills in every placeholder it can derive automatically (project name, latest commits, working directory, test command), prompts the user for anything left blank, and stages all three files. It does not commit.
+Run `/session-continuity:primer`. The command detects that no primer exists, copies all four templates from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/` into the project's `.session-continuity/`, fills in every placeholder it can derive automatically (project name, latest commits, working directory, test command), prompts the user for anything left blank, and stages all four files. It does not commit.
 
 After the user commits, remind them of the two maintenance rules: refresh the primer alongside substantive commits (stage the refresh in the same commit as the real change — do not commit the primer by itself), and add a LEARNINGS entry for every bug that took 15+ minutes to diagnose.
 
-If the `/session-continuity:primer` command is not installed (e.g. this skill was vendored manually, not installed as a plugin), fall back to copying the templates by hand from [`templates/SESSION_PRIMER.md`](templates/SESSION_PRIMER.md), [`templates/PROJECT_CONTEXT.md`](templates/PROJECT_CONTEXT.md), and [`templates/LEARNINGS.md`](templates/LEARNINGS.md) into the project's `.session-continuity/`, filling placeholders, and committing the set.
+If the `/session-continuity:primer` command is not installed (e.g. this skill was vendored manually, not installed as a plugin), fall back to copying the templates by hand from [`templates/SESSION_PRIMER.md`](templates/SESSION_PRIMER.md), [`templates/OUTSTANDING_ITEMS.md`](templates/OUTSTANDING_ITEMS.md), [`templates/PROJECT_CONTEXT.md`](templates/PROJECT_CONTEXT.md), and [`templates/LEARNINGS.md`](templates/LEARNINGS.md) into the project's `.session-continuity/`, filling placeholders, and committing the set.
 
 ## Quick start (existing project with these files)
 
@@ -115,6 +116,13 @@ Sections most likely to be stale:
 - **Test expectations.** If you added, removed, or skipped tests, bump the count so it matches `<test command>` output.
 
 Other sections (layout, packages, conventions) drift more slowly but are fair game if the repo shifted.
+
+**Numbering convention for OUTSTANDING_ITEMS.md — mirrors LEARNINGS.**
+A new item takes the next unused number across the whole file. A closed
+item is deleted outright, never renumbered, never reused — this keeps
+cross-references ("see item 4") valid for as long as item 4 exists.
+Before deleting, grep the repo for references to the item's number; a hit
+means fix the reference or leave a one-line "closed" stub instead.
 
 ### Do NOT commit the primer by itself
 
@@ -174,7 +182,7 @@ A bug qualifies when any of:
 | Observation | Where it goes |
 |---|---|
 | "The latest commit is X" | `.session-continuity/SESSION_PRIMER.md` → Current state |
-| "We should refactor Y" | `.session-continuity/SESSION_PRIMER.md` → Outstanding items |
+| "We should follow up on X" | `.session-continuity/OUTSTANDING_ITEMS.md` → new numbered entry |
 | "How is this repo laid out" | `.session-continuity/PROJECT_CONTEXT.md` → Repo layout |
 | "What are our workflow conventions" | `.session-continuity/PROJECT_CONTEXT.md` → Workflow conventions |
 | "Bun replaces the CA trust store" | `.session-continuity/LEARNINGS.md` → new numbered entry |
@@ -202,7 +210,7 @@ Different projects have different shapes, but the core file pattern adapts well:
 
 If multiple people are working on the same project and should all benefit from this:
 
-1. All three files are **checked-in** artifacts, not gitignored. Commit them in the project repo under `.session-continuity/`.
+1. All four files are **checked-in** artifacts, not gitignored. Commit them in the project repo under `.session-continuity/`.
 2. Copy [`templates/CLAUDE_MD_SNIPPET.md`](templates/CLAUDE_MD_SNIPPET.md) into the project's `CLAUDE.md` verbatim. It covers the read-first pointer, the primer-refresh-alongside-commits rule, the outstanding-item verify-before-close rule, and the gate-chain-commit trap — the things a project otherwise has to rediscover and hand-write for itself (as architect-workbench did before this snippet existed).
 3. Document the maintenance rules in the primer itself (last section). Templates include this.
 4. Human teammates benefit too — LEARNINGS.md doubles as a living post-mortem log, and the primer is a great onboarding handoff.
@@ -221,10 +229,11 @@ If multiple people are working on the same project and should all benefit from t
 
 ## Philosophy
 
-The three files answer three different questions:
+The four files answer four different questions:
 
 - Primer: "What is true about this project **right now**?"
+- OUTSTANDING_ITEMS: "What has been **explicitly deferred** (decisions, follow-ups, follow-ons) that we should not forget?"
 - PROJECT_CONTEXT: "What is true about this project **generally**, and rarely changes?"
 - LEARNINGS: "What should I know to avoid rediscovering something painful?"
 
-Together they compress the cost of session handoff from "re-explain everything" to "read a couple of files." The primer stays short (a shortlist, not a snapshot); PROJECT_CONTEXT and LEARNINGS both grow organically but at different rates — one when the project's shape changes, the other with every hard-won bug. All three outlive any single session.
+Together they compress the cost of session handoff from "re-explain everything" to "read a couple of files." The primer stays short (a shortlist, not a snapshot); OUTSTANDING_ITEMS accumulates deferred work; PROJECT_CONTEXT and LEARNINGS both grow organically but at different rates — one when the project's shape changes, the other with every hard-won bug. All four outlive any single session.
