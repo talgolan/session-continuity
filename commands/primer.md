@@ -17,6 +17,8 @@ _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 [ -f .session-continuity/SESSION_PRIMER.md ] && echo "PRIMER_EXISTS=1" || echo "PRIMER_EXISTS=0"
 [ -f .session-continuity/LEARNINGS.md ] && echo "LEARNINGS_EXISTS=1" || echo "LEARNINGS_EXISTS=0"
 [ -f .session-continuity/PROJECT_CONTEXT.md ] && echo "PROJECT_CONTEXT_EXISTS=1" || echo "PROJECT_CONTEXT_EXISTS=0"
+[ -f .session-continuity/OUTSTANDING_ITEMS.md ] && echo "OUTSTANDING_ITEMS_EXISTS=1" || echo "OUTSTANDING_ITEMS_EXISTS=0"
+grep -q '^## Outstanding items' .session-continuity/SESSION_PRIMER.md 2>/dev/null && echo "PRIMER_HAS_INLINE_OUTSTANDING=1" || echo "PRIMER_HAS_INLINE_OUTSTANDING=0"
 git log --oneline -5
 git diff --cached --name-only
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
@@ -38,13 +40,23 @@ Four states result:
 - **Primer exists but stale** (log block drifted or code staged for commit) → refresh mode (Step 4)
 - **Primer exists and current** (nothing staged) → check mode (Step 5)
 
+If `PRIMER_HAS_INLINE_OUTSTANDING=1` AND `OUTSTANDING_ITEMS_EXISTS=0`,
+outstanding-items migration is needed — run it (Step 3b below) in addition
+to whichever of the four states above applies. **Sequencing:** if the
+primer is also unsplit (no `PROJECT_CONTEXT.md`), run the existing Split
+mode (Step 3) to completion first, then run Step 3b against the resulting
+primer, as two sequential edits — not simultaneous partitioning. The two
+splits touch disjoint sections of the primer (stable-context headings vs.
+the Outstanding items heading), so sequencing avoids any edit conflict.
+
 ## Step 2 — Init mode
 
 1. Create `.session-continuity/` if it doesn't exist.
 2. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/SESSION_PRIMER.md` to `.session-continuity/SESSION_PRIMER.md`.
 3. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/LEARNINGS.md` to `.session-continuity/LEARNINGS.md`.
 4. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/PROJECT_CONTEXT.md` to `.session-continuity/PROJECT_CONTEXT.md`.
-5. Fill in placeholders Claude can derive automatically. Gather the raw
+5. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/OUTSTANDING_ITEMS.md` to `.session-continuity/OUTSTANDING_ITEMS.md`.
+6. Fill in placeholders Claude can derive automatically. Gather the raw
    data in **one Bash call**, timed:
 
    ```bash
@@ -86,11 +98,22 @@ Four states result:
    - `{{TEST_COMMAND_SUMMARY}}` — if `TEST_RUN_EXIT=0` and the captured output contains a recognizable count (`N pass`, `N passed`, `test result: ok. N passed`, etc.), seed this as "`<TEST_CMD>` — N pass / M fail" from that single run. If `TEST_CMD` was empty, the run timed out (`TEST_RUN_EXIT=124`), or the output has no parseable count, fall back to the bare `scripts.test` string (or `TBD`) — never invent a count.
    - `{{REPO_LAYOUT_SUMMARY}}` — from the `find` output above, plus a one-line description Claude infers from the file extensions present.
    - `{{MODULES_TABLE}}` — if the `@module` grep above found matches, build one table row per file: Component = file path, Purpose = the `@module` value (plus the docblock's one-line description if present), Notes = the adjacent `Exports:` line if present. If it found nothing, leave `TBD` as before — don't invent structure that isn't there.
-   - `{{WORKFLOW_CONVENTIONS}} (draft)` — if `CLAUDE.md` exists (cat output above), draft this field by quoting its relevant conventions (runtime choice, commit style, workflow/never-do rules) under a "Conventions inherited from CLAUDE.md" sub-heading, instead of leaving it blank for the user to retype. Present the draft in Step 6 for confirmation rather than asking cold.
-6. Ask the user for the blanks that can't be derived: `{{GROUND_RULES}}`, `{{WHERE_TO_LOOK_ROWS}}`, `{{STUCK_ESCALATION_STEPS}}`, `{{OUTSTANDING_ITEMS}}`, and `{{WORKFLOW_CONVENTIONS}}` only if no `CLAUDE.md` draft was produced above. If a draft was produced, show it and ask the user to confirm or amend it rather than asking a blank question. **Wait for their answer.** Do not proceed to Step 8 until the user responds.
-7. **Replace any remaining `{{PLACEHOLDER}}` tokens with `TBD` before staging.** If the user skipped a field, declined to answer, or asked you to stage/commit without filling everything in, substitute `TBD` (with an empty body line where the template had prose). Never leave `{{...}}` syntax in a file you are about to stage — `grep -n '{{' .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md` must return nothing after this step.
-8. Stage all three files: `git add .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md`.
-9. Tell the user: "Primer, PROJECT_CONTEXT, and LEARNINGS staged. Review and commit with `git commit -m 'docs: initialize session continuity'` when ready." Include a one-line note listing any fields that were set to `TBD` so the user knows what to fill in later.
+   - `{{WORKFLOW_CONVENTIONS}} (draft)` — if `CLAUDE.md` exists (cat output above), draft this field by quoting its relevant conventions (runtime choice, commit style, workflow/never-do rules) under a "Conventions inherited from CLAUDE.md" sub-heading, instead of leaving it blank for the user to retype. Present the draft in Step 7 for confirmation rather than asking cold.
+7. Ask the user for the blanks that can't be derived: `{{GROUND_RULES}}`, `{{WHERE_TO_LOOK_ROWS}}`, `{{STUCK_ESCALATION_STEPS}}`, `{{OUTSTANDING_ITEMS}}`, and `{{WORKFLOW_CONVENTIONS}}` only if no `CLAUDE.md` draft was produced above. If a draft was produced, show it and ask the user to confirm or amend it rather than asking a blank question. **Wait for their answer.** Do not proceed to Step 9 until the user responds.
+
+   **Outstanding-items conversion rule.** The user's answer for
+   `{{OUTSTANDING_ITEMS}}` is free-form prose — a list, a paragraph, however
+   they typed it. Convert it into one `### N.` entry per distinct item in
+   `.session-continuity/OUTSTANDING_ITEMS.md`, numbered sequentially
+   starting at 1, trimming each to a title plus 1-3 sentences (the same
+   length cap every item in that file follows). Never paste the raw answer
+   in as a single unstructured blob. If the user said "none" or skipped the
+   question, leave the file's `{{OUTSTANDING_ITEMS}}` placeholder area empty
+   (substituted per the existing placeholder-cleanup step below, same as any
+   other skipped field).
+8. **Replace any remaining `{{PLACEHOLDER}}` tokens with `TBD` before staging.** If the user skipped a field, declined to answer, or asked you to stage/commit without filling everything in, substitute `TBD` (with an empty body line where the template had prose). Never leave `{{...}}` syntax in a file you are about to stage — `grep -n '{{' .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md .session-continuity/OUTSTANDING_ITEMS.md` must return nothing after this step.
+9. Stage all four files: `git add .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md .session-continuity/OUTSTANDING_ITEMS.md`.
+10. Tell the user: "Primer, PROJECT_CONTEXT, OUTSTANDING_ITEMS, and LEARNINGS staged. Review and commit with `git commit -m 'docs: initialize session continuity'` when ready." Include a one-line note listing any fields that were set to `TBD` so the user knows what to fill in later.
 
 **Do not commit automatically.** The user commits when ready.
 
@@ -135,6 +158,41 @@ contains).
 
 **Do not commit automatically.** Staging only.
 
+## Step 3b — Outstanding-items split
+
+Runs whenever `PRIMER_HAS_INLINE_OUTSTANDING=1` and
+`OUTSTANDING_ITEMS_EXISTS=0` (see Step 1). Extract the primer's inline
+`## Outstanding items` section into the new file; this is a one-time
+content move, no numbering changes — the items keep whatever numbers
+they currently have, and those become the first permanent IDs.
+
+1. Read the existing `.session-continuity/SESSION_PRIMER.md` in full.
+2. Copy every top-level numbered item under `## Outstanding items`
+   (the numbered line plus indented continuation lines until the next
+   top-level number) into a new `.session-continuity/OUTSTANDING_ITEMS.md`
+   — or into the existing empty-skeleton file from Init mode if one was
+   just created by Step 2/Step 3 above. Reformat each into the `### N.
+   <Title>` heading shape (bold title text becomes the heading text; the
+   rest of the item's prose becomes the body). If an item exceeds the
+   title + 1-3 sentence length cap (a design sketch, an invariant
+   statement, a rejected-alternatives discussion), extract the excess
+   into a new file under `meta/superpowers/recommendations/` or
+   `meta/superpowers/specs/` (name it descriptively — e.g.
+   `<topic>-design-sketch.md`) and replace it in the item with a one-line
+   pointer: `Design: <path>.` Preserve item order (ascending by number).
+3. Verify content preservation before deleting the primer's section: `diff <(grep -E '^[0-9]+\.' .session-continuity/SESSION_PRIMER.md) <(grep -E '^### [0-9]+\.' .session-continuity/OUTSTANDING_ITEMS.md | sed -E 's/^### ([0-9]+)\. (.*)$/\1. **\2.**/')` — expect the item numbers and titles to line up; investigate any mismatch before proceeding rather than deleting the source section.
+4. Delete the `## Outstanding items` section from
+   `.session-continuity/SESSION_PRIMER.md` entirely.
+5. Stage both: `git add .session-continuity/SESSION_PRIMER.md .session-continuity/OUTSTANDING_ITEMS.md`.
+6. Tell the user: "Extracted the primer's inline Outstanding items section
+   into `.session-continuity/OUTSTANDING_ITEMS.md` (N items, numbers
+   preserved as permanent IDs). Both staged — review before committing."
+7. Fall through to whichever of refresh mode (Step 4) or check mode
+   (Step 5) applies against the now-split primer, same as Step 3's
+   existing fall-through behavior.
+
+**Do not commit automatically.** Staging only, same as every other split.
+
 ## Step 4 — Refresh mode
 
 1. Read the current `.session-continuity/SESSION_PRIMER.md`.
@@ -177,6 +235,8 @@ contains).
    bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-activity-surface --duration="$_PERF_DURATION"
    ```
 
+   Read `.session-continuity/OUTSTANDING_ITEMS.md` for the current item
+   list (not the primer — the backlog lives in the dedicated file now).
    Present the subject list from the `git log` output above to the
    user as candidate prompts:
    > "Since the last primer refresh, these commits landed:
@@ -186,8 +246,22 @@ contains).
    > Any of these resolve outstanding items, or warrant a new LEARNINGS entry?"
    This is a candidate list, not an auto-close. Do not modify outstanding items based on subject heuristics — wait for the user's answer.
 5. Ask the user: "Outstanding items — anything to remove (finished) or add (new follow-ups flagged)?"
-6. Apply the edits. **Before removing any item as DONE, verify it against the actual code** — one grep or read per load-bearing claim, even if the user confirms it from memory or a commit subject matched the item's keywords. A subject-line match does not prove the change shipped, and a fix landing inside an unrelated commit can leave an item reading OPEN when it already shipped — verify both directions, not just the one the candidate list surfaced.
-7. Stage the updated primer: `git add .session-continuity/SESSION_PRIMER.md`.
+6. Apply the edits to `.session-continuity/OUTSTANDING_ITEMS.md` (not the
+   primer). **Before removing any item as DONE, verify it against the
+   actual code** — one grep or read per load-bearing claim, even if the
+   user confirms it from memory or a commit subject matched the item's
+   keywords. A subject-line match does not prove the change shipped, and
+   a fix landing inside an unrelated commit can leave an item reading
+   OPEN when it already shipped — verify both directions, not just the
+   one the candidate list surfaced. **Before deleting a closed item, grep
+   the whole repo for references to its number** (e.g. `\bitem #?N\b`) —
+   a hit means fix the referencing text first, per the numbering rule in
+   `.session-continuity/OUTSTANDING_ITEMS.md`'s own intro block. New
+   items take the next unused number across the whole file, never a
+   reused or renumbered one.
+7. Stage the updated primer and, if outstanding items changed, the items
+   file too: `git add .session-continuity/SESSION_PRIMER.md` and (only
+   when Step 6 touched it) `git add .session-continuity/OUTSTANDING_ITEMS.md`.
 8. Tell the user: "Primer refreshed and staged. Include it in your next commit (same commit as the substantive change — do not primer-commit alone)."
 
 ## Step 5 — Check mode
@@ -198,7 +272,7 @@ Gather the report data in **one Bash call**, timed:
 _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 git rev-parse --short HEAD
 stat -f '%Sm' .session-continuity/SESSION_PRIMER.md 2>/dev/null || stat -c '%y' .session-continuity/SESSION_PRIMER.md
-grep -c '^[0-9]\+\.' .session-continuity/SESSION_PRIMER.md 2>/dev/null || echo 0
+grep -cE '^### [0-9]+\.' .session-continuity/OUTSTANDING_ITEMS.md 2>/dev/null || echo 0
 grep -c '^### [0-9]\+\.' .session-continuity/LEARNINGS.md 2>/dev/null || echo 0
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
@@ -210,7 +284,7 @@ Report:
 ```
 .session-continuity/SESSION_PRIMER.md: up to date against HEAD (<short-sha>)
 Last refresh: <primer mtime>
-Outstanding items: <count from primer>
+Outstanding items: <count from OUTSTANDING_ITEMS.md>
 Learnings: <count from .session-continuity/LEARNINGS.md>
 ```
 

@@ -64,32 +64,28 @@ status_sha="$(cd "$cwd" 2>/dev/null && git rev-parse --short HEAD 2>/dev/null ||
 status_mtime="$(stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$cwd/$primer_path" 2>/dev/null \
   || stat -c '%y' "$cwd/$primer_path" 2>/dev/null \
   || echo '?')"
-# Outstanding items: count top-level numbered lines (`^N. `) inside the
-# "Outstanding items" section. The awk block reads from the section
-# heading until the next `## ` heading.
-status_outstanding="$(awk '
-  /^## Outstanding items/ { inside=1; next }
-  inside && /^## / { exit }
-  inside && /^[0-9]+\. / { count++ }
-  END { print count+0 }
-' "$cwd/$primer_path" 2>/dev/null || echo '?')"
+outstanding_path="$cwd/.session-continuity/OUTSTANDING_ITEMS.md"
 status_learnings="$(grep -cE '^### [0-9]+\.' "$cwd/$learnings_path" 2>/dev/null || true)"
 status_learnings="${status_learnings:-0}"
 
-# Outstanding items: extract the first line only of each top-level numbered
-# item (sub-bullets and continuation lines are intentionally dropped — see
-# spec's Decision section for why no truncation heuristics are added).
-# Empty when the section is missing or has no numbered items, which keeps
-# the reminder identical to today's output in that case.
-outstanding_items="$(awk '
-  /^## Outstanding items/ { inside=1; next }
-  inside && /^## / { exit }
-  inside && /^[0-9]+\. / { print }
-' "$cwd/$primer_path" 2>/dev/null || true)"
-
-if [ -n "$outstanding_items" ]; then
-  outstanding_block=$'\nOutstanding items:\n'"$outstanding_items"$'\n\nPresent these to the user as a numbered list, numbered starting at 1 (never 0), keeping the numbers above even in a short reply, and ask which of these (if any) they want to tackle this session.\n'
+# Migration check: an old-format project has the inline heading in the
+# primer but no OUTSTANDING_ITEMS.md yet. Only one project consumes this
+# plugin today, so we push migration instead of tolerating both formats —
+# no awk range-scan against the primer survives this change.
+if [ -f "$outstanding_path" ]; then
+  status_outstanding="$(grep -cE '^### [0-9]+\.' "$outstanding_path" 2>/dev/null || true)"
+  status_outstanding="${status_outstanding:-0}"
+  outstanding_items="$(grep -E '^### [0-9]+\.' "$outstanding_path" 2>/dev/null || true)"
+  if [ -n "$outstanding_items" ]; then
+    outstanding_block=$'\nOutstanding items:\n'"$outstanding_items"$'\n\nPresent these to the user as a numbered list, numbered starting at 1 (never 0), keeping the numbers above even in a short reply, and ask which of these (if any) they want to tackle this session.\n'
+  else
+    outstanding_block=""
+  fi
+elif grep -q '^## Outstanding items' "$cwd/$primer_path" 2>/dev/null; then
+  status_outstanding="?"
+  outstanding_block=$'\n⚠️ Outstanding items haven\'t migrated to .session-continuity/OUTSTANDING_ITEMS.md yet — run /session-continuity:primer now to migrate before continuing.\n'
 else
+  status_outstanding="0"
   outstanding_block=""
 fi
 

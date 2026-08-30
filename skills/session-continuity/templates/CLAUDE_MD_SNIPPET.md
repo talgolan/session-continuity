@@ -8,10 +8,11 @@ Delete this comment block before committing.
 ## Session continuity
 
 Before touching anything, read `.session-continuity/SESSION_PRIMER.md`
-(current state, outstanding items) and `.session-continuity/LEARNINGS.md`
-(bugs that were expensive to diagnose — grep it when something surprises
-you). Read `.session-continuity/PROJECT_CONTEXT.md` once per session for
-stable repo shape; it changes rarely.
+(current state) and `.session-continuity/LEARNINGS.md` (bugs that were
+expensive to diagnose — grep it when something surprises you). Read
+`.session-continuity/PROJECT_CONTEXT.md` once per session for stable repo
+shape, and `.session-continuity/OUTSTANDING_ITEMS.md` for the backlog of
+deferred decisions and follow-ups; both change rarely.
 
 **Refresh the primer alongside substantive commits.** Stage the update in
 the same commit as the real change — never a primer-only commit (exceptions:
