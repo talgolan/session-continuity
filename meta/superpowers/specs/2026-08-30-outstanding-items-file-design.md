@@ -64,7 +64,13 @@ historical record, not this file.
 
 **Numbering is permanent.** A new item takes the next unused number;
 closed items are deleted, never renumbered, never reused. Cross-references
-("see item 4") stay valid as long as item 4 exists.
+("see item 4") stay valid as long as item 4 exists. **Before deleting a
+closed item, grep the whole repo for references to its number** (e.g.
+`\bitem #?4\b`, `outstanding item(s)? 4`) — an item can be safely deleted
+without leaving a dangling reference elsewhere; a hit means either fix the
+referencing text or leave the closed item as a one-line "closed" stub
+instead of deleting it. This is the same class of bug permanent numbering
+exists to prevent — deletion is where it would otherwise slip back in.
 
 **Length cap.** Each item is a title plus 1-3 sentences. If it needs a
 design sketch, an invariant, or a rejected-alternatives discussion, put
@@ -114,10 +120,14 @@ Currently: awk range-scan between `^## Outstanding items` and the next
 item.
 
 New: if `.session-continuity/OUTSTANDING_ITEMS.md` exists, drop the
-range-scan — `grep -E '^### [0-9]+\.' .session-continuity/OUTSTANDING_ITEMS.md`
-gives count and title lines directly, no section to scope. Injected
-reminder shows title lines verbatim (no truncation heuristic needed —
-items are capped short by convention already).
+range-scan. Two separate greps replace it (a count needs `-c`; the
+verbatim title lines need plain output — one call can't give both):
+`grep -cE '^### [0-9]+\.' .session-continuity/OUTSTANDING_ITEMS.md` for
+the count (same pattern the hook already uses for the LEARNINGS count),
+`grep -E '^### [0-9]+\.' .session-continuity/OUTSTANDING_ITEMS.md` for
+the title lines to inject verbatim. No section to scope in either case —
+the whole file is the list. No truncation heuristic needed on the titles
+— items are capped short by convention already.
 
 **No dual-path fallback — prompt immediate migration instead.** Only one
 project consumes this plugin today, so tolerating an indefinite
@@ -141,15 +151,19 @@ all — it's deleted, not kept as a fallback.
   pipeline (overlap gate, code-check, `appears-DONE` classification,
   close-candidate prompts) is expensive to maintain in two parallel forms.
   If the primer still has an inline `## Outstanding items` heading and
-  `OUTSTANDING_ITEMS.md` doesn't exist yet, skip the whole verification
-  pipeline for this run and tell the user once: "This project's outstanding
-  items haven't migrated to `.session-continuity/OUTSTANDING_ITEMS.md` yet
-  — run `/session-continuity:primer` first (it migrates automatically),
-  then re-run `/session-continuity:end-session`." Do not attempt to
-  verify/close items against the old inline format. If neither the new
-  file nor an inline heading exists, "skip" means the ordinary "none
-  tracked" path — this is a fresh/already-flat project, not an unmigrated
-  one.
+  `OUTSTANDING_ITEMS.md` doesn't exist yet, skip **only the
+  outstanding-items verification sub-flow** (overlap gate, code-check,
+  `appears-DONE` classification, close-candidate prompts) and tell the
+  user once: "This project's outstanding items haven't migrated to
+  `.session-continuity/OUTSTANDING_ITEMS.md` yet — run
+  `/session-continuity:primer` first (it migrates automatically), then
+  re-run `/session-continuity:end-session`." Do not attempt to
+  verify/close items against the old inline format. **Everything else in
+  Step 1 proceeds normally** — the fast path, drift check, git-log
+  regeneration, and test-count rerun are all independent of outstanding
+  items and are not skipped by this condition. If neither the new file
+  nor an inline heading exists, "skip" means the ordinary "none tracked"
+  path — this is a fresh/already-flat project, not an unmigrated one.
 - Close-candidate edits and the staging line (`git add`) target
   `.session-continuity/OUTSTANDING_ITEMS.md` in addition to the primer.
 - The existing 200-char item-truncation cap in the overlay-matching logic
@@ -169,14 +183,29 @@ all — it's deleted, not kept as a fallback.
   an empty skeleton with the intro block above — alongside the existing
   three. The `{{OUTSTANDING_ITEMS}}` cold-ask placeholder still exists at
   init (a project may already know its day-one TODOs) but seeds the new
-  file directly instead of a primer section.
-- **New: extend Split mode.** Today's Step 3 detects "primer exists, no
-  `PROJECT_CONTEXT.md` yet" and partitions stable-vs-volatile content. Add
-  a parallel detector: "primer has an inline `## Outstanding items`
-  section, no `OUTSTANDING_ITEMS.md` yet" → extract that section
-  verbatim into the new file (items keep their current numbers — those
-  become the first permanent IDs), drop the section from the primer. Runs
-  once per project, same no-flag-day pattern as the existing split.
+  file directly instead of a primer section. **Conversion rule:** the
+  user's cold-ask answer is free-form prose (a list, a paragraph, however
+  they typed it) — Claude splits it into one `### N.` entry per distinct
+  item, numbered sequentially starting at 1, trimming each to the title +
+  1-3 sentence cap (same judgment call it already makes converting
+  free-form LEARNINGS drafts into that file's entry format). Never write
+  the raw answer in as a single unstructured blob.
+- **New: extend Split mode, sequenced after the existing split.** Today's
+  Step 3 detects "primer exists, no `PROJECT_CONTEXT.md` yet" and
+  partitions stable-vs-volatile content. Add a second, independent
+  detector for "primer has an inline `## Outstanding items` section, no
+  `OUTSTANDING_ITEMS.md` yet" → extract that section verbatim into the
+  new file (items keep their current numbers — those become the first
+  permanent IDs), drop the section from the primer. **When both
+  conditions are true in the same invocation** (a never-split project:
+  no `PROJECT_CONTEXT.md` AND an inline Outstanding items section), run
+  the existing PROJECT_CONTEXT split to completion first, then run the
+  outstanding-items split against the resulting primer, as two sequential
+  edits in the same Step 3 — not simultaneous partitioning. They touch
+  disjoint sections of the primer (stable-context headings vs. the
+  Outstanding items heading), so sequencing avoids any edit conflict
+  without needing to merge the two detectors' logic. Each split runs (or
+  is skipped) once per project, same no-flag-day pattern as today.
 
 ### `SKILL.md`, `templates/CLAUDE_MD_SNIPPET.md`, `README.md`
 
@@ -232,6 +261,15 @@ item #2). Validate at minimum:
 - `/session-continuity:end-session`'s verification pipeline still
   classifies `appears-DONE`/`still-open`/`manual` correctly against the
   new file.
+- **Migration-nudge paths** (the one genuinely new piece of UX this spec
+  adds): against a scratch primer with an inline `## Outstanding items`
+  section and no `OUTSTANDING_ITEMS.md`, confirm `session-start.sh`
+  prints the "run `/session-continuity:primer` now" reminder instead of
+  the old shortlist, and `/session-continuity:end-session` prints its own
+  nudge and skips only the outstanding-items sub-flow (drift check /
+  git-log / test-count still run). Confirm both go silent on an
+  already-migrated project — the detection condition must not misfire
+  once `OUTSTANDING_ITEMS.md` exists.
 
 ## Out of scope
 
