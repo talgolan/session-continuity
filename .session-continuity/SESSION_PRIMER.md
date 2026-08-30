@@ -20,6 +20,24 @@ rarely.
 
 ## Current state
 
+- **In flight this session (staged, uncommitted, on branch
+  `docs/gate-chain-trap-and-primer-drift-check`): two doc fixes found by
+  reviewing a consuming project's (architect-workbench) CLAUDE.md "Read
+  first" section.** (1) `SKILL.md` gained a "Gate mechanics" subsection
+  warning that chaining `git add <file> && git commit` in one Bash call
+  gets the whole tool call denied — not just the commit — when a gate
+  fires, silently skipping the add too, even on retry; fix is two
+  separate Bash calls. (2) `SKILL.md`'s maintenance rules and
+  `commands/primer.md` Step 4's item-6 (apply-the-edits) now both say
+  explicitly: before marking an outstanding item DONE, verify against the
+  actual code (grep/read), not memory or a commit-subject match alone —
+  generalizes a rule architect-workbench had hand-rolled per-project
+  (their own MANDATORY derived-artifact-sync rule, LEARNINGS #14/#15
+  there) after discovering `primer.md`'s refresh flow only checked
+  "touched," not "true." `commands/end-session.md` already had this
+  rigor (its `appears-DONE`/`still-open`/`manual` evidence-cited
+  classification) — only the simpler `primer.md` refresh flow was
+  missing it. Not yet released — no version bump.
 - **v0.17.0 released** — commit-time content gates. `proven-gate.sh`,
   `smoke-gate.sh`, `evidence-gate.sh`, `backend-parity-gate.sh`,
   `occurrence-gate.sh`, and `flaky-gate.sh`'s file check all moved from
