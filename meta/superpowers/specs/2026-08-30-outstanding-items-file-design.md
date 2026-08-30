@@ -119,20 +119,18 @@ gives count and title lines directly, no section to scope. Injected
 reminder shows title lines verbatim (no truncation heuristic needed —
 items are capped short by convention already).
 
-**Migration bridge, not permanent dual-path.** If the new file doesn't
-exist, fall back to today's awk range-scan against the primer's inline
-`## Outstanding items` section, unchanged — an unmigrated project must
-keep seeing its shortlist exactly as today until it runs
-`/session-continuity:primer` and the new split detector migrates it.
-Without this fallback, "old-format projects keep working exactly as
-today" (see Backward compatibility below) would be false the moment this
-ships — the hook would show zero items for every unmigrated project. Only
-after the new file exists does the hook switch to reading it. This
-fallback branch is a deletable bridge, not a feature to maintain forever —
-worth a follow-up outstanding item once telemetry/anecdote says all known
-consuming projects have migrated. If neither the new file nor an inline
-section exists, zero items, same silent-degrade pattern the hook already
-uses everywhere else (`|| echo '?'`).
+**No dual-path fallback — prompt immediate migration instead.** Only one
+project consumes this plugin today, so tolerating an indefinite
+old-format/new-format split buys nothing and costs a permanent second
+parsing path. If the new file doesn't exist AND the primer still has an
+inline `## Outstanding items` section, skip both the old and new parsing
+entirely and emit instead: "Outstanding items haven't migrated to
+`.session-continuity/OUTSTANDING_ITEMS.md` yet — run
+`/session-continuity:primer` now to migrate before continuing." If
+neither the new file nor an inline section exists, zero items, same
+silent-degrade pattern the hook already uses everywhere else
+(`|| echo '?'`). No awk range-scan code path survives this change at
+all — it's deleted, not kept as a fallback.
 
 ### `commands/end-session.md`
 
@@ -195,14 +193,21 @@ the read-first list.
 
 ## Backward compatibility
 
-Old-format projects (inline `## Outstanding items` in the primer) keep
-working exactly as today until they next run `/session-continuity:primer`,
-which auto-migrates via the new split detector. No forced migration, no
-flag day — identical posture to the existing PROJECT_CONTEXT split.
+Only one project consumes this plugin today, so there is no installed
+base to protect with a tolerated transition period — every existing
+installation should migrate to the new format immediately, not
+eventually. Both `session-start.sh` and `end-session.md` detect the old
+inline-heading format and actively prompt migration (`run
+/session-continuity:primer now`) rather than silently continuing to
+support it. `primer.md`'s split detector does the actual migration, same
+mechanism as the existing PROJECT_CONTEXT split — the difference from
+that split is urgency: this one is pushed, not merely offered.
 
-All three consumers (`session-start.sh`, `end-session.md`, `primer.md`)
-treat a missing `OUTSTANDING_ITEMS.md` as zero items, never as an error —
-consistent with every other best-effort fallback already in this codebase.
+All three consumers still treat a missing `OUTSTANDING_ITEMS.md` **and**
+no inline heading (a genuinely fresh, already-flat project) as zero
+items, never as an error — that's the ordinary best-effort fallback
+pattern already used everywhere else in this codebase, unrelated to
+migration.
 
 ## Migration of this repo
 
