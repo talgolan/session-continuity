@@ -91,7 +91,7 @@ Self-contained item:
 ### 8. `/session-continuity:doctor` command
 
 No way today for a project to ask "is this actually working" — found out
-by hitting a gate denial cold. Check: hooks registered, all three files
+by hitting a gate denial cold. Check: hooks registered, all four files
 fresh, `CLAUDE_PLUGIN_ROOT` resolves, gate scripts executable.
 ```
 
@@ -167,9 +167,15 @@ all — it's deleted, not kept as a fallback.
 - Close-candidate edits and the staging line (`git add`) target
   `.session-continuity/OUTSTANDING_ITEMS.md` in addition to the primer.
 - The existing 200-char item-truncation cap in the overlay-matching logic
-  stays as defense-in-depth — harmless once the length cap makes it rarely
-  trigger, but removing it buys nothing and risks a pathological long item
-  blowing up tokenization.
+  stays as defense-in-depth, but its boundary rule must be restated for
+  the new format: today it scopes an item as "the numbered line plus
+  indented continuation lines until the next top-level number" (the old
+  inline-section shape). Under the new file, an item's boundary is its
+  `### N.` heading line through everything up to the next `### N.`
+  heading or end of file — restate the boundary in those terms, then
+  apply the same 200-char cap to that span. Harmless once the length cap
+  makes it rarely trigger, but removing it buys nothing and risks a
+  pathological long item blowing up tokenization.
 - Step 3's checklist "Outstanding items" row re-reads the new file
   post-edit, same re-derive-don't-cache rule as today.
 
@@ -209,13 +215,19 @@ all — it's deleted, not kept as a fallback.
 
 ### `SKILL.md`, `templates/CLAUDE_MD_SNIPPET.md`, `README.md`
 
-Every "three files" reference becomes four. `SKILL.md` gains:
+Every "three files"/"three templates" reference becomes four. `SKILL.md` gains:
 - The new file in the opening file-list description and the "What goes
   where" decision-tree table (row: "We should follow up on X" →
   `OUTSTANDING_ITEMS.md`).
 - A numbering-convention paragraph mirroring LEARNINGS': permanent IDs,
   delete-on-close, next-available-number for new items.
 - The length-cap-with-pointer rule.
+- **The "Quick start (new project)" section's prose**, which today says
+  the primer command "copies all three templates from
+  `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/`" — update
+  to "all four templates." This line goes stale the moment Task 1 (per
+  the implementation plan) ships a fourth template file, independent of
+  the other three bullets above.
 
 `CLAUDE_MD_SNIPPET.md` gets one added sentence naming the fourth file in
 the read-first list.

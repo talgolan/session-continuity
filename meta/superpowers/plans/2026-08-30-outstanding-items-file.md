@@ -531,7 +531,7 @@ Find: `"For each top-level numbered item" under \`## Outstanding items\` (scope 
 
 - [ ] **Step 4: Retarget the Refresh flow's overlay and staging**
 
-In "### Refresh flow," find the overlay-computation bullet ("For each top-level numbered item under the primer's `## Outstanding items` heading: tokenize the item text...") and change the data source the same way as Step 3 above (each `### N.` entry in `.session-continuity/OUTSTANDING_ITEMS.md`).
+In "### Refresh flow," find the overlay-computation bullet ("For each top-level numbered item under the primer's `## Outstanding items` heading: tokenize the item text, capped at the first 200 characters (numbered line plus indented continuation lines until the next top-level number; sub-bullets roll up to their parent item)..."). Change the data source the same way as Step 3 above (each `### N.` entry in `.session-continuity/OUTSTANDING_ITEMS.md`), **and restate the 200-char boundary rule for the new format**: an item's span is its `### N.` heading line through everything up to the next `### N.` heading or end of file — not "numbered line plus indented continuation lines until the next top-level number" (that phrase described the old inline-section shape and no longer matches this file's structure). Apply the same 200-char cap to the new span.
 
 Find the staging step:
 
@@ -609,15 +609,20 @@ Before deleting, grep the repo for references to the item's number; a hit
 means fix the reference or leave a one-line "closed" stub instead.
 ```
 
-- [ ] **Step 5: Confirm the file mentions the fourth file at least 4 times**
+- [ ] **Step 5: Update the "Quick start (new project)" section's template count**
+
+Find (in the "Quick start (new project)" section): `"...copies all three templates from \`\${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/\` into the project's \`.session-continuity/\`..."`. Change "all three templates" to "all four templates." This line goes stale independently of the other SKILL.md edits above the moment Task 1 ships a fourth template file — it's easy to miss because it's prose, not a list or table.
+
+- [ ] **Step 6: Confirm the file mentions the fourth file at least 4 times, and no stale "three templates" text remains**
 
 ```bash
 grep -c 'OUTSTANDING_ITEMS' skills/session-continuity/SKILL.md
+grep -c 'three templates' skills/session-continuity/SKILL.md
 ```
 
-Expected: 4 or more.
+Expected: first command 4 or more; second command `0`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add skills/session-continuity/SKILL.md
@@ -774,7 +779,7 @@ Bigger blast radius, deserves its own session and explicit go-ahead.
 
 - [ ] **Step 3: Write the new `.session-continuity/OUTSTANDING_ITEMS.md`**
 
-Copy the template from Task 1, then populate it with all 9 items reformatted to `### N. <Title>` headings, each trimmed to the length cap. Items 1, 2, 3, 5, 7, 8, 9 already fit the cap or close to it — trim lightly, preserving the substantive content. Item 4 gets the pointer added (`Design: meta/superpowers/recommendations/docguard-design-sketch.md.`) in place of its inline sketch. Item 6 gets the corrected "merged via PR #18" wording from Step 1.
+Copy the template from Task 1, then populate it with all 9 items reformatted to `### N. <Title>` headings, each trimmed to the length cap. Items 1, 2, 3, 5, 7, 9 already fit the cap or close to it — trim lightly, preserving the substantive content. Item 4 gets the pointer added (`Design: meta/superpowers/recommendations/docguard-design-sketch.md.`) in place of its inline sketch. Item 6 gets the corrected "merged via PR #18" wording from Step 1. **Item 8 gets a wording fix while migrating**: its current text ("Check: hooks registered, all three files fresh, `CLAUDE_PLUGIN_ROOT` resolves, gate scripts executable.") describes a `/session-continuity:doctor` command that would itself check file freshness — shipping it still saying "three files" the moment this very migration adds a fourth would be a self-contradiction on day one. Change "three files" to "four files" in item 8's text.
 
 - [ ] **Step 4: Verify content preservation**
 
