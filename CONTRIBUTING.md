@@ -107,7 +107,8 @@ session-continuity/
 │   ├── learning.md              # /session-continuity:learning
 │   ├── end-session.md           # /session-continuity:end-session
 │   ├── spike-check.md           # /session-continuity:spike-check
-│   └── doctor.md                # /session-continuity:doctor
+│   ├── doctor.md                # /session-continuity:doctor
+│   └── update.md                # /session-continuity:update
 ├── hooks/
 │   ├── hooks.json               # hook registration
 │   ├── session-start.sh         # SessionStart event

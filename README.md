@@ -1,6 +1,6 @@
 # session-continuity
 
-Cross-session memory for Claude Code projects. A skill Claude loads on its own, four plain-Markdown docs committed to your repo, four slash commands, and a set of session hooks that surface the right knowledge at the right moment.
+Cross-session memory for Claude Code projects. A skill Claude loads on its own, four plain-Markdown docs committed to your repo, six slash commands, and a set of session hooks that surface the right knowledge at the right moment.
 
 ## Why this exists
 
@@ -24,6 +24,8 @@ There's a second reason, less obvious than the first: **shorter Claude Code sess
 | **`/session-continuity:primer`** | Init, split, refresh, or check the primer. State-dispatching. |
 | **`/session-continuity:learning`** | Append a new LEARNINGS entry interactively, with stable numbering. |
 | **`/session-continuity:end-session`** | Close-out ritual: refresh the primer, mine this session for new learnings, and print a state checklist. |
+| **`/session-continuity:doctor`** | Read-only diagnostic: is the install actually wired up — hooks registered, all four files present and not stale, plugin root resolved and not a stale cache, gate scripts executable. |
+| **`/session-continuity:update`** | Print the commands to pull and activate this plugin's latest published version. |
 | **`/session-continuity:spike-check`** | Emit the stand-in spike checklist before a spike, so it's designed to hit the real binary + auth/lifecycle/fixed-port path. |
 | **Session hooks** | A SessionStart reminder, a non-blocking commit nudge, an action-keyed retrieval gate, a smoke-task gate for plan files, a proven-claim gate for specs/plans, an occurrence-counter gate for LEARNINGS, an evidence-preservation gate for smoke design, a flaky-claim gate, a multi-backend-parity gate, and a weekly freshness check. |
 
@@ -87,9 +89,17 @@ The close-out ritual, bounded to at most two prompts in the common case:
 
 It never commits and never pushes. The checklist flags what's outstanding; you decide.
 
+### `/session-continuity:doctor`
+
+Read-only, zero-arg diagnostic: is the install actually wired up? Five ✓/⚠️ rows — install mode (plugin vs. vendored), hooks registered, all four `.session-continuity/` files present with the primer's staleness re-checked, `CLAUDE_PLUGIN_ROOT` resolves and isn't a stale plugin-cache dir, gate scripts executable. Never mutates anything; every fix is a printed command you run yourself.
+
 ### `/session-continuity:spike-check`
 
 Emits a five-question stand-in checklist *before* a spike is built, so the spike is designed to exercise the real binary and the real auth/lifecycle/fixed-port path rather than a hand-rolled stand-in that passes cleanly and proves nothing. It is the proactive complement to the proven gate: answers 2 and 5 become the `Real path:` and `Stubbed:` fields the proven gate requires at claim-time. Pass an optional one-line spike description to frame each question.
+
+### `/session-continuity:update`
+
+Prints the three commands to pull this plugin's latest published version and activate it in the current session — nothing more. There's no tool that lets the assistant invoke `/plugin` or `/reload-plugins` on your behalf, so this command doesn't try; it's a static reminder, not automation.
 
 ## The hooks
 
@@ -193,7 +203,7 @@ Understanding what this plugin deliberately avoids is as useful as understanding
 
 **Not automatic.** The slash commands require you to invoke them. The hooks nudge or gate; they don't write files themselves. Automatic memory capture sounds appealing but has a predictable failure mode: noise, contradictions, and stale state that Claude confidently believes is current. A memory system is only useful if its contents can be trusted, and trust comes from deliberate capture.
 
-**Not a framework.** There's no extension API, no plugin architecture, no abstraction layer waiting for you to subclass it. The surface is one skill, five commands, and a handful of hooks, and that's the whole product. The surface stays deliberately small — a new command needs a concrete failure mode behind it (like `/session-continuity:doctor`'s "a mechanism silently never fired and nobody could ask why"), not speculative convenience. PRs that add surface without one will be declined.
+**Not a framework.** There's no extension API, no plugin architecture, no abstraction layer waiting for you to subclass it. The surface is one skill, six commands, and a handful of hooks, and that's the whole product. The surface stays deliberately small — a new command needs a concrete failure mode behind it (like `/session-continuity:doctor`'s "a mechanism silently never fired and nobody could ask why"), not speculative convenience. PRs that add surface without one will be declined.
 
 **Not a replacement for `CLAUDE.md`, vector search, or MCP memory servers.** Each solves a different problem. `CLAUDE.md` is for durable project conventions ("always use Bun, never commit to main"). Vector search is for semantic retrieval across large unstructured corpora. MCP memory servers are for cross-project context that needs rich querying. This plugin is for *the four specific questions above*, in *a single project's repo*, with *plain text in git* as the storage. When one of the other tools fits your need better, use it instead.
 
