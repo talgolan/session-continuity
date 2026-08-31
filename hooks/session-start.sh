@@ -64,26 +64,30 @@ status_sha="$(cd "$cwd" 2>/dev/null && git rev-parse --short HEAD 2>/dev/null ||
 status_mtime="$(stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$cwd/$primer_path" 2>/dev/null \
   || stat -c '%y' "$cwd/$primer_path" 2>/dev/null \
   || echo '?')"
-outstanding_path="$cwd/.session-continuity/OUTSTANDING_ITEMS.md"
+outstanding_path="$cwd/.session-continuity/BACKLOG.md"
 status_learnings="$(grep -cE '^### [0-9]+\.' "$cwd/$learnings_path" 2>/dev/null || true)"
 status_learnings="${status_learnings:-0}"
 
 # Migration check: an old-format project has the inline heading in the
-# primer but no OUTSTANDING_ITEMS.md yet. Only one project consumes this
-# plugin today, so we push migration instead of tolerating both formats —
-# no awk range-scan against the primer survives this change.
+# primer but no BACKLOG.md yet, OR has OUTSTANDING_ITEMS.md under its old
+# name. Only one project consumes this plugin today, so we push migration
+# instead of tolerating multiple formats — no awk range-scan against the
+# primer survives this change.
 if [ -f "$outstanding_path" ]; then
   status_outstanding="$(grep -cE '^### [0-9]+\.' "$outstanding_path" 2>/dev/null || true)"
   status_outstanding="${status_outstanding:-0}"
   outstanding_items="$(grep -E '^### [0-9]+\.' "$outstanding_path" 2>/dev/null || true)"
   if [ -n "$outstanding_items" ]; then
-    outstanding_block=$'\nOutstanding items:\n'"$outstanding_items"$'\n\nPresent these to the user as a numbered list, numbered starting at 1 (never 0), keeping the numbers above even in a short reply, and ask which of these (if any) they want to tackle this session.\n'
+    outstanding_block=$'\nBacklog:\n'"$outstanding_items"$'\n\nPresent these to the user as a numbered list, numbered starting at 1 (never 0), keeping the numbers above even in a short reply, and ask which of these (if any) they want to tackle this session.\n'
   else
     outstanding_block=""
   fi
 elif grep -q '^## Outstanding items' "$cwd/$primer_path" 2>/dev/null; then
   status_outstanding="?"
-  outstanding_block=$'\n⚠️ Outstanding items haven\'t migrated to .session-continuity/OUTSTANDING_ITEMS.md yet — run /session-continuity:primer now to migrate before continuing.\n'
+  outstanding_block=$'\n⚠️ Outstanding items haven\'t migrated to .session-continuity/BACKLOG.md yet — run /session-continuity:primer now to migrate before continuing.\n'
+elif [ -f "$cwd/.session-continuity/OUTSTANDING_ITEMS.md" ]; then
+  status_outstanding="?"
+  outstanding_block=$'\n⚠️ .session-continuity/OUTSTANDING_ITEMS.md hasn\'t migrated to BACKLOG.md yet — run /session-continuity:primer now to migrate before continuing.\n'
 else
   status_outstanding="0"
   outstanding_block=""
@@ -99,7 +103,7 @@ This project has $primer_path. Read it before any work — it's the fastest path
 Primer status (auto):
 - HEAD: $status_sha
 - Last primer change: $status_mtime
-- Outstanding items: $status_outstanding
+- Backlog: $status_outstanding
 - Learnings: $status_learnings
 ${outstanding_block}</system-reminder>
 EOF
