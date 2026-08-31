@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] — 2026-08-31
+
+### Added
+- **New `/session-continuity:update` command** — prints the three commands to pull this plugin's latest published version and activate it in the current session (`/plugin marketplace update`, `/plugin install <plugin>@<marketplace>`, `/reload-plugins`). Static text only; there's no tool that lets the assistant invoke `/plugin` or `/reload-plugins` on the user's behalf, so this command doesn't try.
+
+### Fixed
+- `README.md`'s command table and "The commands" section were missing `/session-continuity:doctor` since it shipped in v0.19.0. Backfilled.
+
 ## [0.20.0] — 2026-08-31
 
 ### Added
