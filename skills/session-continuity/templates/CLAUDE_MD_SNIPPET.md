@@ -11,15 +11,16 @@ Before touching anything, read `.session-continuity/SESSION_PRIMER.md`
 (current state) and `.session-continuity/LEARNINGS.md` (bugs that were
 expensive to diagnose — grep it when something surprises you). Read
 `.session-continuity/PROJECT_CONTEXT.md` once per session for stable repo
-shape, and `.session-continuity/OUTSTANDING_ITEMS.md` for the backlog of
-deferred decisions and follow-ups; both change rarely.
+shape, `.session-continuity/BACKLOG.md` for deferred decisions and
+follow-ups, and `.session-continuity/ROADMAP.md` for strategic direction;
+all three change rarely.
 
 **Refresh the primer alongside substantive commits.** Stage the update in
 the same commit as the real change — never a primer-only commit (exceptions:
 a one-shot catch-up, correcting a factual error, or recording a just-shipped
 release). When a bug takes 15+ minutes to diagnose, append a LEARNINGS entry.
 
-**Before marking any outstanding item DONE, verify it against the actual
+**Before marking any backlog item DONE, verify it against the actual
 code** — one grep or read per load-bearing claim, not memory and not a
 commit-subject keyword match alone. A commit whose subject mentions an
 item's keywords does not prove it shipped; a fix landing inside an unrelated
