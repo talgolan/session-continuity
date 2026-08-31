@@ -1,6 +1,6 @@
-# Outstanding Items — {{PROJECT_NAME}}
+# Backlog — {{PROJECT_NAME}}
 
-Backlog of explicitly deferred follow-ups and decisions — not bugs (those
+Explicitly deferred follow-ups and decisions — not bugs (those
 go in `.session-continuity/LEARNINGS.md`), not current state (that's
 `.session-continuity/SESSION_PRIMER.md`). An item lives here from the
 moment it's flagged until the moment the code proves it resolved, then
@@ -20,7 +20,7 @@ design sketch, an invariant, or a rejected-alternatives discussion, put
 that in a spec under `meta/superpowers/...` and link it here — this file
 stays a scannable list, not a second spec repository.
 
-{{OUTSTANDING_ITEMS}}
+{{BACKLOG}}
 
 <!-- Example:
 ### 1. `/session-continuity:doctor` command

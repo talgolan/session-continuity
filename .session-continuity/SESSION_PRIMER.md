@@ -20,6 +20,9 @@ rarely.
 
 ## Current state
 
+- **v0.22.0 in progress** — renamed OUTSTANDING_ITEMS.md to BACKLOG.md,
+  added ROADMAP.md, added /session-continuity:help. Branch
+  feature/backlog-roadmap-help, not yet merged.
 - **v0.19.0 released** — commit `460f507` pushed to `main`, tag `v0.19.0`
   pushed, GitHub Actions `release.yml` ran clean (12s), [GitHub
   Release](https://github.com/talgolan/session-continuity/releases/tag/v0.19.0)
@@ -401,17 +404,17 @@ rarely.
 - Three slash commands are stable (`primer`, `learning`, `end-session`).
 - `hooks/hooks.json` uses `if: "Bash(git commit *)"` to scope the `PreToolUse` hook; it does not fire on every Bash call.
 - `.claude-plugin/marketplace.json` present so the repo is installable via `/plugin marketplace add talgolan/session-continuity`.
-- `.session-continuity/` holds `SESSION_PRIMER.md`, `PROJECT_CONTEXT.md` (new in v0.13.0), `OUTSTANDING_ITEMS.md` (new in v0.18.0), and `LEARNINGS.md`. Dev artifacts (marketplace-submission notes, specs, plans, recommendation docs) live under `meta/`.
+- `.session-continuity/` holds `SESSION_PRIMER.md`, `PROJECT_CONTEXT.md` (new in v0.13.0), `BACKLOG.md` (new in v0.18.0 as `OUTSTANDING_ITEMS.md`, renamed in v0.22.0), `ROADMAP.md` (new in v0.22.0), and `LEARNINGS.md`. Dev artifacts (marketplace-submission notes, specs, plans, recommendation docs) live under `meta/`.
 - No known open bugs; outstanding items are feature-level.
 
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-5fa6c59 chore: bump to 0.21.0 — /session-continuity:update command
-001b1f3 feat: add /session-continuity:update command
-38b94e0 chore: bump to 0.20.0 — end-session prompt-wait/compute-only split
-fef4935 docs: update session continuity
-c14cdd9 feat(end-session): separate human-response wait from ritual compute time
+db15d1a docs: README documents BACKLOG.md, ROADMAP.md, and /help
+70600f6 chore: bump to 0.22.0 — BACKLOG.md rename, ROADMAP.md, /help command
+a6fe12e docs: template pointers reference BACKLOG.md and ROADMAP.md
+2232eae docs: REFERENCE.md documents BACKLOG.md and ROADMAP.md
+20194a1 docs: SKILL.md documents BACKLOG.md, ROADMAP.md, and /help
 ```
 
 Regenerate this block whenever you commit — see

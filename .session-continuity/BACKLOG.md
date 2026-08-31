@@ -1,6 +1,6 @@
-# Outstanding Items — session-continuity
+# Backlog — session-continuity
 
-Backlog of explicitly deferred follow-ups and decisions — not bugs (those
+Explicitly deferred follow-ups and decisions — not bugs (those
 go in `.session-continuity/LEARNINGS.md`), not current state (that's
 `.session-continuity/SESSION_PRIMER.md`). An item lives here from the
 moment it's flagged until the moment the code proves it resolved, then

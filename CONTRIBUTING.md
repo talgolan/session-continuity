@@ -4,12 +4,12 @@ Thanks for thinking about contributing. This is a small, opinionated project wit
 
 ## Scope first
 
-This skill ships a specific pattern: three in-repo Markdown files (`.session-continuity/SESSION_PRIMER.md`, `.session-continuity/PROJECT_CONTEXT.md`, and `.session-continuity/LEARNINGS.md`) with slash commands and hooks that make the habit of using them cheap. That's the whole scope.
+This skill ships a specific pattern: five in-repo Markdown files (`.session-continuity/SESSION_PRIMER.md`, `.session-continuity/PROJECT_CONTEXT.md`, `.session-continuity/BACKLOG.md`, `.session-continuity/ROADMAP.md`, and `.session-continuity/LEARNINGS.md`) with slash commands and hooks that make the habit of using them cheap. That's the whole scope.
 
 **PRs that fit the existing shape move quickly.** Bug fixes, prose improvements to existing commands, small behavior refinements that sharpen the existing tools — all welcome.
 
 **PRs that expand scope will be declined or redirected.** Examples of scope expansion:
-- A fourth in-repo doc (e.g. `.session-continuity/DECISIONS.md`, `.session-continuity/ROADMAP.md`). The three-file split is load-bearing; see the README's "Why three files" section.
+- A sixth in-repo doc (e.g. `.session-continuity/DECISIONS.md`, `.session-continuity/DECISIONS_LOG.md`). The five-file split is load-bearing; see the README's "Why five files" section.
 - Integration with a specific memory server, vector database, or external storage. The point is plain files in git.
 - A plugin architecture, extension API, or configuration system. The slash commands and hooks are the interface.
 - Auto-commit, auto-push, or "just do it all for me" modes. Deliberate capture is a design choice, not an oversight.
@@ -22,7 +22,7 @@ If you're unsure whether your idea fits, open an issue first and describe what y
 2. Read `.session-continuity/SESSION_PRIMER.md` — it's the current-state snapshot for this very repo, maintained by the plugin's own commands.
 3. Skim `.session-continuity/PROJECT_CONTEXT.md` — stable repo layout and conventions for this repo.
 4. Skim `.session-continuity/LEARNINGS.md` — real bugs we've hit, grouped by layer. Useful context for hook/command work.
-5. Skim the most recent spec + plan in `meta/superpowers/` to see how changes are shaped before they become code. (`.session-continuity/` in this repo is intentionally limited to the three files the plugin ships — primer, PROJECT_CONTEXT, and LEARNINGS. Dev artifacts like specs, plans, and marketplace paperwork live under `meta/` so they don't pollute the plugin's public surface.)
+5. Skim the most recent spec + plan in `meta/superpowers/` to see how changes are shaped before they become code. (`.session-continuity/` in this repo is intentionally limited to the five files the plugin ships — primer, PROJECT_CONTEXT, BACKLOG, ROADMAP, and LEARNINGS. Dev artifacts like specs, plans, and marketplace paperwork live under `meta/` so they don't pollute the plugin's public surface.)
 
 ## Local development
 
@@ -100,7 +100,8 @@ session-continuity/
 │       └── templates/
 │           ├── SESSION_PRIMER.md
 │           ├── PROJECT_CONTEXT.md
-│           ├── OUTSTANDING_ITEMS.md
+│           ├── BACKLOG.md
+│           ├── ROADMAP.md
 │           └── LEARNINGS.md
 ├── commands/
 │   ├── primer.md                # /session-continuity:primer
@@ -108,7 +109,8 @@ session-continuity/
 │   ├── end-session.md           # /session-continuity:end-session
 │   ├── spike-check.md           # /session-continuity:spike-check
 │   ├── doctor.md                # /session-continuity:doctor
-│   └── update.md                # /session-continuity:update
+│   ├── update.md                # /session-continuity:update
+│   └── help.md                  # /session-continuity:help
 ├── hooks/
 │   ├── hooks.json               # hook registration
 │   ├── session-start.sh         # SessionStart event
@@ -142,7 +144,7 @@ session-continuity/
 └── LICENSE
 ```
 
-The marketplace catalog that lets users `/plugin marketplace add` this plugin no longer lives in this repo — it moved to the separate `talgolan/claude-plugins` repo (see the README's "Install" section). `.session-continuity/` here is intentionally limited to the three files the plugin ships — primer, PROJECT_CONTEXT, and LEARNINGS — so it mirrors what users see in their own projects. Repo-specific dev artifacts (design specs, implementation plans, submission paperwork) live under `meta/` so they don't pollute the plugin's public surface.
+The marketplace catalog that lets users `/plugin marketplace add` this plugin no longer lives in this repo — it moved to the separate `talgolan/claude-plugins` repo (see the README's "Install" section). `.session-continuity/` here is intentionally limited to the five files the plugin ships — primer, PROJECT_CONTEXT, BACKLOG, ROADMAP, and LEARNINGS — so it mirrors what users see in their own projects. Repo-specific dev artifacts (design specs, implementation plans, submission paperwork) live under `meta/` so they don't pollute the plugin's public surface.
 
 Files that change together live together. If you're adding a new slash command, you'll likely touch `commands/<name>.md`, the commands paragraph in `skills/session-continuity/SKILL.md`, `README.md`, `PRIVACY.md`, and `CHANGELOG.md`. If you're modifying a hook, you'll likely only touch `hooks/<name>.sh`.
 

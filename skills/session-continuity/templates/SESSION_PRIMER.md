@@ -5,7 +5,8 @@ file is the shortest path to what changed recently. For stable repo
 context (layout, conventions, modules), read
 `.session-continuity/PROJECT_CONTEXT.md` once per session — it changes
 rarely. For the backlog of deferred decisions and follow-ups, read
-`.session-continuity/OUTSTANDING_ITEMS.md`.
+`.session-continuity/BACKLOG.md`; for strategic direction, read
+`.session-continuity/ROADMAP.md`.
 
 ## First things first (read these before touching anything)
 
