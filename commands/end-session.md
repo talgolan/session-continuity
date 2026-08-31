@@ -47,16 +47,16 @@ bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --nam
 
 If `git status --porcelain` is empty AND `<last-primer-commit>` equals
 `HEAD` (no commits have landed since the primer was last touched), skip the
-rest of Step 1 entirely — no drift check, no outstanding-items verification,
+rest of Step 1 entirely — no drift check, no backlog verification,
 no git-log recomputation. Nothing in the repo has changed since the last
 close-out, so no per-item re-check could turn up anything new. Step 3's
 Primer refresh row reads ✓ "Primer already current (no-op)"; the
-Outstanding-items row reads ✓ "N tracked — not re-verified this session (no
+Backlog row reads ✓ "N tracked — not re-verified this session (no
 repo changes since last close-out)". Skip straight to Step 2.
 
 Otherwise — something changed — proceed with the checks below.
 
-### Outstanding-items verification (gated by commit-subject overlap)
+### Backlog verification (gated by commit-subject overlap)
 
 Verify the primer's outstanding items against actual repo state. Runs
 whenever the fast path above didn't fire. Compute each verdict once here;
@@ -68,29 +68,29 @@ from the fast-path check above). This same list feeds both this section's
 overlap gate below and the Refresh flow's overlay further down — compute it
 here, don't recompute it there.
 
-**Data source.** Read `.session-continuity/OUTSTANDING_ITEMS.md`, not a
+**Data source.** Read `.session-continuity/BACKLOG.md`, not a
 heading inside the primer — the backlog lives in its own file now.
 
 **Skip conditions.**
-- If `.session-continuity/OUTSTANDING_ITEMS.md` doesn't exist AND the
+- If `.session-continuity/BACKLOG.md` doesn't exist AND the
   primer has no leftover inline outstanding-items heading from before the
   split either: skip verification silently (fresh/already-flat project).
-  Step 3's row reads `Outstanding items: none tracked`.
-- If `.session-continuity/OUTSTANDING_ITEMS.md` doesn't exist BUT the
+  Step 3's row reads `Backlog: none tracked`.
+- If `.session-continuity/BACKLOG.md` doesn't exist BUT the
   primer still has the inline heading: this is an unmigrated project.
-  Skip only the outstanding-items verification sub-flow (this whole
+  Skip only the backlog verification sub-flow (this whole
   section) — everything else in Step 1 (fast path, drift check, git-log
   regeneration, test-count rerun) proceeds normally, independent of this
-  condition. Tell the user once: "This project's outstanding items
-  haven't migrated to `.session-continuity/OUTSTANDING_ITEMS.md` yet —
+  condition. Tell the user once: "This project's backlog hasn't
+  migrated to `.session-continuity/BACKLOG.md` yet —
   run `/session-continuity:primer` first (it migrates automatically),
   then re-run `/session-continuity:end-session`." Step 3's row reads
-  `Outstanding items: not migrated — run /session-continuity:primer`.
-- If `.session-continuity/OUTSTANDING_ITEMS.md` exists but is empty
+  `Backlog: not migrated — run /session-continuity:primer`.
+- If `.session-continuity/BACKLOG.md` exists but is empty
   (no `### N.` entries): skip verification, Step 3's row reads `none
   tracked`, same as the fresh-project case.
 
-**For each `### N.` entry** in `.session-continuity/OUTSTANDING_ITEMS.md`
+**For each `### N.` entry** in `.session-continuity/BACKLOG.md`
 (scope the item exactly as the overlay does: the heading line plus every line
 until the next `### N.` heading or end of file; sub-bullets roll up to their
 parent):
@@ -155,7 +155,7 @@ gate the plugin enforces on "proven" claims elsewhere.
 auto-removed**.
 
 - **When the drift check below enters the refresh flow** (drift detected):
-  append every `appears-DONE` item to the existing outstanding-items overlay
+  append every `appears-DONE` item to the existing backlog overlay
   candidate list, so it surfaces at Step 1's single combined prompt. One reply
   closes it. Cite the evidence beside the candidate.
 - **When the primer is drift-clean** (refresh flow skipped): if at least one
@@ -171,7 +171,7 @@ mutates the primer on its own.
 
 Read `.session-continuity/SESSION_PRIMER.md` and compare its `git log --oneline -5` block to the actual output of `git log --oneline -5` against the primary branch. Two outcomes:
 
-- **Block matches.** Treat the primer as current — no git-log regeneration, no test-count re-check, no refresh flow. Then check the Outstanding-items verification results computed above:
+- **Block matches.** Treat the primer as current — no git-log regeneration, no test-count re-check, no refresh flow. Then check the Backlog verification results computed above:
   - **Zero `appears-DONE` items.** Skip the rest of Step 1. In Step 3's checklist, record the Primer refresh row as ✓ "Primer already current (no-op)".
   - **≥1 `appears-DONE` item.** Run the drift-clean close-candidate prompt below instead of skipping Step 1.
 - **Block differs** (any line differs — subjects, hashes, or ordering). Enter the refresh flow below.
@@ -220,7 +220,7 @@ A lighter-weight alternative to the refresh flow below — no git-log regenerati
 
    Then ask a close-only question, scoped narrower than the refresh flow's combined prompt since there are no commit subjects or free-form drift to fold in:
 
-   > "Outstanding items — N appears-DONE (see list). Close any, or leave as-is?"
+   > "Backlog — N appears-DONE (see list). Close any, or leave as-is?"
 3. **Wait for the answer before continuing.** Same refusal rule as the refresh flow: never close an item without explicit confirmation. Once the answer arrives, log the wait duration:
 
    ```bash
@@ -237,8 +237,8 @@ A lighter-weight alternative to the refresh flow below — no git-log regenerati
      bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-prompt-wait --duration="$(( now_epoch - prior_epoch )).000"
    fi
    ```
-4. If the user closes any items, edit only `.session-continuity/OUTSTANDING_ITEMS.md` (the drift check already confirmed the primer's `git log --oneline -5` block is current and untouched, so the primer itself needs no edit here) and stage that file: `git diff --quiet .session-continuity/OUTSTANDING_ITEMS.md 2>/dev/null || git add .session-continuity/OUTSTANDING_ITEMS.md`. Step 3's Primer refresh row reads ✓ "Primer updated (outstanding item(s) closed)".
-5. If the user declines, skip the rest of Step 1. Step 3's Primer refresh row reads ✓ "Primer already current (no-op)", and the still-open `appears-DONE` item(s) surface again as a ⚠️ in the Outstanding items row (same standing-reminder behavior as before — it'll be offered again next session).
+4. If the user closes any items, edit only `.session-continuity/BACKLOG.md` (the drift check already confirmed the primer's `git log --oneline -5` block is current and untouched, so the primer itself needs no edit here) and stage that file: `git diff --quiet .session-continuity/BACKLOG.md 2>/dev/null || git add .session-continuity/BACKLOG.md`. Step 3's Primer refresh row reads ✓ "Primer updated (outstanding item(s) closed)".
+5. If the user declines, skip the rest of Step 1. Step 3's Primer refresh row reads ✓ "Primer already current (no-op)", and the still-open `appears-DONE` item(s) surface again as a ⚠️ in the Backlog row (same standing-reminder behavior as before — it'll be offered again next session).
 
 ### Refresh flow (runs only when drift was detected)
 
@@ -246,12 +246,12 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
 1. Regenerate the `git log --oneline -5` block with current output.
 2. If the primer has a test-counts section and the counts changed (after the 3× retry), update them to match current output.
-3. **Surface commits since the last primer refresh, with outstanding-items overlay.** Reuse the commit list already computed in the Outstanding-items verification section above (`git log <last-primer-commit>..HEAD --oneline`) — do not recompute it. Present the subject list as candidate prompts.
+3. **Surface commits since the last primer refresh, with backlog overlay.** Reuse the commit list already computed in the Backlog verification section above (`git log <last-primer-commit>..HEAD --oneline`) — do not recompute it. Present the subject list as candidate prompts.
 
-   Then compute an **outstanding-items overlay** for each subject:
+   Then compute a **backlog overlay** for each subject:
 
    - Tokenize the subject: lowercase, split on non-alphanumeric, drop tokens of length <3, drop the stopword list below.
-   - For each `### N.` entry in `.session-continuity/OUTSTANDING_ITEMS.md`: tokenize the item text the same way, capped at the first 200 characters of the item (the heading line through everything up to the next `### N.` heading or end of file; sub-bullets roll up to their parent item).
+   - For each `### N.` entry in `.session-continuity/BACKLOG.md`: tokenize the item text the same way, capped at the first 200 characters of the item (the heading line through everything up to the next `### N.` heading or end of file; sub-bullets roll up to their parent item).
    - Match if the intersection of subject tokens and item tokens has cardinality ≥ 3.
 
    **Stopwords** (extend per project as needed):
@@ -262,7 +262,7 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
    **Presentation.** Render the "May close outstanding items" block when EITHER
    token-overlap matches from commit subjects OR `appears-DONE` items from the
-   Outstanding-items verification sub-block above exist. **Render candidates as
+   Backlog verification sub-block above exist. **Render candidates as
    a markdown ordered list, one item per line, using the item's own primer
    number as the list ordinal** (e.g. `4. <cited code evidence> — <sha>`) so
    the numbering the user sees matches the numbering in the primer — never a
@@ -276,7 +276,7 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
    **Refusal.** Never close an outstanding item without explicit user confirmation. The overlay is a candidate list, not an auto-close.
 
-   **Skip conditions.** If `.session-continuity/OUTSTANDING_ITEMS.md` doesn't exist (unmigrated project, or the file was deleted), skip the overlay silently — the raw subject list still appears.
+   **Skip conditions.** If `.session-continuity/BACKLOG.md` doesn't exist (unmigrated project, or the file was deleted), skip the overlay silently — the raw subject list still appears.
 4. **Single combined prompt.** After printing the subject list (and overlay block if any), log a prompt-shown marker (same mechanism as the drift-clean prompt above — isolates human-response wait from ritual compute time, see Step 4):
 
    ```bash
@@ -285,7 +285,7 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
    Then ask the user one question covering both close-candidates and free-form edits:
 
-   > "Outstanding items — close any from the overlay, add new follow-ups, or no changes?"
+   > "Backlog — close any from the overlay, add new follow-ups, or no changes?"
 
    **Wait for the answer before continuing.** Do not preemptively edit the list, clear items you interpret as "stale," or proceed based on your own reading. Do not split this into two sequential prompts — one prompt covers the same answer space. Once the answer arrives, log the wait duration:
 
@@ -304,14 +304,14 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
    fi
    ```
 5. Apply the edits the user specified. If the user replied "no changes" (or similar), skip this step.
-6. Stage the updated primer and `OUTSTANDING_ITEMS.md` (if the user closed or
+6. Stage the updated primer and `BACKLOG.md` (if the user closed or
    edited any items in step 5 above), and `PROJECT_CONTEXT.md` too if it has
    unstaged changes (e.g. the session edited repo layout / conventions):
 
    ```bash
    git add .session-continuity/SESSION_PRIMER.md
    git diff --quiet .session-continuity/PROJECT_CONTEXT.md 2>/dev/null || git add .session-continuity/PROJECT_CONTEXT.md
-   git diff --quiet .session-continuity/OUTSTANDING_ITEMS.md 2>/dev/null || git add .session-continuity/OUTSTANDING_ITEMS.md
+   git diff --quiet .session-continuity/BACKLOG.md 2>/dev/null || git add .session-continuity/BACKLOG.md
    ```
 
 **Do not** commit. Staging only.
@@ -674,8 +674,8 @@ _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f",
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-3-gather-facts --duration="$_PERF_DURATION"
 ```
 
-- **Outstanding-items verdicts** — reuse the per-item verdicts from Step 1's
-  verification sub-block; re-read `.session-continuity/OUTSTANDING_ITEMS.md` to
+- **Backlog verdicts** — reuse the per-item verdicts from Step 1's
+  verification sub-block; re-read `.session-continuity/BACKLOG.md` to
   get the post-edit item set. No new git command — the evidence was already
   gathered in Step 1.
 
@@ -695,17 +695,17 @@ Output using this structure. Use ✓ (green), ⚠️ (yellow), or → (suggestio
 |---|---|---|
 | Primer refresh | ✓ | "Primer refreshed and staged" OR "Primer updated (outstanding item(s) closed)" OR "Primer already current (no-op)" |
 | New learnings | ✓ | "N LEARNINGS entry/entries captured (#X, \"<title>\" …)" OR "No new learnings" |
-| Outstanding items | checkmark if none stale, else warning | "N tracked — <k> appears-DONE (#X, evidence), <m> still-open (#…), <j> manual (#…)" OR "none tracked" |
+| Backlog | checkmark if none stale, else warning | "N tracked — <k> appears-DONE (#X, evidence), <m> still-open (#…), <j> manual (#…)" OR "none tracked" |
 | Staged files | ✓ | "Staged: <file1>, <file2>, …" OR "Nothing staged" |
 | Unstaged modifications | ✓ if none, else ⚠️ | "No unstaged modifications" OR "⚠️ Unstaged: <file1>, <file2>, …" |
 | Untracked files | ✓ if none, else ⚠️ | "No untracked files" OR "⚠️ N untracked: <file1>, <file2>, … — ignore, add, or delete?" |
 | Unpushed commits | ✓ / ⚠️ | "Up to date with origin/<branch>" OR "⚠️ Branch <name> is N commits ahead of origin — push before closing?" OR the detached-HEAD / no-upstream variants |
 | Suggested commit | → | Derived from staged files + captured learnings. Omit row entirely if nothing is staged. |
 
-**Outstanding-items row — re-derive, do not cache.** Step 3 re-reads
-`.session-continuity/OUTSTANDING_ITEMS.md` AFTER any Step 1 closures the
+**Backlog row — re-derive, do not cache.** Step 3 re-reads
+`.session-continuity/BACKLOG.md` AFTER any Step 1 closures the
 user confirmed. The *set* of items and the counts are recomputed against the
-post-edit `.session-continuity/OUTSTANDING_ITEMS.md`; only the per-item
+post-edit `.session-continuity/BACKLOG.md`; only the per-item
 verdicts (`still-open` / `appears-DONE` / `manual`) computed in Step 1 are
 reused. If the user closed an item at the Step 1 prompt, it is gone from the
 file and absent from this row. Marker: ✓ if
@@ -733,7 +733,7 @@ Prefix with `→ Suggested:` and wrap in a fenced code block so the user can cop
 ```
 ✓ Primer refreshed and staged
 ✓ 1 LEARNINGS entry captured (#7, "awk range collapse on single-version CHANGELOG")
-⚠️ Outstanding items: 5 tracked — 1 appears-DONE (#4, "add bats test harness": found test/end_to_end.bats → 0 hits before, now present), 1 still-open (#3), 3 manual (#1, #2, #5)
+⚠️ Backlog: 5 tracked — 1 appears-DONE (#4, "add bats test harness": found test/end_to_end.bats → 0 hits before, now present), 1 still-open (#3), 3 manual (#1, #2, #5)
 ✓ Staged: .session-continuity/SESSION_PRIMER.md, .session-continuity/LEARNINGS.md, .github/workflows/release.yml
 ✓ No unstaged modifications
 ⚠️ 2 untracked files: scratch.md, tmp/debug.log — ignore, add, or delete?
@@ -742,7 +742,7 @@ Prefix with `→ Suggested:` and wrap in a fenced code block so the user can cop
     git commit -m "fix(ci): extract CHANGELOG section with proper awk range"
 ```
 
-*(Illustrative only — the real Outstanding-items row reflects the current primer's actual item set and verdicts.)*
+*(Illustrative only — the real Backlog row reflects the current primer's actual item set and verdicts.)*
 
 ## Step 4 — Terminal sign-off (always)
 
@@ -822,7 +822,7 @@ fi
 - **Zero arguments.** If the user passed text after `/session-continuity:end-session`, ignore it — session reflection provides all context needed.
 - **Bound the prompt count.** The whole ritual must fit ≤2 user prompts in the common case: one Step 1 prompt (the full combined prompt when drift exists, or the lighter drift-clean close-candidate prompt when drift is clean but `appears-DONE` items exist), one batch confirm in Step 2 (only when candidates surface). Drift-clean + zero candidates = zero prompts; drift-clean + ≥1 candidate = exactly one (lightweight) prompt. Never split Step 1's prompt into two sequential asks. Never loop one-prompt-per-candidate in Step 2.
 - **Always sign off.** Step 4's terminal line is non-negotiable — the user invoked an explicit close-out and must not be left ambiguous about whether the ritual is done.
-- **Outstanding-items verdicts never mutate the primer.** The verification in
+- **Backlog verdicts never mutate the primer.** The verification in
   Step 1 only classifies and reports; an `appears-DONE` item is removed only if
   the user confirms it at a Step 1 prompt (full combined prompt or the
   drift-clean close-candidate prompt). Declining either prompt leaves the item
