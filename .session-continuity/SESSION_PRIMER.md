@@ -20,9 +20,13 @@ rarely.
 
 ## Current state
 
-- **v0.22.0 in progress** — renamed OUTSTANDING_ITEMS.md to BACKLOG.md,
-  added ROADMAP.md, added /session-continuity:help. Branch
-  feature/backlog-roadmap-help, not yet merged.
+- **v0.22.0 released** — renamed OUTSTANDING_ITEMS.md to BACKLOG.md, added
+  ROADMAP.md, added /session-continuity:help. PR #23 merged to `main`
+  (`d2ff918`), tag `v0.22.0` pushed, GitHub Actions `release.yml` ran
+  clean, [GitHub
+  Release](https://github.com/talgolan/session-continuity/releases/tag/v0.22.0)
+  published 2026-08-31, verified `draft:false`/`prerelease:false` via
+  `gh release view`. Feature branch deleted (local + remote) after merge.
 - **v0.19.0 released** — commit `460f507` pushed to `main`, tag `v0.19.0`
   pushed, GitHub Actions `release.yml` ran clean (12s), [GitHub
   Release](https://github.com/talgolan/session-continuity/releases/tag/v0.19.0)
@@ -410,11 +414,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+d2ff918 Merge pull request #23 from talgolan/feature/backlog-roadmap-help
+3dba137 docs: fix stale file-count references found in final review
+e0c0ab0 docs: migrate this repo's own OUTSTANDING_ITEMS.md to BACKLOG.md, add ROADMAP.md
 db15d1a docs: README documents BACKLOG.md, ROADMAP.md, and /help
 70600f6 chore: bump to 0.22.0 — BACKLOG.md rename, ROADMAP.md, /help command
-a6fe12e docs: template pointers reference BACKLOG.md and ROADMAP.md
-2232eae docs: REFERENCE.md documents BACKLOG.md and ROADMAP.md
-20194a1 docs: SKILL.md documents BACKLOG.md, ROADMAP.md, and /help
 ```
 
 Regenerate this block whenever you commit — see
