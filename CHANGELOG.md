@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.1] — 2026-08-31
+
+### Fixed
+- `/session-continuity:update` printed the wrong marketplace name — `/plugin marketplace update talgolan/session-continuity` and `/plugin install session-continuity@talgolan/session-continuity`, both pointing at this plugin's own source repo. This plugin is actually distributed from the `talgolan` marketplace (repo `talgolan/claude-plugins`); corrected to match README's existing "Updating" section (`marketplace update talgolan` + `/reload-plugins`, no separate install step). Shipped incorrectly in v0.20.0 and v0.21.0.
+
 ## [0.21.0] — 2026-08-31
 
 ### Added
