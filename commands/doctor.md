@@ -1,5 +1,5 @@
 ---
-description: Diagnose whether session-continuity is actually wired up in this project — hooks registered, all four files present and not stale, plugin root resolves and isn't a stale cache, gate scripts executable. Zero args, read-only.
+description: Diagnose whether session-continuity is actually wired up in this project — hooks registered, all five files present and not stale, plugin root resolves and isn't a stale cache, gate scripts executable. Zero args, read-only.
 ---
 
 # /session-continuity:doctor
@@ -40,7 +40,7 @@ echo "--- vendored-mode check (only matters if ROOT_EXISTS=0 above) ---"
 [ -f .claude/settings.json ] && cat .claude/settings.json || echo "NO_PROJECT_SETTINGS"
 
 echo "--- .session-continuity/ files ---"
-for f in SESSION_PRIMER.md OUTSTANDING_ITEMS.md PROJECT_CONTEXT.md LEARNINGS.md; do
+for f in SESSION_PRIMER.md BACKLOG.md ROADMAP.md PROJECT_CONTEXT.md LEARNINGS.md; do
   [ -f ".session-continuity/$f" ] && echo "$f=EXISTS" || echo "$f=MISSING"
 done
 
@@ -64,7 +64,7 @@ Work through the five rows below using the output above. Never invent a result f
    - Plugin mode: ✓ if `HOOKS_JSON_EXISTS=1` (Claude Code auto-wires this when the plugin is enabled — this is a sanity check that the install isn't partial/corrupted, not proof the user configured anything). ⚠️ if `HOOKS_JSON_EXISTS=0` — the plugin directory is missing `hooks/hooks.json`; reinstalling the plugin is the fix.
    - Vendored mode: grep the `.claude/settings.json` content captured above for the hook script names (`session-start.sh`, `learnings-surface.sh`, etc.). ✓ if at least `session-start.sh` and `learnings-surface.sh` appear (the two hooks a vendored install needs most — the primer reminder and the retrieval hook). ⚠️ listing which expected hook names are absent, with a pointer to `SKILL.md`'s hooks section for the entries to copy in.
 
-3. **Four `.session-continuity/` files exist; primer not stale.** ✓/⚠️ per file from the `EXISTS`/`MISSING` lines. For `SESSION_PRIMER.md` specifically, if it exists, also compare its own `git log --oneline -5` block (read the file) against the `git log --oneline -5` output captured above — mismatch means ⚠️ stale, "run `/session-continuity:primer` to refresh." This is the only file with an objective staleness signal in this repo; the other three don't get a staleness check here, only an existence check.
+3. **Five `.session-continuity/` files exist; primer not stale.** ✓/⚠️ per file from the `EXISTS`/`MISSING` lines. For `SESSION_PRIMER.md` specifically, if it exists, also compare its own `git log --oneline -5` block (read the file) against the `git log --oneline -5` output captured above — mismatch means ⚠️ stale, "run `/session-continuity:primer` to refresh." This is the only file with an objective staleness signal in this repo; the other three don't get a staleness check here, only an existence check.
 
 4. **`CLAUDE_PLUGIN_ROOT` resolves and isn't stale.** Skip this row entirely in vendored mode (nothing to check). In plugin mode: ✓ if `ROOT_EXISTS=1`. Then check staleness — from the `ls "$CACHE_PARENT"` output, if it lists sibling version directories, compare the resolved version (parsed from `plugin.json` above) against the highest version number listed. If a newer one exists: ⚠️ "resolved root is v`<old>`, but v`<new>` is already installed in the cache — this session started before the update landed; restart the session to pick it up." If they match, or the cache-parent listing wasn't available (different install layout), ✓ with a note that the check was skipped when applicable — don't fail the row over a probe that simply didn't apply.
 
@@ -78,7 +78,7 @@ Emit the report as a table, same convention as `/session-continuity:end-session`
 |---|---|---|
 | Install mode | ✓ | "Plugin vX.Y.Z at `<path>`" OR "Vendored (CLAUDE_PLUGIN_ROOT unresolved)" |
 | Hooks registered | ✓ / ⚠️ | plugin: "hooks.json present" OR "⚠️ hooks/hooks.json missing — reinstall the plugin" · vendored: "session-start.sh + learnings-surface.sh found in .claude/settings.json" OR "⚠️ missing: `<names>` — see SKILL.md's hooks section" |
-| .session-continuity/ files | ✓ / ⚠️ | "All four present, primer current" OR "⚠️ missing: `<names>`" OR "⚠️ primer stale — run /session-continuity:primer" |
+| .session-continuity/ files | ✓ / ⚠️ | "All five present, primer current" OR "⚠️ missing: `<names>`" OR "⚠️ primer stale — run /session-continuity:primer" |
 | CLAUDE_PLUGIN_ROOT | ✓ / ⚠️ / (skipped) | "vX.Y.Z, matches latest cached" OR "⚠️ resolved to vX.Y.Z, but vX.Y.Z+1 is cached — restart the session" OR "skipped (vendored mode)" |
 | Gate scripts executable | ✓ / ⚠️ / (skipped) | "All N gate scripts executable" OR "⚠️ not executable: `chmod +x <path>`, `chmod +x <path>`" OR "skipped (vendored mode)" |
 
