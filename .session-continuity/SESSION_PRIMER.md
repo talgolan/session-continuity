@@ -407,11 +407,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+c14cdd9 feat(end-session): separate human-response wait from ritual compute time
+2016bea docs: record v0.19.0 release in primer (catch-up)
 460f507 chore: bump to 0.19.0 — doctor command, SKILL.md split, gate-common fix
 d7a9470 feat: add /session-continuity:doctor command (#22)
 33888d9 fix: convert gate-common.sh's last && continue idiom to if/fi (#21)
-216a53c docs: trim SKILL.md, split detail into REFERENCE.md (#20)
-cd23e09 chore: bump to v0.18.0 — standalone OUTSTANDING_ITEMS.md
 ```
 
 Regenerate this block whenever you commit — see
