@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] — 2026-08-31
+
+### Added
+- **`/session-continuity:end-session` separates human-response wait from ritual compute time.** `step-4-ritual-complete` is real wall clock spanning the full invocation, so it necessarily includes however long the user takes to answer the Step 1 and Step 2 prompts — analysis of a real project's `performance.log` showed rituals ranging 103s–8732s, with every outlier fully explained by the gap around one of those two prompts, not by any measured Bash block. New `step-{1,2}-prompt-shown`/`-wait` markers bracket each interactive prompt, and a new `step-4-compute-only` entry (ritual time minus prompt waits) isolates the agent's own processing time so a slow ritual can be diagnosed without conflating it with idle/away-from-keyboard time.
+
 ## [0.19.0] — 2026-08-30
 
 ### Added
