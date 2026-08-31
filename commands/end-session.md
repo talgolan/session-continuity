@@ -212,10 +212,31 @@ elsewhere in this file, captured around this whole check.
 A lighter-weight alternative to the refresh flow below — no git-log regeneration, no test-count re-check, no commit-subject overlay matching (there is no "commits since last refresh" list to match against when nothing drifted).
 
 1. Render the `appears-DONE` items as the same markdown ordered list format used by the refresh flow's overlay (item's own primer number as ordinal, citing the code evidence).
-2. Ask a close-only question, scoped narrower than the refresh flow's combined prompt since there are no commit subjects or free-form drift to fold in:
+2. Before rendering the question below, log a prompt-shown marker (isolates the human-response wait from ritual compute time — see Step 4):
+
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-prompt-shown --duration=0.000
+   ```
+
+   Then ask a close-only question, scoped narrower than the refresh flow's combined prompt since there are no commit subjects or free-form drift to fold in:
 
    > "Outstanding items — N appears-DONE (see list). Close any, or leave as-is?"
-3. **Wait for the answer before continuing.** Same refusal rule as the refresh flow: never close an item without explicit confirmation.
+3. **Wait for the answer before continuing.** Same refusal rule as the refresh flow: never close an item without explicit confirmation. Once the answer arrives, log the wait duration:
+
+   ```bash
+   prior_ts="$(grep '"name":"end-session"' .session-continuity/performance.log 2>/dev/null \
+     | grep '"step":"step-1-prompt-shown"' | tail -1 \
+     | sed -E 's/.*"ts":"([^"]*)".*/\1/' || true)"
+   prior_epoch=""
+   if [ -n "$prior_ts" ]; then
+     prior_epoch="$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$prior_ts" +%s 2>/dev/null \
+       || date -u -d "$prior_ts" +%s 2>/dev/null || true)"
+   fi
+   if [[ "$prior_epoch" =~ ^[0-9]+$ ]]; then
+     now_epoch="$(date -u +%s)"
+     bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-prompt-wait --duration="$(( now_epoch - prior_epoch )).000"
+   fi
+   ```
 4. If the user closes any items, edit only `.session-continuity/OUTSTANDING_ITEMS.md` (the drift check already confirmed the primer's `git log --oneline -5` block is current and untouched, so the primer itself needs no edit here) and stage that file: `git diff --quiet .session-continuity/OUTSTANDING_ITEMS.md 2>/dev/null || git add .session-continuity/OUTSTANDING_ITEMS.md`. Step 3's Primer refresh row reads ✓ "Primer updated (outstanding item(s) closed)".
 5. If the user declines, skip the rest of Step 1. Step 3's Primer refresh row reads ✓ "Primer already current (no-op)", and the still-open `appears-DONE` item(s) surface again as a ⚠️ in the Outstanding items row (same standing-reminder behavior as before — it'll be offered again next session).
 
@@ -256,11 +277,32 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
    **Refusal.** Never close an outstanding item without explicit user confirmation. The overlay is a candidate list, not an auto-close.
 
    **Skip conditions.** If `.session-continuity/OUTSTANDING_ITEMS.md` doesn't exist (unmigrated project, or the file was deleted), skip the overlay silently — the raw subject list still appears.
-4. **Single combined prompt.** After printing the subject list (and overlay block if any), ask the user one question covering both close-candidates and free-form edits:
+4. **Single combined prompt.** After printing the subject list (and overlay block if any), log a prompt-shown marker (same mechanism as the drift-clean prompt above — isolates human-response wait from ritual compute time, see Step 4):
+
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-prompt-shown --duration=0.000
+   ```
+
+   Then ask the user one question covering both close-candidates and free-form edits:
 
    > "Outstanding items — close any from the overlay, add new follow-ups, or no changes?"
 
-   **Wait for the answer before continuing.** Do not preemptively edit the list, clear items you interpret as "stale," or proceed based on your own reading. Do not split this into two sequential prompts — one prompt covers the same answer space.
+   **Wait for the answer before continuing.** Do not preemptively edit the list, clear items you interpret as "stale," or proceed based on your own reading. Do not split this into two sequential prompts — one prompt covers the same answer space. Once the answer arrives, log the wait duration:
+
+   ```bash
+   prior_ts="$(grep '"name":"end-session"' .session-continuity/performance.log 2>/dev/null \
+     | grep '"step":"step-1-prompt-shown"' | tail -1 \
+     | sed -E 's/.*"ts":"([^"]*)".*/\1/' || true)"
+   prior_epoch=""
+   if [ -n "$prior_ts" ]; then
+     prior_epoch="$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$prior_ts" +%s 2>/dev/null \
+       || date -u -d "$prior_ts" +%s 2>/dev/null || true)"
+   fi
+   if [[ "$prior_epoch" =~ ^[0-9]+$ ]]; then
+     now_epoch="$(date -u +%s)"
+     bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-prompt-wait --duration="$(( now_epoch - prior_epoch )).000"
+   fi
+   ```
 5. Apply the edits the user specified. If the user replied "no changes" (or similar), skip this step.
 6. Stage the updated primer and `OUTSTANDING_ITEMS.md` (if the user closed or
    edited any items in step 5 above), and `PROJECT_CONTEXT.md` too if it has
@@ -576,11 +618,34 @@ For every candidate the user picked (e.g. "1, 3" or "all"), pre-draft the full L
 
 If the user describes "another" candidate not on your list, treat that description as a pre-filled title and draft alongside the others.
 
-**Single confirm prompt.** Present every pre-drafted entry together in one rendered block (numbered, full body, target section labeled). Then ask one question:
+**Single confirm prompt.** Present every pre-drafted entry together in one rendered block (numbered, full body, target section labeled). Before asking, log a prompt-shown marker (same mechanism as Step 1's prompts — isolates human-response wait from ritual compute time, see Step 4):
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-2-prompt-shown --duration=0.000
+```
+
+Then ask one question:
 
 > "Stage all N entries as drafted, revise specific ones, or skip any?"
 
 Possible replies you must handle: "all" / "stage" → stage every draft; "revise N" → loop into edit-draft-N flow then re-present; "skip N" → drop draft N from the batch; "none" → stage nothing.
+
+Once the answer arrives, log the wait duration:
+
+```bash
+prior_ts="$(grep '"name":"end-session"' .session-continuity/performance.log 2>/dev/null \
+  | grep '"step":"step-2-prompt-shown"' | tail -1 \
+  | sed -E 's/.*"ts":"([^"]*)".*/\1/' || true)"
+prior_epoch=""
+if [ -n "$prior_ts" ]; then
+  prior_epoch="$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$prior_ts" +%s 2>/dev/null \
+    || date -u -d "$prior_ts" +%s 2>/dev/null || true)"
+fi
+if [[ "$prior_epoch" =~ ^[0-9]+$ ]]; then
+  now_epoch="$(date -u +%s)"
+  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-2-prompt-wait --duration="$(( now_epoch - prior_epoch )).000"
+fi
+```
 
 Once the user confirms, insert each accepted draft at the top of its chosen section per **Step 5 of `commands/learning.md`** and stage per **Step 6**: `git add .session-continuity/LEARNINGS.md`.
 
@@ -707,6 +772,29 @@ if [[ "$start_epoch" =~ ^[0-9]+$ ]]; then
 fi
 ```
 
+**Then derive compute-only time** — `step-4-ritual-complete` is real wall clock, but it includes however long the user took to answer the Step 1 and Step 2 prompts logged above (`step-1-prompt-wait`, `step-2-prompt-wait`). Subtract whichever of those fired *this invocation* (their `ts` must be ≥ this invocation's `start_epoch`, computed above — a wait logged before this invocation's `step-1-fast-path` belongs to a prior run and must not be counted) to isolate the agent's own processing time:
+
+```bash
+if [[ "$start_epoch" =~ ^[0-9]+$ ]]; then
+  wait_total=0
+  for wstep in step-1-prompt-wait step-2-prompt-wait; do
+    line="$(grep '"name":"end-session"' .session-continuity/performance.log 2>/dev/null \
+      | grep "\"step\":\"$wstep\"" | tail -1 || true)"
+    if [ -n "$line" ]; then
+      w_ts="$(printf '%s' "$line" | sed -E 's/.*"ts":"([^"]*)".*/\1/')"
+      w_epoch="$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$w_ts" +%s 2>/dev/null \
+        || date -u -d "$w_ts" +%s 2>/dev/null || true)"
+      if [[ "$w_epoch" =~ ^[0-9]+$ ]] && [ "$w_epoch" -ge "$start_epoch" ]; then
+        w_dur="$(printf '%s' "$line" | sed -E 's/.*"duration_s":([0-9.]+).*/\1/')"
+        wait_total="$(awk -v a="$wait_total" -v b="$w_dur" 'BEGIN{printf "%.3f", a+b}')"
+      fi
+    fi
+  done
+  compute_only="$(awk -v a="$_PERF_DURATION" -v b="$wait_total" 'BEGIN{printf "%.3f", a-b}')"
+  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-4-compute-only --duration="$compute_only"
+fi
+```
+
 **Always emit one of these two lines, exactly:**
 
 - If every checklist row was ✓ (no ⚠️ anywhere):
@@ -729,6 +817,7 @@ fi
 - **Never push.** The checklist flags unpushed commits; the user decides.
 - **Never invent LEARNINGS details.** If you can't draft a field from session context, leave it blank and ask the user — same rule as `/session-continuity:learning`.
 - **Reflection is bounded by the current session.** Step 2 looks only at this conversation's context. Bugs from prior sessions, parallel worktrees, or separate Claude instances (subagents, different windows) aren't visible and won't be proposed. For those, the user should invoke `/session-continuity:learning` directly.
+- **`step-4-ritual-complete` includes human response time, by design.** It is real wall clock from this invocation's first log line to its last, and that necessarily spans however long the user took to answer the Step 1 and Step 2 prompts. `step-4-compute-only` (same block) subtracts the `step-1-prompt-wait`/`step-2-prompt-wait` entries logged around those prompts, isolating the agent's own processing time. When investigating a slow ritual, compare both numbers before assuming a script regression — a large `step-4-ritual-complete` with a small `step-4-compute-only` means the user was away from the keyboard, not that anything got slower.
 - **Respect the primer-only-commit rule.** If the user, after seeing the checklist, commits only the primer, the `PreToolUse` hook's nudge still applies — nothing to do here.
 - **Zero arguments.** If the user passed text after `/session-continuity:end-session`, ignore it — session reflection provides all context needed.
 - **Bound the prompt count.** The whole ritual must fit ≤2 user prompts in the common case: one Step 1 prompt (the full combined prompt when drift exists, or the lighter drift-clean close-candidate prompt when drift is clean but `appears-DONE` items exist), one batch confirm in Step 2 (only when candidates surface). Drift-clean + zero candidates = zero prompts; drift-clean + ≥1 candidate = exactly one (lightweight) prompt. Never split Step 1's prompt into two sequential asks. Never loop one-prompt-per-candidate in Step 2.

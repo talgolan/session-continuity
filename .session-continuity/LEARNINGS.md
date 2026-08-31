@@ -16,6 +16,7 @@ within each group.
   each time it appends a new entry.
 -->
 
+- After GitHub squash-merged PR #20, `git merge --ff-only origin/main` failed with… — #15
 - Clean-machine acceptance test for v0.4.0. `/session-continuity:primer` ran init mode cleanly, asked for… — #4
 - Denied again, on the same file, despite the escape hatch already being… — #13
 - Discovered when `/session-continuity:end-session` was invoked on this v0.6.0 session. The system-reminder injected… — #6
@@ -295,6 +296,43 @@ parsed structure, never on a substring of serialized output.
 
 ---
 
+## Git / release mechanics
+
+### 15. Squash-merging a branch descended from an unpushed local commit orphans that commit — and any tag pointing at it
+Trigger: Bash /gh pr merge.*--squash/
+Slug: squash-merge-orphans-unpushed-tag
+
+**The trap.** Squash-merging a PR whose branch descends from a local-only
+commit that was never pushed looks safe — GitHub computes the diff
+against the PR branch's actual tip, so nothing appears to go missing.
+It doesn't account for a tag created earlier pointing directly at that
+unpushed commit.
+
+**Symptom.** After GitHub squash-merged PR #20, `git merge --ff-only
+origin/main` failed with "not possible to fast-forward" even though
+`git status --short` was empty and there was no other local branch in
+play. Tracing it: the squash commit's diff (computed against
+`origin/main`'s base) silently absorbed an unpushed local commit's
+changes, since that commit wasn't part of `origin/main`'s history yet
+— orphaning the commit itself, and the `v0.18.0` git tag that had been
+pointing at it.
+
+**Fix.** `git reset --hard origin/main` to resync local `main` (safe
+once `git status --short` confirms nothing uncommitted). To repair an
+orphaned tag: delete and recreate it against the correct ancestor
+(`git tag -d vX.Y.Z && git tag -a vX.Y.Z <correct-sha> -m "..."`),
+force-push (`git push origin :refs/tags/vX.Y.Z && git push origin
+vX.Y.Z`), and verify via `gh release view vX.Y.Z` that the GitHub
+Release re-associates. To prevent it: push every local commit before
+merging any PR whose branch might descend from it.
+
+**Diagnostic signal** *(optional)*. `git merge --ff-only origin/<branch>`
+fails with "not possible to fast-forward" immediately after a
+squash-merge despite a clean working tree — check `git merge-base
+--is-ancestor <suspect-commit> origin/main` to confirm orphaning.
+
+---
+
 ## Security incidents
 
 <!-- Log security-adjacent events here: leaked credentials (names only,
@@ -318,7 +356,7 @@ and explains why it loses. -->
 
 ---
 
-*Last entry: 2026-08-27 (#14). Add new entries at the top of each section
+*Last entry: 2026-08-30 (#15). Add new entries at the top of each section
 as they surface. The `/session-continuity:learning` command bumps this
 line automatically (v0.5.1+). Rule of thumb: if a bug takes more than
 15 minutes to diagnose, it goes here.*
