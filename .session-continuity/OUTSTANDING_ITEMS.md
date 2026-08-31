@@ -57,15 +57,3 @@ count check). Invariant (CLAUDE.md rule 4): every count or
 named-entity-list claim in shipped docs must match actual repo state at
 commit time, enforced at the gate that runs on every commit. Design:
 `meta/superpowers/recommendations/docguard-design-sketch.md`.
-
-### 5. Review `.session-continuity/performance.log`
-
-Real timing data has been accumulating since v0.15.1 fixed the
-`$CLAUDE_PLUGIN_ROOT` bracing bug — hook-side entries (`session-start.sh`,
-`pre-commit-check.sh`, gate hooks) plus command-side entries from
-`primer.md`/`end-session.md`, and v0.16.0's end-to-end
-`step-4-ritual-complete` measurement. v0.16.0 added the end-to-end
-*instrument* but never analyzed the log — look at what it actually shows
-before deciding whether any hook or command-step is slow enough to
-warrant more work; this is the first real data the whole feature was
-built to produce.

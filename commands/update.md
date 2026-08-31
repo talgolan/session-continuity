@@ -10,21 +10,19 @@ You are responding to the `/session-continuity:update` slash command.
 
 No Bash calls, no version check, no file reads. `/plugin` and
 `/reload-plugins` are host-level slash commands — only the human can type
-them; there is no tool that lets you invoke them on their behalf, and
-checking the installed-vs-latest version first would spend a Bash round
-trip on a question the three commands below answer for free (the
-marketplace-update step is a no-op if already current).
+them; there is no tool that lets you invoke them on their behalf. This
+plugin is distributed from the `talgolan` marketplace (repo
+`talgolan/claude-plugins`), not from this plugin's own source repo —
+match the README's "Updating" section, not the plugin's own repo name.
 
 Print exactly this:
 
 ```
-/plugin marketplace update talgolan/session-continuity
-/plugin install session-continuity@talgolan/session-continuity
+/plugin marketplace update talgolan
 /reload-plugins
 ```
 
-1. `marketplace update` — refetches the catalog from GitHub so the latest release is visible.
-2. `install <plugin>@<marketplace>` — installs that latest version. The `@talgolan/session-continuity` suffix is required — a bare `install session-continuity` reads the stale cached catalog instead of the one just refreshed.
-3. `/reload-plugins` — activates the new version in this session without a restart. Skip it if step 2's output already says "Plugin is now active."
+1. `marketplace update talgolan` — refetches the `talgolan` marketplace catalog from GitHub so the latest release of every plugin in it, including this one, is visible. No-op if already current.
+2. `/reload-plugins` — activates the new version in this session without a restart.
 
 **Never** run these commands yourself, even if a Bash-equivalent exists (e.g. hand-editing the plugin cache directory) — that bypasses the CLI's own state tracking and can desync it from what `/plugin list` reports.

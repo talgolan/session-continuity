@@ -407,11 +407,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+5fa6c59 chore: bump to 0.21.0 — /session-continuity:update command
+001b1f3 feat: add /session-continuity:update command
+38b94e0 chore: bump to 0.20.0 — end-session prompt-wait/compute-only split
+fef4935 docs: update session continuity
 c14cdd9 feat(end-session): separate human-response wait from ritual compute time
-2016bea docs: record v0.19.0 release in primer (catch-up)
-460f507 chore: bump to 0.19.0 — doctor command, SKILL.md split, gate-common fix
-d7a9470 feat: add /session-continuity:doctor command (#22)
-33888d9 fix: convert gate-common.sh's last && continue idiom to if/fi (#21)
 ```
 
 Regenerate this block whenever you commit — see
