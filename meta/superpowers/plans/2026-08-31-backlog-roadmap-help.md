@@ -111,7 +111,7 @@ edits.
 - [ ] **Step 2: Verify placeholders present**
 
 ```bash
-grep -c '{{ROADMAP_NOW}}\|{{ROADMAP_NEXT}}\|{{ROADMAP_LATER}}' skills/session-continuity/templates/ROADMAP.md
+grep -Ec '\{\{ROADMAP_NOW\}\}|\{\{ROADMAP_NEXT\}\}|\{\{ROADMAP_LATER\}\}' skills/session-continuity/templates/ROADMAP.md
 ```
 
 Expected: `3`.
@@ -136,7 +136,9 @@ git commit -m "feat: add ROADMAP.md template"
 
 - [ ] **Step 1: Write the command file**
 
-```markdown
+The whole block below (through the closing ` ```` ` at the end of this step) is the entire, literal content of `commands/help.md` — write it as one file. It uses a 4-backtick outer fence here only because the file's own content contains 3-backtick code fences; do not include the outer 4-backtick markers in the actual file.
+
+```` markdown
 ---
 description: Explain what this plugin does, why, and what each `.session-continuity/` file is for. Zero args, read-only, no state mutation.
 ---
@@ -207,7 +209,7 @@ Render each line under the `COMMANDS` heading above, one per command, in the ord
 
 - **Never mutates anything.** No file writes, no `git add`, no `chmod` — matches `/session-continuity:doctor`'s same rule.
 - **Never invent a command description.** If a command file has no `description:` frontmatter line, print `(no description found)` for that line rather than guessing.
-```
+````
 
 - [ ] **Step 2: Verify frontmatter is well-formed**
 
@@ -428,7 +430,7 @@ to:
 ```markdown
 8. Ask the user for the blanks that can't be derived: `{{GROUND_RULES}}`, `{{WHERE_TO_LOOK_ROWS}}`, `{{STUCK_ESCALATION_STEPS}}`, `{{BACKLOG}}`, and `{{WORKFLOW_CONVENTIONS}}` only if no `CLAUDE.md` draft was produced above.
 ```
-(Rest of that item's sentence unchanged — still "Wait for their answer. Do not proceed to Step 9..." — update the step-number reference too: "Do not proceed to Step 11 until the user responds" since staging is now item 10... check: staging item is now item 10, "Tell the user" is item 11, so "Do not proceed to Step 10" — the sentence gates on *not proceeding to the staging step*, which is now item 10. Fix accordingly.)
+Rest of that item's sentence: keep "**Wait for their answer.**" as-is, and update the step-number reference from "Do not proceed to Step 9 until the user responds" to **"Do not proceed to Step 10 until the user responds"** — item 10 is the renumbered staging step, which is what this sentence gates on.
 
 Change the sub-heading "**Outstanding-items conversion rule.**" paragraph — rename every `{{OUTSTANDING_ITEMS}}` in it to `{{BACKLOG}}`, and rename `.session-continuity/OUTSTANDING_ITEMS.md` to `.session-continuity/BACKLOG.md`:
 ```markdown
@@ -499,8 +501,13 @@ after it, per the sequencing note in Step 1).
 
 1. `git mv .session-continuity/OUTSTANDING_ITEMS.md .session-continuity/BACKLOG.md`.
 2. Rewrite the moved file's first heading line from `# Outstanding Items
-   — <project>` to `# Backlog — <project>`. Content and item numbers are
-   otherwise untouched.
+   — <project>` to `# Backlog — <project>`. Also rewrite line 3 (after
+   the blank line 2) — the body's opening sentence, currently starting
+   "Backlog of explicitly deferred follow-ups..." — to "Explicitly
+   deferred follow-ups..." (drop the leading "Backlog of"), so the file
+   doesn't read "# Backlog" immediately followed by "Backlog of..."
+   (same redundancy Task 1 avoids in the fresh-install template).
+   Content and item numbers are otherwise untouched.
 3. Grep `.session-continuity/SESSION_PRIMER.md` for any remaining literal
    reference to `OUTSTANDING_ITEMS.md` (a leftover pointer sentence from
    before Step 3b/3c ran) and rewrite each to `BACKLOG.md`.
@@ -614,7 +621,7 @@ to:
 - [ ] **Step 3: Verify**
 
 ```bash
-grep -n "OUTSTANDING_ITEMS\|four \`.session-continuity" commands/doctor.md
+grep -En "OUTSTANDING_ITEMS|four \`.session-continuity" commands/doctor.md
 ```
 
 Expected: no output.
@@ -668,7 +675,7 @@ The checklist row header and the two user-facing prompt strings say "Outstanding
 - [ ] **Step 3: Verify**
 
 ```bash
-grep -n "OUTSTANDING_ITEMS\|Outstanding items" commands/end-session.md
+grep -En "OUTSTANDING_ITEMS|Outstanding items" commands/end-session.md
 ```
 
 Expected: no output.
@@ -790,7 +797,7 @@ to:
 - [ ] **Step 6: Verify**
 
 ```bash
-grep -n "OUTSTANDING_ITEMS\|four in-repo\|four files\|four templates" skills/session-continuity/SKILL.md
+grep -En "OUTSTANDING_ITEMS|four in-repo|four files|four templates" skills/session-continuity/SKILL.md
 ```
 
 Expected: no output.
@@ -845,7 +852,7 @@ Together they compress the cost of session handoff from "re-explain everything" 
 - [ ] **Step 2: Verify**
 
 ```bash
-grep -n "OUTSTANDING_ITEMS\|All four" skills/session-continuity/REFERENCE.md
+grep -En "OUTSTANDING_ITEMS|All four" skills/session-continuity/REFERENCE.md
 ```
 
 Expected: no output.
@@ -1231,7 +1238,7 @@ Blending any of these forces bad tradeoffs. Current-state notes drown stable con
 - [ ] **Step 7: Verify**
 
 ```bash
-grep -n "OUTSTANDING_ITEMS\|four plain-Markdown\|six slash commands\|four-file pattern\|four files\|four file reads\|All four files\|five behaviors\|Why four files\|none of the four" README.md
+grep -En "OUTSTANDING_ITEMS|four plain-Markdown|six slash commands|four-file pattern|four files|four file reads|All four files|five behaviors|Why four files|none of the four" README.md
 ```
 
 Expected: no output. (Run this, read every hit, fix, re-run — README.md is the largest single-file diff in this plan and the most likely place to miss one.)
@@ -1261,7 +1268,7 @@ git commit -m "docs: README documents BACKLOG.md, ROADMAP.md, and /help"
 git mv .session-continuity/OUTSTANDING_ITEMS.md .session-continuity/BACKLOG.md
 ```
 
-Edit the moved file's first line from `# Outstanding Items — session-continuity` to `# Backlog — session-continuity`. Leave the four numbered items (1–4) and all other prose unchanged.
+Edit the moved file's first line from `# Outstanding Items — session-continuity` to `# Backlog — session-continuity`, and line 3 (after the blank line 2 — the body's opening sentence) from "Backlog of explicitly deferred follow-ups and decisions — not bugs (those" to "Explicitly deferred follow-ups and decisions — not bugs (those" — same redundancy fix as Task 5's Step 3c. Leave the four numbered items (1–4) and all other prose unchanged.
 
 - [ ] **Step 2: Stub `ROADMAP.md`**
 
@@ -1301,7 +1308,7 @@ to:
 **Leave the other hit (the "v0.12.3 shipped" historical bullet describing the SessionStart hook's original inline-heading behavior, containing the phrase `extracts the "Outstanding items" section`) unchanged** — it's a historical record of what v0.12.3 did, predating even the old `OUTSTANDING_ITEMS.md` file's existence, and rewriting it would misrepresent history. Confirm this is the only other hit before moving on:
 
 ```bash
-grep -n "OUTSTANDING\|Outstanding" .session-continuity/SESSION_PRIMER.md
+grep -En "OUTSTANDING|Outstanding" .session-continuity/SESSION_PRIMER.md
 ```
 
 Expected: exactly one hit, the "v0.12.3 shipped" historical bullet.
@@ -1323,10 +1330,10 @@ grep -c "^### [0-9]\+\." .session-continuity/BACKLOG.md
 Expected: `4` (all four existing items preserved, numbers unchanged).
 
 ```bash
-diff <(git show HEAD:.session-continuity/OUTSTANDING_ITEMS.md | tail -n +2) <(tail -n +2 .session-continuity/BACKLOG.md)
+diff <(git show HEAD:.session-continuity/OUTSTANDING_ITEMS.md | tail -n +4) <(tail -n +4 .session-continuity/BACKLOG.md)
 ```
 
-Expected: no output (content identical apart from the renamed title line already excluded by `tail -n +2`).
+Expected: no output (lines 1-3 — title, blank, reworded opening sentence — are excluded by `tail -n +4`; everything from line 4 onward, including all four numbered items, must be byte-identical).
 
 - [ ] **Step 6: Commit**
 
