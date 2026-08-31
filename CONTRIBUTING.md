@@ -22,7 +22,7 @@ If you're unsure whether your idea fits, open an issue first and describe what y
 2. Read `.session-continuity/SESSION_PRIMER.md` — it's the current-state snapshot for this very repo, maintained by the plugin's own commands.
 3. Skim `.session-continuity/PROJECT_CONTEXT.md` — stable repo layout and conventions for this repo.
 4. Skim `.session-continuity/LEARNINGS.md` — real bugs we've hit, grouped by layer. Useful context for hook/command work.
-5. Skim the most recent spec + plan in `meta/superpowers/` to see how changes are shaped before they become code. (`.session-continuity/` in this repo is intentionally limited to the three files the plugin ships — primer, PROJECT_CONTEXT, and LEARNINGS. Dev artifacts like specs, plans, and marketplace paperwork live under `meta/` so they don't pollute the plugin's public surface.)
+5. Skim the most recent spec + plan in `meta/superpowers/` to see how changes are shaped before they become code. (`.session-continuity/` in this repo is intentionally limited to the five files the plugin ships — primer, PROJECT_CONTEXT, BACKLOG, ROADMAP, and LEARNINGS. Dev artifacts like specs, plans, and marketplace paperwork live under `meta/` so they don't pollute the plugin's public surface.)
 
 ## Local development
 
@@ -144,7 +144,7 @@ session-continuity/
 └── LICENSE
 ```
 
-The marketplace catalog that lets users `/plugin marketplace add` this plugin no longer lives in this repo — it moved to the separate `talgolan/claude-plugins` repo (see the README's "Install" section). `.session-continuity/` here is intentionally limited to the three files the plugin ships — primer, PROJECT_CONTEXT, and LEARNINGS — so it mirrors what users see in their own projects. Repo-specific dev artifacts (design specs, implementation plans, submission paperwork) live under `meta/` so they don't pollute the plugin's public surface.
+The marketplace catalog that lets users `/plugin marketplace add` this plugin no longer lives in this repo — it moved to the separate `talgolan/claude-plugins` repo (see the README's "Install" section). `.session-continuity/` here is intentionally limited to the five files the plugin ships — primer, PROJECT_CONTEXT, BACKLOG, ROADMAP, and LEARNINGS — so it mirrors what users see in their own projects. Repo-specific dev artifacts (design specs, implementation plans, submission paperwork) live under `meta/` so they don't pollute the plugin's public surface.
 
 Files that change together live together. If you're adding a new slash command, you'll likely touch `commands/<name>.md`, the commands paragraph in `skills/session-continuity/SKILL.md`, `README.md`, `PRIVACY.md`, and `CHANGELOG.md`. If you're modifying a hook, you'll likely only touch `hooks/<name>.sh`.
 
