@@ -2,14 +2,14 @@
 
 Detail split out of `SKILL.md` to keep the skill itself a short operational
 quick-ref. Read this when you need gate internals, customization guidance,
-the full decision tree, or the philosophy behind the four-file pattern —
+the full decision tree, or the philosophy behind the five-file pattern —
 not on every session.
 
 ## Hooks and content gates
 
 `hooks/hooks.json` wires up several non-blocking and blocking hooks:
 
-- **`session-start.sh`** (SessionStart) — reminds Claude to read the primer, and injects the outstanding-items shortlist. **Standing rule: whenever you discuss or echo outstanding items to the user — in this reminder, in `/session-continuity:end-session`'s prompts, or in free-form chat when directly asked — render them as a numbered list matching OUTSTANDING_ITEMS.md's own item numbers, always starting at 1, never 0.** Paraphrasing the list into unnumbered prose (e.g. "same question stand: X or Y") drops the numbering the user relies on to reply with a bare number. This applies even to a one-line summary reply — number it, don't collapse it, and don't zero-index it.
+- **`session-start.sh`** (SessionStart) — reminds Claude to read the primer, and injects the backlog shortlist. **Standing rule: whenever you discuss or echo backlog to the user — in this reminder, in `/session-continuity:end-session`'s prompts, or in free-form chat when directly asked — render them as a numbered list matching BACKLOG.md's own item numbers, always starting at 1, never 0.** Paraphrasing the list into unnumbered prose (e.g. "same question stand: X or Y") drops the numbering the user relies on to reply with a bare number. This applies even to a one-line summary reply — number it, don't collapse it, and don't zero-index it.
 - **`pre-commit-check.sh`** (PreToolUse, before `git commit`) — non-blocking nudge when code is staged without a primer refresh.
 - **`learnings-surface.sh`** (PreToolUse, before Bash/Write/Edit) — the retrieval hook: surfaces any LEARNINGS entry carrying a `Trigger: <tool> /<regex>/` line when the imminent action matches, so the lesson lands *before* the mistake instead of after.
 
@@ -51,7 +51,7 @@ say so instead of asserting it.
 | Observation | Where it goes |
 |---|---|
 | "The latest commit is X" | `.session-continuity/SESSION_PRIMER.md` → Current state |
-| "We should follow up on X" | `.session-continuity/OUTSTANDING_ITEMS.md` → new numbered entry |
+| "We should follow up on X" | `.session-continuity/BACKLOG.md` → new numbered entry |
 | "How is this repo laid out" | `.session-continuity/PROJECT_CONTEXT.md` → Repo layout |
 | "What are our workflow conventions" | `.session-continuity/PROJECT_CONTEXT.md` → Workflow conventions |
 | "Bun replaces the CA trust store" | `.session-continuity/LEARNINGS.md` → new numbered entry |
@@ -72,15 +72,15 @@ Different projects have different shapes, but the core file pattern adapts well:
 
 - **Test counts in the primer.** If you have one package, one line. If you have three packages (like SF_Tunnel: relay, tunnel, web), show three. If counts are unstable (integration tests that depend on external services), drop the exact count and document the green command instead.
 - **"Workflow conventions" section.** Replace with whatever this project's disciplines are: commit message format, branch naming, code review process, required CI checks.
-- **"Outstanding items" section.** Use your own taxonomy: "blocked", "deferred", "needs decision". Keep it actionable.
+- **"Backlog" section.** Use your own taxonomy: "blocked", "deferred", "needs decision". Keep it actionable.
 - **LEARNINGS section headings.** Replace "Bun", "SvelteKit", etc. with the actual layers of the project. Stack varies, structure is universal.
 
 ## For team-wide use
 
 If multiple people are working on the same project and should all benefit from this:
 
-1. All four files are **checked-in** artifacts, not gitignored. Commit them in the project repo under `.session-continuity/`.
-2. Copy [`templates/CLAUDE_MD_SNIPPET.md`](templates/CLAUDE_MD_SNIPPET.md) into the project's `CLAUDE.md` verbatim. It covers the read-first pointer, the primer-refresh-alongside-commits rule, the outstanding-item verify-before-close rule, and the gate-chain-commit trap — the things a project otherwise has to rediscover and hand-write for itself (as architect-workbench did before this snippet existed).
+1. All five files are **checked-in** artifacts, not gitignored. Commit them in the project repo under `.session-continuity/`.
+2. Copy [`templates/CLAUDE_MD_SNIPPET.md`](templates/CLAUDE_MD_SNIPPET.md) into the project's `CLAUDE.md` verbatim. It covers the read-first pointer, the primer-refresh-alongside-commits rule, the backlog-item verify-before-close rule, and the gate-chain-commit trap — the things a project otherwise has to rediscover and hand-write for itself (as architect-workbench did before this snippet existed).
 3. Document the maintenance rules in the primer itself (last section). Templates include this.
 4. Human teammates benefit too — LEARNINGS.md doubles as a living post-mortem log, and the primer is a great onboarding handoff.
 
@@ -98,11 +98,12 @@ If multiple people are working on the same project and should all benefit from t
 
 ## Philosophy
 
-The four files answer four different questions:
+The five files answer five different questions:
 
 - Primer: "What is true about this project **right now**?"
-- OUTSTANDING_ITEMS: "What has been **explicitly deferred** (decisions, follow-ups, follow-ons) that we should not forget?"
+- BACKLOG: "What has been **explicitly deferred** (decisions, follow-ups, follow-ons) that we should not forget?"
+- ROADMAP: "Where is this headed, independent of what's in the tactical queue?"
 - PROJECT_CONTEXT: "What is true about this project **generally**, and rarely changes?"
 - LEARNINGS: "What should I know to avoid rediscovering something painful?"
 
-Together they compress the cost of session handoff from "re-explain everything" to "read a couple of files." The primer stays short (a shortlist, not a snapshot); OUTSTANDING_ITEMS accumulates deferred work; PROJECT_CONTEXT and LEARNINGS both grow organically but at different rates — one when the project's shape changes, the other with every hard-won bug. All four outlive any single session.
+Together they compress the cost of session handoff from "re-explain everything" to "read a couple of files." The primer stays short (a shortlist, not a snapshot); BACKLOG accumulates deferred work; ROADMAP holds direction independent of the tactical queue; PROJECT_CONTEXT and LEARNINGS both grow organically but at different rates — one when the project's shape changes, the other with every hard-won bug. All five outlive any single session.
