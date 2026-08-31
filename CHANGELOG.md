@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] — 2026-08-31
+
+### Added
+- **New `.session-continuity/ROADMAP.md` file** — strategic direction (Now/Next/Later), freeform, no numbering. `/session-continuity:primer` creates it on Init mode and stubs it in for existing installs during the BACKLOG.md migration below.
+- **New `/session-continuity:help` command** — explains what the plugin does, why, and what each of the five `.session-continuity/` files is for. Zero args, read-only.
+
+### Changed
+- **`.session-continuity/OUTSTANDING_ITEMS.md` renamed to `BACKLOG.md`.** Same semantics (permanent numbering, delete-on-close, title + 1-3 sentence cap) — rename only. `/session-continuity:primer` migrates existing installs automatically (new Step 3c): detects `OUTSTANDING_ITEMS.md` without a `BACKLOG.md` alongside it, `git mv`s the file, and stubs in `ROADMAP.md` in the same step. `hooks/session-start.sh` nudges any install still on the old filename to run `/session-continuity:primer`.
+
 ## [0.21.1] — 2026-08-31
 
 ### Fixed
