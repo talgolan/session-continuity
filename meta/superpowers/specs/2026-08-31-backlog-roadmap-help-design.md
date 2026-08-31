@@ -45,12 +45,21 @@ Renamed / content-updated:
   prose otherwise unchanged).
 - `hooks/session-start.sh` — `outstanding_path` var, reminder text
   ("Outstanding items:" → "Backlog:"), migration elif chain (see below).
-- `commands/primer.md` — Step 1 detection vars, Step 3b heading/prose
-  (existing outstanding-items-file migration step, itself now historical —
-  rename its file references), new Step 3c (see Migration below), Steps 4
-  and 5 prose/paths.
+- `commands/primer.md` — Step 1 detection vars; new Step 3c (see Migration
+  below); Steps 4 and 5 prose/paths; Step 7's "Outstanding-items conversion
+  rule" paragraph and its `{{OUTSTANDING_ITEMS}}` placeholder name (rename
+  to `{{BACKLOG}}`); Step 8's placeholder-cleanup grep, which hardcodes
+  `.session-continuity/OUTSTANDING_ITEMS.md` (rename to `BACKLOG.md`, add
+  `ROADMAP.md` to the same grep). **Step 3b itself is unchanged** — it
+  still detects the inline-heading case and still writes
+  `OUTSTANDING_ITEMS.md` (old name); the new Step 3c is solely responsible
+  for the `OUTSTANDING_ITEMS.md` → `BACKLOG.md` rename, one level up, per
+  the sequencing rule below. Init mode (Step 2) always writes `BACKLOG.md`
+  directly for brand-new projects — Step 3b's old-name output only exists
+  on the migration path for projects that predate this change.
 - `commands/doctor.md` — file-existence loop (`OUTSTANDING_ITEMS.md` →
-  `BACKLOG.md`, add `ROADMAP.md` as a sixth tracked file), report row text.
+  `BACKLOG.md`, add `ROADMAP.md` as a fifth tracked file — SESSION_PRIMER,
+  PROJECT_CONTEXT, BACKLOG, ROADMAP, LEARNINGS), report row text.
 - `commands/end-session.md` — checklist row referencing the file.
 - `skills/session-continuity/SKILL.md` — file list (intro bullets, "four
   in-repo files" → "five in-repo files"), numbering-convention section,
@@ -59,10 +68,12 @@ Renamed / content-updated:
 - `skills/session-continuity/REFERENCE.md` — decision tree, "what goes
   where," any other mentions.
 - `skills/session-continuity/templates/CLAUDE_MD_SNIPPET.md` — file list
-  the snippet tells consuming projects to add to their own CLAUDE.md.
-- `.claude-plugin/plugin.json` — `description` field (four docs → five;
-  add `help` to command surface if commands are enumerated there — they
-  are not today, skip if so).
+  the snippet tells consuming projects to add to their own CLAUDE.md:
+  rename the `OUTSTANDING_ITEMS.md` line to `BACKLOG.md` and add a new
+  line for `ROADMAP.md`.
+- `.claude-plugin/plugin.json` — `description` field (four docs → five).
+  Commands are not enumerated in this file today, so no command-surface
+  change needed here.
 - `README.md` — file list / command list sections.
 - `CHANGELOG.md` — new entry for this version.
 - `.session-continuity/OUTSTANDING_ITEMS.md` (this repo's own instance) —
@@ -142,7 +153,8 @@ Step 3c body:
    `BACKLOG.md`.
 4. If `.session-continuity/ROADMAP.md` doesn't exist, create it from the
    template with `{{ROADMAP_NOW/NEXT/LATER}}` set to `TBD` (no interactive
-   prompt — stub only, same one-event-not-two rule as the design's Goal 4).
+   prompt — stub only. Bundled into this same step so the rename and the
+   stub land as one migration event/commit, not two separate ones).
 5. Stage all touched/new files:
    `git add .session-continuity/BACKLOG.md .session-continuity/ROADMAP.md .session-continuity/SESSION_PRIMER.md`
    (only add SESSION_PRIMER.md if step 3 actually changed it).
