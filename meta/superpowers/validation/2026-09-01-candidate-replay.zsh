@@ -34,11 +34,13 @@ if [[ ! -d "$dir" ]]; then
   exit 1
 fi
 
-files=("${(@f)$(ls -S -- "$dir"/*.jsonl 2>/dev/null | head -"$count")}")
-if (( ${#files} == 0 )); then
+setopt local_options nullglob
+matched=("$dir"/*.jsonl)
+if (( ${#matched} == 0 )); then
   print -u2 "no .jsonl transcripts in $dir"
   exit 1
 fi
+files=("${(@f)$(ls -S -- "${matched[@]}" 2>/dev/null | head -"$count")}")
 
 tracked="$(git ls-files 2>/dev/null | jq -R -s 'split("\n") | map(select(length>0))' 2>/dev/null || print -r -- '[]')"
 
