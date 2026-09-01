@@ -682,28 +682,33 @@ if [[ "$start_epoch" =~ ^[0-9]+$ ]]; then
 fi
 ```
 
-**Then derive compute-only time** — `step-4-ritual-complete` is real wall clock, but it includes however long the user took to answer the Step 1 and Step 2 prompts logged above (`step-1-prompt-wait`, `step-2-prompt-wait`). Subtract whichever of those fired *this invocation* (their `ts` must be ≥ this invocation's `start_epoch`, computed above — a wait logged before this invocation's `step-1-fast-path` belongs to a prior run and must not be counted) to isolate the agent's own processing time:
+**Then derive agent-active time** — `step-4-ritual-complete` is real wall
+clock, but it includes however long the user took to answer any prompts
+along the way. Rather than subtract specific prompt-wait markers (the old
+approach, retired — see
+`meta/superpowers/specs/2026-09-01-end-session-step2-cost-attribution-design.md`
+Change 2 for why a two-marker subtraction can't be made correct), derive
+active time directly from the transcript:
 
 ```bash
-if [[ "$start_epoch" =~ ^[0-9]+$ ]]; then
-  wait_total=0
-  for wstep in step-1-prompt-wait step-2-prompt-wait; do
-    line="$(grep '"name":"end-session"' .session-continuity/performance.log 2>/dev/null \
-      | grep "\"step\":\"$wstep\"" | tail -1 || true)"
-    if [ -n "$line" ]; then
-      w_ts="$(printf '%s' "$line" | sed -E 's/.*"ts":"([^"]*)".*/\1/')"
-      w_epoch="$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$w_ts" +%s 2>/dev/null \
-        || date -u -d "$w_ts" +%s 2>/dev/null || true)"
-      if [[ "$w_epoch" =~ ^[0-9]+$ ]] && [ "$w_epoch" -ge "$start_epoch" ]; then
-        w_dur="$(printf '%s' "$line" | sed -E 's/.*"duration_s":([0-9.]+).*/\1/')"
-        wait_total="$(awk -v a="$wait_total" -v b="$w_dur" 'BEGIN{printf "%.3f", a+b}')"
-      fi
+source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
+if [[ "$start_epoch" =~ ^[0-9]+$ ]] && [[ -n "${TRANSCRIPT:-}" ]]; then
+  if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/agent-active.sh" 1; then
+    AGENT_ACTIVE="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/agent-active.sh" "$TRANSCRIPT" "$start_epoch")"
+    if [[ -n "$AGENT_ACTIVE" ]]; then
+      bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-4-agent-active --duration="$AGENT_ACTIVE"
     fi
-  done
-  compute_only="$(awk -v a="$_PERF_DURATION" -v b="$wait_total" 'BEGIN{printf "%.3f", a-b}')"
-  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-4-compute-only --duration="$compute_only"
+  else
+    echo "⚠️ $SC_REQUIRE_SCRIPT_MSG"
+  fi
 fi
 ```
+
+If Step 2 never resolved a transcript path (context-window mode, or the
+candidate-extraction script reported `mode:"unavailable"`), `$TRANSCRIPT`
+is unset and this block is skipped entirely — no `step-4-agent-active` line
+is logged for this invocation, same "skip rather than log a wrong number"
+rule that already governs the rest of this design.
 
 **Always emit one of these two lines, exactly:**
 
@@ -727,7 +732,7 @@ fi
 - **Never push.** The checklist flags unpushed commits; the user decides.
 - **Never invent LEARNINGS details.** If you can't draft a field from session context, leave it blank and ask the user — same rule as `/session-continuity:learning`.
 - **Reflection is bounded by the current session.** Step 2 looks only at this conversation's context. Bugs from prior sessions, parallel worktrees, or separate Claude instances (subagents, different windows) aren't visible and won't be proposed. For those, the user should invoke `/session-continuity:learning` directly.
-- **`step-4-ritual-complete` includes human response time, by design.** It is real wall clock from this invocation's first log line to its last, and that necessarily spans however long the user took to answer the Step 1 and Step 2 prompts. `step-4-compute-only` (same block) subtracts the `step-1-prompt-wait`/`step-2-prompt-wait` entries logged around those prompts, isolating the agent's own processing time. When investigating a slow ritual, compare both numbers before assuming a script regression — a large `step-4-ritual-complete` with a small `step-4-compute-only` means the user was away from the keyboard, not that anything got slower.
+- **`step-4-ritual-complete` includes human response time, by design.** It is real wall clock from this invocation's first log line to its last, and that necessarily spans however long the user took to answer the Step 1 and Step 2 prompts. `step-4-agent-active` (same block) derives the agent's own active time directly from the transcript, isolating the agent's own processing time. When investigating a slow ritual, compare both numbers before assuming a script regression — a large `step-4-ritual-complete` with a small `step-4-agent-active` means the user was away from the keyboard, not that anything got slower.
 - **Respect the primer-only-commit rule.** If the user, after seeing the checklist, commits only the primer, the `PreToolUse` hook's nudge still applies — nothing to do here.
 - **Zero arguments.** If the user passed text after `/session-continuity:end-session`, ignore it — session reflection provides all context needed.
 - **Bound the prompt count.** The whole ritual must fit ≤2 user prompts in the common case: one Step 1 prompt (the full combined prompt when drift exists, or the lighter drift-clean close-candidate prompt when drift is clean but `appears-DONE` items exist), one batch confirm in Step 2 (only when candidates surface). Drift-clean + zero candidates = zero prompts; drift-clean + ≥1 candidate = exactly one (lightweight) prompt. Never split Step 1's prompt into two sequential asks. Never loop one-prompt-per-candidate in Step 2.
