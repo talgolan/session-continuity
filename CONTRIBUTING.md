@@ -85,6 +85,17 @@ before and after changing its hook:
 zsh meta/superpowers/validation/2026-08-06-smoke-gate-smoke.zsh
 ```
 
+The LEARNINGS candidate heuristics also have a non-hermetic replay harness. The
+hermetic smoke test proves the rules do what they say; the replay shows what
+they produce on real sessions, which is the only way to catch a rule that is
+faithfully implemented and wrong:
+
+```bash
+zsh meta/superpowers/validation/2026-09-01-candidate-replay.zsh ~/.claude/projects/<encoded-cwd> 6
+```
+
+Run it after any change to `hooks/lib/candidate-extract.jq` and read the titles.
+
 ## Project structure
 
 ```
