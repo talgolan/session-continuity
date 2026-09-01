@@ -103,12 +103,16 @@ mentions an item's keywords does not prove the item shipped; a fix
 landing inside an unrelated commit can leave an item reading OPEN when
 it already shipped. Both directions are real drift.
 
-**Numbering convention for BACKLOG.md — mirrors LEARNINGS.**
-A new item takes the next unused number across the whole file. A closed
-item is deleted outright, never renumbered, never reused — this keeps
-cross-references ("see item 4") valid for as long as item 4 exists.
-Before deleting, grep the repo for references to the item's number; a hit
-means fix the reference or leave a one-line "closed" stub instead.
+**Identity convention for BACKLOG.md — differs from LEARNINGS.**
+Each item's heading is `### <position>. [<tag>] [<date>] <Title>`.
+`<position>` is ephemeral display order — always 1..N, no gaps,
+recomputed every render, never cross-referenced. `<tag>` is a permanent
+4-hex-character ID minted once at filing and never reused; cross-references
+("see item `a3f9`") use the tag. Before deleting a closed item, grep the
+repo for its tag; a hit means fix the reference or leave a one-line
+"closed" stub instead. When naming an item to the user, show both, e.g.
+`1 [a3f9]`. (LEARNINGS.md keeps its own separate, permanent, gapless
+numbering — unaffected by this.)
 
 ### Do NOT commit the primer by itself
 

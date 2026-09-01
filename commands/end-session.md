@@ -87,13 +87,15 @@ heading inside the primer — the backlog lives in its own file now.
   then re-run `/session-continuity:end-session`." Step 3's row reads
   `Backlog: not migrated — run /session-continuity:primer`.
 - If `.session-continuity/BACKLOG.md` exists but is empty
-  (no `### N.` entries): skip verification, Step 3's row reads `none
-  tracked`, same as the fresh-project case.
+  (no `### <position>. [<tag>] [<date>]` entries): skip verification,
+  Step 3's row reads `none tracked`, same as the fresh-project case.
 
-**For each `### N.` entry** in `.session-continuity/BACKLOG.md`
-(scope the item exactly as the overlay does: the heading line plus every line
-until the next `### N.` heading or end of file; sub-bullets roll up to their
-parent):
+**For each `### <position>. [<tag>] [<date>]` entry** in
+`.session-continuity/BACKLOG.md` (scope the item exactly as the overlay
+does: the heading line plus every line until the next `### ` heading or
+end of file; sub-bullets roll up to their parent). Identify the item by
+its `<tag>`, never its `<position>` — position is recomputed on every
+render and carries no permanence.
 
 **Overlap gate (cost control) — run this before classifying.** Tokenize the
 item (same rule as the overlay below: lowercase, split on non-alphanumeric,
@@ -211,7 +213,7 @@ elsewhere in this file, captured around this whole check.
 
 A lighter-weight alternative to the refresh flow below — no git-log regeneration, no test-count re-check, no commit-subject overlay matching (there is no "commits since last refresh" list to match against when nothing drifted).
 
-1. Render the `appears-DONE` items as the same markdown ordered list format used by the refresh flow's overlay (item's own primer number as ordinal, citing the code evidence).
+1. Render the `appears-DONE` items as the same markdown ordered list format used by the refresh flow's overlay (item's current `<position> [<tag>]` as ordinal, citing the code evidence).
 2. Before rendering the question below, log a prompt-shown marker (isolates the human-response wait from ritual compute time — see Step 4):
 
    ```bash
@@ -251,7 +253,7 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
    Then compute a **backlog overlay** for each subject:
 
    - Tokenize the subject: lowercase, split on non-alphanumeric, drop tokens of length <3, drop the stopword list below.
-   - For each `### N.` entry in `.session-continuity/BACKLOG.md`: tokenize the item text the same way, capped at the first 200 characters of the item (the heading line through everything up to the next `### N.` heading or end of file; sub-bullets roll up to their parent item).
+   - For each `### <position>. [<tag>] [<date>]` entry in `.session-continuity/BACKLOG.md`: tokenize the item text the same way, capped at the first 200 characters of the item (the heading line through everything up to the next `### ` heading or end of file; sub-bullets roll up to their parent item).
    - Match if the intersection of subject tokens and item tokens has cardinality ≥ 3.
 
    **Stopwords** (extend per project as needed):
@@ -263,16 +265,17 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
    **Presentation.** Render the "May close outstanding items" block when EITHER
    token-overlap matches from commit subjects OR `appears-DONE` items from the
    Backlog verification sub-block above exist. **Render candidates as
-   a markdown ordered list, one item per line, using the item's own primer
-   number as the list ordinal** (e.g. `4. <cited code evidence> — <sha>`) so
-   the numbering the user sees matches the numbering in the primer — never a
+   a markdown ordered list, one item per line, using the item's current
+   `<position>` as the list ordinal** (e.g. `4. [a3f9] <cited code evidence> — <sha>`)
+   so the numbering the user sees matches the numbering in the primer — never a
    bare bullet list or an inline comma-separated citation. Cite each
-   candidate: commit-subject matches as `<sha> → item #<N>`, verification
-   candidates as `item #<N> (<cited code evidence>)`. Dedupe by item number: an
-   item that is both a commit-subject match and an `appears-DONE` candidate
-   appears once, on a single numbered line carrying both the `<sha>` and the
-   code-evidence citation. Omit the block only when BOTH sources are empty (do
-   not print an empty section).
+   candidate by tag: commit-subject matches as `<sha> → item [a3f9]`, verification
+   candidates as `item [a3f9] (<cited code evidence>)`. Dedupe by tag (never by
+   position — it's recomputed per render and not a stable key): an item that is
+   both a commit-subject match and an `appears-DONE` candidate appears once, on
+   a single numbered line carrying both the `<sha>` and the code-evidence
+   citation. Omit the block only when BOTH sources are empty (do not print an
+   empty section).
 
    **Refusal.** Never close an outstanding item without explicit user confirmation. The overlay is a candidate list, not an auto-close.
 
@@ -615,7 +618,7 @@ Output using this structure. Use ✓ (green), ⚠️ (yellow), or → (suggestio
 |---|---|---|
 | Primer refresh | ✓ | "Primer refreshed and staged" OR "Primer updated (outstanding item(s) closed)" OR "Primer already current (no-op)" |
 | New learnings | ✓ | "N LEARNINGS entry/entries captured (#X, \"<title>\" …)" OR "No new learnings" |
-| Backlog | checkmark if none stale, else warning | "N tracked — <k> appears-DONE (#X, evidence), <m> still-open (#…), <j> manual (#…)" OR "none tracked" |
+| Backlog | checkmark if none stale, else warning | "N tracked — <k> appears-DONE (<pos> [tag], evidence), <m> still-open (<pos> [tag]…), <j> manual (<pos> [tag]…)" OR "none tracked" |
 | Staged files | ✓ | "Staged: <file1>, <file2>, …" OR "Nothing staged" |
 | Unstaged modifications | ✓ if none, else ⚠️ | "No unstaged modifications" OR "⚠️ Unstaged: <file1>, <file2>, …" |
 | Untracked files | ✓ if none, else ⚠️ | "No untracked files" OR "⚠️ N untracked: <file1>, <file2>, … — ignore, add, or delete?" |
@@ -653,7 +656,7 @@ Prefix with `→ Suggested:` and wrap in a fenced code block so the user can cop
 ```
 ✓ Primer refreshed and staged
 ✓ 1 LEARNINGS entry captured (#7, "awk range collapse on single-version CHANGELOG")
-⚠️ Backlog: 5 tracked — 1 appears-DONE (#4, "add bats test harness": found test/end_to_end.bats → 0 hits before, now present), 1 still-open (#3), 3 manual (#1, #2, #5)
+⚠️ Backlog: 5 tracked — 1 appears-DONE (4 [c7d1], "add bats test harness": found test/end_to_end.bats → 0 hits before, now present), 1 still-open (3 [b092]), 3 manual (1 [a3f9], 2 [7f3e], 5 [e8a4])
 ✓ Staged: .session-continuity/SESSION_PRIMER.md, .session-continuity/LEARNINGS.md, .github/workflows/release.yml
 ✓ No unstaged modifications
 ⚠️ 2 untracked files: scratch.md, tmp/debug.log — ignore, add, or delete?

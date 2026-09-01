@@ -114,14 +114,16 @@ file rename; it never inspects primer content.
 
    **Backlog conversion rule.** The user's answer for
    `{{BACKLOG}}` is free-form prose — a list, a paragraph, however
-   they typed it. Convert it into one `### N.` entry per distinct item in
-   `.session-continuity/BACKLOG.md`, numbered sequentially
-   starting at 1, trimming each to a title plus 1-3 sentences (the same
-   length cap every item in that file follows). Never paste the raw answer
-   in as a single unstructured blob. If the user said "none" or skipped the
-   question, leave the file's `{{BACKLOG}}` placeholder area empty
-   (substituted per the existing placeholder-cleanup step below, same as any
-   other skipped field).
+   they typed it. Convert it into one
+   `### <position>. [<tag>] [<date>]` entry per distinct item in
+   `.session-continuity/BACKLOG.md`, positions numbered sequentially
+   starting at 1, each minted a fresh unused 4-hex-character `<tag>`
+   and stamped with today's date, trimming each to a title plus 1-3
+   sentences (the same length cap every item in that file follows).
+   Never paste the raw answer in as a single unstructured blob. If the
+   user said "none" or skipped the question, leave the file's
+   `{{BACKLOG}}` placeholder area empty (substituted per the existing
+   placeholder-cleanup step below, same as any other skipped field).
 9. **Replace any remaining `{{PLACEHOLDER}}` tokens with `TBD` before staging.** If the user skipped a field, declined to answer, or asked you to stage/commit without filling everything in, substitute `TBD` (with an empty body line where the template had prose). Never leave `{{...}}` syntax in a file you are about to stage — `grep -n '{{' .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md .session-continuity/BACKLOG.md .session-continuity/ROADMAP.md` must return nothing after this step.
 10. Stage all five files: `git add .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md .session-continuity/BACKLOG.md .session-continuity/ROADMAP.md`.
 11. Tell the user: "Primer, PROJECT_CONTEXT, BACKLOG, ROADMAP, and LEARNINGS staged. Review and commit with `git commit -m 'docs: initialize session continuity'` when ready." Include a one-line note listing any fields that were set to `TBD` so the user knows what to fill in later.
@@ -306,11 +308,12 @@ split/migration step in this command.
    a fix landing inside an unrelated commit can leave an item reading
    OPEN when it already shipped — verify both directions, not just the
    one the candidate list surfaced. **Before deleting a closed item, grep
-   the whole repo for references to its number** (e.g. `\bitem #?N\b`) —
-   a hit means fix the referencing text first, per the numbering rule in
-   `.session-continuity/BACKLOG.md`'s own intro block. New
-   items take the next unused number across the whole file, never a
-   reused or renumbered one.
+   the whole repo for its tag** (e.g. `\[a3f9\]`) — a hit means fix the
+   referencing text first, per the identity convention in
+   `.session-continuity/BACKLOG.md`'s own intro block. A new item mints
+   a fresh unused hex tag and today's date; after any add/remove,
+   renumber every remaining item's `<position>` to 1..N with no gaps —
+   position is display order only, never a permanent reference.
 7. Stage the updated primer and, if outstanding items changed, the items
    file too: `git add .session-continuity/SESSION_PRIMER.md` and (only
    when Step 6 touched it) `git add .session-continuity/BACKLOG.md`.

@@ -7,27 +7,32 @@ moment it's flagged until the moment the code proves it resolved, then
 it's deleted outright — the closing commit is the historical record, not
 this file.
 
-**Numbering is permanent.** A new item takes the next unused number;
-closed items are deleted, never renumbered, never reused. Cross-references
-("see item 4") stay valid as long as item 4 exists. Before deleting a
-closed item, grep the whole repo for references to its number (e.g.
-`\bitem #?4\b`, `outstanding item(s)? 4`) — a hit means fix the
+**Heading format: `### <position>. [<tag>] [<YYYY-MM-DD>] <Title>`.**
+`<position>` is ephemeral display order only — always 1..N, no gaps,
+recomputed fresh every time the list renders. It carries no permanent
+meaning and is never grepped or cross-referenced. `<tag>` is a permanent
+4-hex-character ID minted once when the item is filed (e.g. `a3f9`) —
+check it's unused in this file, then never change or reuse it. `<date>`
+is the filing date. Cross-references ("see item `a3f9`") use the tag,
+never the position. Before deleting a closed item, grep the whole repo
+for its tag (e.g. `\[a3f9\]`, `item a3f9`) — a hit means fix the
 referencing text or leave the closed item as a one-line "closed" stub
-instead of deleting it.
+instead of deleting it. When telling the user about a specific item,
+always show both position and tag together, e.g. `1 [a3f9]`.
 
 **Length cap.** Each item is a title plus 1-3 sentences. If it needs a
 design sketch, an invariant, or a rejected-alternatives discussion, put
 that in a spec under `meta/superpowers/...` and link it here — this file
 stays a scannable list, not a second spec repository.
 
-### 1. Submit to the Anthropic marketplace
+### 1. [d7f5] [2026-08-30] Submit to the Anthropic marketplace
 
 Form answers in `meta/administrative/marketplace-submission.md` (version
 field synced to 0.14.0 in the docs-accuracy sweep on 2026-08-13 —
 re-check against `.claude-plugin/plugin.json` at actual submission time,
 this field drifts every release).
 
-### 2. Automated integration tests
+### 2. [8906] [2026-08-30] Automated integration tests
 
 Manual validation only right now — no bats-style shell test harness
 exercises the slash commands against a fixture repo. Good candidates:
@@ -37,7 +42,7 @@ logic, and v0.14.4's test-count skip/escalate logic — none exercise the
 nothing-changed / touched / untouched, or no-relevant-file-changed /
 changed-but-count-holds / genuinely-drifted cases beyond prose review.
 
-### 3. Scratch-project smoke test for the primer split (deferred from this session)
+### 3. [6176] [2026-08-30] Scratch-project smoke test for the primer split (deferred from this session)
 
 The v0.13.0 implementation plan's Task 6 validated the split mechanically
 against this repo's own files but explicitly deferred the spec's Testing
@@ -48,7 +53,7 @@ Also covers the Init-mode enrichment's test-run/`{{MODULES_TABLE}}`/
 end-to-end against a real fresh repo yet either. Run all of it before the
 next `/session-continuity:primer` change lands.
 
-### 4. Global docs-current hooks check "touched," not "accurate" — generalize the existing pass-count mechanism
+### 4. [9eec] [2026-08-30] Global docs-current hooks check "touched," not "accurate" — generalize the existing pass-count mechanism
 
 Neither `~/.githooks/pre-commit` nor the global Claude Code `Stop` hook
 checks whether a doc's claims stay *true* — both only check whether a doc
@@ -58,7 +63,7 @@ named-entity-list claim in shipped docs must match actual repo state at
 commit time, enforced at the gate that runs on every commit. Design:
 `meta/superpowers/recommendations/docguard-design-sketch.md`.
 
-### 6. `agent-active.sh` fallback + `learning.md` empty-`$REPORT` gap, plus doc staleness cleanup
+### 5. [e8e2] [2026-09-01] `agent-active.sh` fallback + `learning.md` empty-`$REPORT` gap, plus doc staleness cleanup
 
 Both from v0.23.0's cost-attribution work, deferred by that implementation's
 final review (Ready to merge: Yes) as narrow, non-blocking edge cases:
@@ -81,7 +86,7 @@ describes the pre-refactor execution flow now living in
 does "a timestamp turn-boundary walk," which is accurate as intent but not
 as shipped behavior per (a) — reword once (a) is actually fixed.
 
-### 7. `2026-08-12-session-start-smoke.zsh` tests a pre-v0.22.0 contract — 7/17 assertions fail
+### 6. [6258] [2026-09-01] `2026-08-12-session-start-smoke.zsh` tests a pre-v0.22.0 contract — 7/17 assertions fail
 
 Confirmed on a clean `main` worktree (zero diff in either the test or
 `hooks/session-start.sh`): the test's fixtures write
@@ -93,14 +98,3 @@ migration-to-`BACKLOG.md` nudge instead, per the v0.22.0 rename. The test
 was never updated to match. Fix: rewrite the failing fixtures to use
 `BACKLOG.md` (matching the hook's actual current contract), or fold this
 into item 2 (automated integration tests) if that work supersedes it.
-
-### 9. Backlog item numbers double as "position in full historical list" — confusing when referenced
-
-Sequential integers are correct for showing the user a scannable list and
-for the user's own back-references ("do item 3"). But the same integers
-also encode each item's place in the all-time backlog sequence (gaps like
-the missing 5 above are closed items, never reused) — so an integer
-quoted back to the user doesn't distinguish "3rd item currently on the
-list" from "the 3rd item ever filed." Give backlog items a non-integer ID
-(e.g. a short slug or hex tag) distinct from the display-order integer
-shown to the user.

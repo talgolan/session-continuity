@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0] — 2026-09-01
+
+### Changed
+- **`BACKLOG.md` item headings gain a permanent hex tag and a filing date; the leading number becomes purely ephemeral display order.** New heading shape: `### <position>. [<tag>] [<YYYY-MM-DD>] <Title>`. `<position>` is recomputed gap-free (1..N) on every render and carries no permanent meaning — it previously doubled as both display order and a de-facto permanent ID (gaps from deleted items exposed each item's place in the all-time filing sequence, which confused cross-references). `<tag>` is a 4-hex-character ID minted once at filing and never reused; it's now the sole permanent identity for cross-references and the grep-before-delete safety check. `/session-continuity:end-session`'s backlog overlay and close-candidate rendering, and `session-start.sh`'s backlog reminder, now cite items by tag; any user-facing mention of a specific item shows both, e.g. `1 [a3f9]`.
+
 ## [0.23.0] — 2026-09-01
 
 ### Added
