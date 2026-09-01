@@ -20,8 +20,8 @@ rarely.
 
 ## Current state
 
-- **v0.24.0 in progress, branch `feat/backlog-non-integer-ids` (not yet
-  merged).** `BACKLOG.md` item headings now carry a permanent 4-hex-char
+- **v0.24.0 merged to `main` via PR #26 (`578b0b5`).**
+  `BACKLOG.md` item headings now carry a permanent 4-hex-char
   tag and filing date alongside the display number:
   `### <position>. [<tag>] [<YYYY-MM-DD>] <Title>`. `<position>` is
   ephemeral (recomputed gap-free, 1..N, every render); `<tag>` is the
@@ -39,6 +39,18 @@ rarely.
   had no per-session debounce, causing the repeated `docs-current
   reminder` nag; fixed there, outside this repo since that file is
   git-excluded/personal).
+- **Filed backlog item 7 [b10f]: LEARNINGS generation hardening plan,
+  unexecuted.** Full 7-task plan at
+  `meta/superpowers/plans/2026-09-01-learnings-generation-hardening.md`
+  (currently untracked, not yet committed) closes real findings measured
+  against archived transcripts: `learnings-index.sh reindex` can truncate
+  `LEARNINGS.md` to 0 bytes on a missing awk sibling; candidate heuristics
+  produce mostly noise (heredoc-fragment titles, unfireable error
+  recurrence); every extraction failure collapses to a silent "no
+  candidates"; the staleness guard is skipped on GNU coreutils; fenced
+  examples and front matter break Symptoms-index regeneration. Overlaps
+  item 5(b)'s empty-`$REPORT` gap (this plan's Task 6 Step 6) — fold
+  rather than fix twice.
 - **v0.23.0 merged to `main` via PR #24 (`fc481da`).**
   Ships candidate extraction + Heuristics A-D
   (`hooks/lib/candidate-extract.sh`), the `step-4-agent-active` derivation
@@ -459,11 +471,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+578b0b5 Merge pull request #26 from talgolan/feat/backlog-non-integer-ids
+daabc55 feat: permanent hex tags + filing dates on BACKLOG.md items (v0.24.0)
 56486cd Merge pull request #25 from talgolan/fix/docs-current-hook-noise
 a3409cb docs: close backlog item 8, fix docs-current Stop hook noise
 1b6d96b docs: update session continuity
-fc481da Merge pull request #24 from talgolan/feat/end-session-step2-cost-attribution
-43db28a docs: file backlog item for stale session-start smoke fixtures
 ```
 
 Regenerate this block whenever you commit — see

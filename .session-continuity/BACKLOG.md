@@ -98,3 +98,18 @@ migration-to-`BACKLOG.md` nudge instead, per the v0.22.0 rename. The test
 was never updated to match. Fix: rewrite the failing fixtures to use
 `BACKLOG.md` (matching the hook's actual current contract), or fold this
 into item 2 (automated integration tests) if that work supersedes it.
+
+### 7. [b10f] [2026-09-01] LEARNINGS generation hardening — write-gate + heuristic retune, unexecuted plan
+
+Full 7-task implementation plan at
+`meta/superpowers/plans/2026-09-01-learnings-generation-hardening.md`, not
+yet started (all checkboxes unchecked). Closes real findings measured
+against archived transcripts: `learnings-index.sh reindex` can truncate
+`LEARNINGS.md` to 0 bytes on a missing awk sibling (F1); the candidate
+heuristics produce mostly noise (heredoc fragments as titles, 20-line
+commit bodies, Heuristic C structurally unable to fire) (F3-F5); every
+extraction failure mode collapses to a silent "no candidates" (F6);
+the staleness guard is skipped on GNU coreutils (F7); fenced code
+examples and YAML front matter break the Symptoms-index regeneration
+(F8-F9). Task 6 Step 6 overlaps item 5(b)'s empty-`$REPORT` gap — fold
+that into this plan's execution rather than fixing twice.
