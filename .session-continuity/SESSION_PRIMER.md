@@ -20,6 +20,30 @@ rarely.
 
 ## Current state
 
+- **v0.23.0 shipped this session on branch
+  `feat/end-session-step2-cost-attribution`, not yet merged/released.**
+  Ships candidate extraction + Heuristics A-D
+  (`hooks/lib/candidate-extract.sh`), the `step-4-agent-active` derivation
+  (`hooks/lib/agent-active.sh`, retiring `step-4-compute-only`), and
+  `LEARNINGS.md`'s duplicate-detection/Symptoms-index regeneration
+  (`hooks/lib/learnings-index.sh`) as scripts instead of prose the agent
+  re-executed or re-derived by hand each invocation, plus a shared
+  `CONTRACT_VERSION` skew guard (`hooks/lib/require-script.sh`).
+  `commands/end-session.md` Steps 2 and 4 and `commands/learning.md` Steps
+  4 and 6 now delegate to these scripts. Closes BACKLOG item 5. Four new
+  hermetic smoke suites (32 assertions: 7 require-script + 8
+  candidate-extract + 5 agent-active + 12 learnings-index), all green;
+  full validation suite now 16 `2026-*-smoke.zsh` runners. Static checks
+  confirmed `step-4-compute-only`/`compute_only` retired with zero
+  remaining references in `commands/` or `hooks/`, and all four scripts'
+  degenerate-input behavior (`/dev/null`) matches their documented
+  contracts. **Residual gap: nobody has yet run
+  `/session-continuity:end-session` or `/session-continuity:learning` live
+  end-to-end against this branch** — Task 9's validation was static
+  (grep + direct script invocation + smoke suites), not a live slash-command
+  ritual; do that once after this branch merges, per
+  `meta/superpowers/sdd/2026-09-01-end-session-step2-cost-attribution/task-9-report.md`.
+  Spec: `meta/superpowers/specs/2026-09-01-end-session-step2-cost-attribution-design.md`.
 - **v0.22.0 released** — renamed OUTSTANDING_ITEMS.md to BACKLOG.md, added
   ROADMAP.md, added /session-continuity:help. PR #23 merged to `main`
   (`d2ff918`), tag `v0.22.0` pushed, GitHub Actions `release.yml` ran

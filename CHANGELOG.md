@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0] — 2026-09-01
+
+### Added
+- **New `hooks/lib/candidate-extract.sh`** — ships LEARNINGS candidate extraction and Heuristics A-D (retry-burst, revert, error-recurrence, fix-burst) as a script instead of re-executed prose. `/session-continuity:end-session` Step 2 now calls it once per invocation instead of re-filtering the already-extracted transcript JSON six extra times, as the prior prose-driven approach did (Finding 2 of the design spec). Prints one JSON object (`{"mode":"transcript"|"unavailable","candidates":[...],"overflow":N}`) to stdout; never fails loud — a missing/unreadable/empty/stale transcript or missing `jq` yields `mode:"unavailable"` with empty candidates.
+- **New `hooks/lib/agent-active.sh`** — derives `step-4-agent-active`, the agent's own active-compute time, by summing the harness's own per-turn `turn_duration` telemetry over the invocation's window (falling back to a timestamp turn-boundary walk only when no such records exist). Retires `step-4-compute-only`, which subtracted the Step 1/Step 2 prompt-wait markers from total ritual time — a proxy that couldn't account for every mid-ritual gap, not the agent's own active time.
+- **New `hooks/lib/learnings-index.sh`** — ships `.session-continuity/LEARNINGS.md`'s duplicate-entry-number/duplicate-slug detection and `## Symptoms index` regeneration as a script instead of prose the agent re-derived by hand on every `/session-continuity:learning` invocation (Finding 4 of the design spec: the index had never actually regenerated at scale in the project that motivated this work). `report` prints `MAX <n>` plus one `DUPNUM`/`DUPSLUG` line per collision; `reindex` regenerates the index in place and is idempotent from the first run.
+- **New `hooks/lib/require-script.sh`** — shared version-skew guard. Every command that now delegates to one of the three scripts above checks its `CONTRACT_VERSION` line before calling it, so a stale cached copy of a script (plugin updated, but a running shell still holds an old file) fails loud with a named error instead of executing silently mismatched logic.
+
+### Changed
+- `/session-continuity:end-session` Step 2 (transcript-based candidate extraction) and Step 4 (`step-4-agent-active`), and `/session-continuity:learning` Steps 4 and 6 (duplicate detection, Symptoms-index regeneration), now delegate to the scripts above instead of carrying the equivalent logic as prose.
+
+See `meta/superpowers/specs/2026-09-01-end-session-step2-cost-attribution-design.md` for the full design, including Findings 2 and 4's measurements against real invocations.
+
 ## [0.22.0] — 2026-08-31
 
 ### Added

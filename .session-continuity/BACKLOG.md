@@ -57,3 +57,39 @@ count check). Invariant (CLAUDE.md rule 4): every count or
 named-entity-list claim in shipped docs must match actual repo state at
 commit time, enforced at the gate that runs on every commit. Design:
 `meta/superpowers/recommendations/docguard-design-sketch.md`.
+
+### 6. `agent-active.sh` fallback + `learning.md` empty-`$REPORT` gap, plus doc staleness cleanup
+
+Both from v0.23.0's cost-attribution work, deferred by that implementation's
+final review (Ready to merge: Yes) as narrow, non-blocking edge cases:
+(a) `hooks/lib/agent-active.sh`'s fallback mechanism (used only when a
+transcript has zero `turn_duration` records) has an unreachable "skip if
+earlier record is turn_duration" clause — it always sums unconditional
+wall-clock time, silently reintroducing idle-as-compute for that minority
+of transcripts. Needs a real assistant-close→gap→next-user boundary walk;
+this is a **spec amendment** (the current fallback is inherited verbatim
+from the approved spec), not a silent code patch — re-review before
+changing it. (b) `commands/learning.md` Step 4 has no explicit "stop if
+`$REPORT` is empty" instruction on a `require_script` failure (script
+missing/outdated) — could compute a wrong next-entry number in that narrow
+version-skew window; the existing "must not already appear in the file"
+check only catches an already-used number, not an unused-but-wrong one.
+(c) `commands/end-session.md`'s untouched `### Heuristics`/Step-2-intro
+prose ("computed once above", agent-side dedup/cap language) still
+describes the pre-refactor execution flow now living in
+`candidate-extract.jq`; `CHANGELOG.md`'s `[0.23.0]` entry says the fallback
+does "a timestamp turn-boundary walk," which is accurate as intent but not
+as shipped behavior per (a) — reword once (a) is actually fixed.
+
+### 7. `2026-08-12-session-start-smoke.zsh` tests a pre-v0.22.0 contract — 7/17 assertions fail
+
+Confirmed on a clean `main` worktree (zero diff in either the test or
+`hooks/session-start.sh`): the test's fixtures write
+`.session-continuity/OUTSTANDING_ITEMS.md` expecting the hook to list its
+items directly, but the hook — unchanged since before this finding, so
+this isn't a regression from any recent work — now treats *any*
+`OUTSTANDING_ITEMS.md` presence as stale-format and always emits a
+migration-to-`BACKLOG.md` nudge instead, per the v0.22.0 rename. The test
+was never updated to match. Fix: rewrite the failing fixtures to use
+`BACKLOG.md` (matching the hook's actual current contract), or fold this
+into item 2 (automated integration tests) if that work supersedes it.

@@ -51,19 +51,29 @@ If they pick "new section", prompt for the heading and insert it above the exist
 
 ## Step 4 — Compute next number (with uniqueness guard)
 
-Scan `.session-continuity/LEARNINGS.md` for **every** `### N.` heading (regex: `^### (\d+)\.`). Two operations:
+Run the shared derivation script rather than re-deriving this by hand:
 
-1. **Detect duplicates first.** Count occurrences of each number. If any number appears more than once, refuse to write and report:
+```bash
+source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" 1; then
+  REPORT="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" report .session-continuity/LEARNINGS.md)"
+else
+  echo "⚠️ $SC_REQUIRE_SCRIPT_MSG"
+  REPORT=""
+fi
+```
+
+1. **Detect duplicates first.** If `$REPORT` contains any `DUPNUM` line, refuse to write and report:
 
    > "LEARNINGS.md has duplicate entry numbers: #X (line A, line B), #Y (line C, line D). Fix the file before appending — pick which entry keeps the number and renumber the other (or merge them). Re-run `/session-continuity:learning` after."
 
-   Exit. Do not append on top of a corrupt file.
+   (Build the message from every `DUPNUM <n> <lines>` line in `$REPORT`.) Exit. Do not append on top of a corrupt file.
 
-2. **Compute next number across all entries.** Take the **true maximum** of the parsed numbers (not "next after the most recent" — that fails when an old entry was edited last). New entry gets `max + 1`.
+2. **Compute next number.** Read `MAX` from `$REPORT` (the `MAX <n>` line). New entry gets `MAX + 1`.
 
-After computing, validate: the chosen number must not already appear in the file. If it does (race condition with manual edit during this command), bump again and re-validate.
+After computing, validate: the chosen number must not already appear in the file (re-run the `report` script call above if a race is suspected). If it does, bump again and re-validate.
 
-3. **Validate the slug, if one was accepted.** Scan for every `^Slug:[[:space:]]*(.+)` line. If the proposed slug matches an existing one, tell the user which entry already owns it and ask for a different slug (or decline to add one).
+3. **Validate the slug, if one was accepted.** Check `$REPORT` for a `DUPSLUG <proposed-slug> ...` line. If present, tell the user which entry already owns it and ask for a different slug (or decline to add one).
 
 ## Step 5 — Insert at top of chosen section
 
@@ -99,10 +109,23 @@ Insert immediately after the section heading (and any HTML comments that follow 
 
 Every entry's `**Symptom.**` line is searchable, but with enough entries a reader won't know which section to grep. Keep a flat, alphabetized index at the top of the file so symptom-first search works regardless of section.
 
-1. If the file has no `## Symptoms index` section yet, create one as the very first section — immediately after the intro paragraph, before the first `---`.
-2. Scan every entry for its `### N.` number and its `**Symptom.**` text. Build one bullet per entry: `- <symptom text, truncated to ~12 words with a trailing "…" if cut> — #N`.
-3. Sort bullets alphabetically (case-insensitive) by the symptom text.
-4. Replace the entire contents of `## Symptoms index` with the regenerated list. This section is fully derived — never hand-edit it, always regenerate from the entries.
+Run the shared derivation script after Step 5 has inserted the new entry:
+
+```bash
+source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" 1; then
+  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" reindex .session-continuity/LEARNINGS.md
+else
+  echo "⚠️ $SC_REQUIRE_SCRIPT_MSG — Symptoms index not regenerated this run."
+fi
+```
+
+This regenerates `## Symptoms index` wholesale from every entry's
+`**Symptom.**` line (creating the section when absent), applying a hard
+12-word cutoff with a trailing "…" if cut, sorted dictionary-order
+case-insensitive. Idempotent: running it twice with no new entry in
+between produces no change. This section is fully derived — never
+hand-edit it.
 
 ## Step 7 — Bump the footer
 
