@@ -225,7 +225,7 @@ def overlap($ta; $tb):
             | ($w | group_by(.fam) | map(select(length >= 3)) | length) as $clusters
             | if ($w | length) >= 10 and $clusters >= 1 then
                 {heuristic: "fix-burst",
-                 title: ($c.subject + " — fix preceded by a "
+                 title: (($c.subject | redact_paths) + " — fix preceded by a "
                          + ($w | length | tostring) + "-action investigation."),
                  evidence: ([$w[0], $w[(($w | length) / 2 | floor)], $w[-1]]
                             | map("Bash @ " + .ts + " → " + (.command | display_of))),
