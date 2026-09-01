@@ -63,28 +63,20 @@ named-entity-list claim in shipped docs must match actual repo state at
 commit time, enforced at the gate that runs on every commit. Design:
 `meta/superpowers/recommendations/docguard-design-sketch.md`.
 
-### 5. [e8e2] [2026-09-01] `agent-active.sh` fallback + `learning.md` empty-`$REPORT` gap, plus doc staleness cleanup
+### 5. [e8e2] [2026-09-01] `agent-active.sh` fallback treats every transcript as if it has `turn_duration` records
 
-Both from v0.23.0's cost-attribution work, deferred by that implementation's
-final review (Ready to merge: Yes) as narrow, non-blocking edge cases:
-(a) `hooks/lib/agent-active.sh`'s fallback mechanism (used only when a
-transcript has zero `turn_duration` records) has an unreachable "skip if
-earlier record is turn_duration" clause — it always sums unconditional
-wall-clock time, silently reintroducing idle-as-compute for that minority
-of transcripts. Needs a real assistant-close→gap→next-user boundary walk;
-this is a **spec amendment** (the current fallback is inherited verbatim
-from the approved spec), not a silent code patch — re-review before
-changing it. (b) `commands/learning.md` Step 4 has no explicit "stop if
-`$REPORT` is empty" instruction on a `require_script` failure (script
-missing/outdated) — could compute a wrong next-entry number in that narrow
-version-skew window; the existing "must not already appear in the file"
-check only catches an already-used number, not an unused-but-wrong one.
-(c) `commands/end-session.md`'s untouched `### Heuristics`/Step-2-intro
-prose ("computed once above", agent-side dedup/cap language) still
-describes the pre-refactor execution flow now living in
-`candidate-extract.jq`; `CHANGELOG.md`'s `[0.23.0]` entry says the fallback
-does "a timestamp turn-boundary walk," which is accurate as intent but not
-as shipped behavior per (a) — reword once (a) is actually fixed.
+From v0.23.0's cost-attribution work, deferred by that implementation's
+final review (Ready to merge: Yes) as a narrow, non-blocking edge case.
+The fallback mechanism (used only when a transcript has zero
+`turn_duration` records) has an unreachable "skip if earlier record is
+turn_duration" clause — it always sums unconditional wall-clock time,
+silently reintroducing idle-as-compute for that minority of transcripts.
+Needs a real assistant-close→gap→next-user boundary walk; this is a
+**spec amendment** (the current fallback is inherited verbatim from the
+approved spec), not a silent code patch — re-review before changing it.
+(The sibling items in this entry — `learning.md`'s empty-`$REPORT` gap and
+`end-session.md`'s stale Heuristics prose — were resolved by the LEARNINGS
+generation hardening plan, v0.25.0.)
 
 ### 6. [6258] [2026-09-01] `2026-08-12-session-start-smoke.zsh` tests a pre-v0.22.0 contract — 7/17 assertions fail
 
@@ -99,17 +91,20 @@ was never updated to match. Fix: rewrite the failing fixtures to use
 `BACKLOG.md` (matching the hook's actual current contract), or fold this
 into item 2 (automated integration tests) if that work supersedes it.
 
-### 7. [b10f] [2026-09-01] LEARNINGS generation hardening — write-gate + heuristic retune, unexecuted plan
+### 7. [c9a4] [2026-09-01] `overlap()` dedup in `candidate-extract.jq` is an asymmetric, multiplicity-vs-dedup-mismatched Jaccard, and over-merges distinct retry-bursts
 
-Full 7-task implementation plan at
-`meta/superpowers/plans/2026-09-01-learnings-generation-hardening.md`, not
-yet started (all checkboxes unchecked). Closes real findings measured
-against archived transcripts: `learnings-index.sh reindex` can truncate
-`LEARNINGS.md` to 0 bytes on a missing awk sibling (F1); the candidate
-heuristics produce mostly noise (heredoc fragments as titles, 20-line
-commit bodies, Heuristic C structurally unable to fire) (F3-F5); every
-extraction failure mode collapses to a silent "no candidates" (F6);
-the staleness guard is skipped on GNU coreutils (F7); fenced code
-examples and YAML front matter break the Symptoms-index regeneration
-(F8-F9). Task 6 Step 6 overlaps item 5(b)'s empty-`$REPORT` gap — fold
-that into this plan's execution rather than fixing twice.
+Deferred by the LEARNINGS generation hardening plan's (v0.25.0) Task 4 and
+final reviews as a real defect in verbatim, evidence-validated code —
+non-blocking (conservative failure: fewer candidates shown, never wrong
+data) but confirmed live, not just synthetic. The numerator counts `$wa`'s
+title words with multiplicity while the denominator is the deduplicated
+union, so `overlap(A;B) != overlap(B;A)` and short/similar titles score
+above the 0.7 dedup threshold when they shouldn't (`vitest`/`jest` scored
+0.909). The final whole-branch review sharpened this: Task 4's uniform
+title suffix (`— re-run N times with M file edits in between.`) means two
+retry-bursts on genuinely different commands (e.g. `bun test src/foo…` vs
+`bun test src/bar…`) score 0.722 — over threshold — so the second is
+silently dropped before the per-heuristic cap even applies. Fix: a
+symmetric, multiplicity-free Jaccard (dedupe `$wa`/`$wb` before comparing),
+and/or exclude the common title-template suffix from the comparison so
+only the command-specific portion is scored.
