@@ -80,3 +80,16 @@ describes the pre-refactor execution flow now living in
 `candidate-extract.jq`; `CHANGELOG.md`'s `[0.23.0]` entry says the fallback
 does "a timestamp turn-boundary walk," which is accurate as intent but not
 as shipped behavior per (a) — reword once (a) is actually fixed.
+
+### 7. `2026-08-12-session-start-smoke.zsh` tests a pre-v0.22.0 contract — 7/17 assertions fail
+
+Confirmed on a clean `main` worktree (zero diff in either the test or
+`hooks/session-start.sh`): the test's fixtures write
+`.session-continuity/OUTSTANDING_ITEMS.md` expecting the hook to list its
+items directly, but the hook — unchanged since before this finding, so
+this isn't a regression from any recent work — now treats *any*
+`OUTSTANDING_ITEMS.md` presence as stale-format and always emits a
+migration-to-`BACKLOG.md` nudge instead, per the v0.22.0 rename. The test
+was never updated to match. Fix: rewrite the failing fixtures to use
+`BACKLOG.md` (matching the hook's actual current contract), or fold this
+into item 2 (automated integration tests) if that work supersedes it.
