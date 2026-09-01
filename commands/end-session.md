@@ -523,8 +523,9 @@ LEARNINGS candidates from this session:
 2. [error-recurrence] "<normalized error string>" — recurred N times over M minutes.
    Evidence: N Bash invocations across <paraphrased context>; resolved by <paraphrased fix>.
 
-3. [revert] Reverted approach: "<commit subject>" (commit <sha> → git reset --hard).
-   Evidence: <paraphrased justification>.
+3. [revert] Reverted approach: `git checkout -- docs/history.jsonl.`
+   Evidence:
+   - Bash @ 2026-09-01T00:05:12Z → tmux kill-session -t smoke 2>/dev/null; git checkout -- docs/history.jsonl; echo done
 
 Capture any? (1, 2, 3, all, none, or describe another)
 ```
