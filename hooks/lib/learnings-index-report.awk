@@ -1,4 +1,9 @@
 # CONTRACT_VERSION=2
+# Reports the maximum entry number, duplicate entry numbers, and duplicate
+# slugs in a LEARNINGS.md. Lines inside fenced code blocks are documentation
+# examples, never entries.
+/^```/ { fence = !fence; next }
+fence { next }
 /^### [0-9]+\./ {
   line = $0
   sub(/^### /, "", line)

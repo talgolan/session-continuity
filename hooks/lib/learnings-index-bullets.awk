@@ -1,4 +1,8 @@
 # CONTRACT_VERSION=2
+# Emits one "- <first 12 words of the symptom> — #<entry number>" line per
+# entry. Lines inside fenced code blocks are examples, never entries.
+/^```/ { fence = !fence; next }
+fence { next }
 /^### [0-9]+\./ {
   line = $0
   sub(/^### /, "", line)

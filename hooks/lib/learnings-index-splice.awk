@@ -1,5 +1,9 @@
 # CONTRACT_VERSION=2
-function emit_block() {
+# Replaces (or inserts) the "## Symptoms index" section. Reads the sorted
+# bullet lines from the file named by -v bfile; -v has_index tells it whether
+# the input already contains the section. Every input line is printed exactly
+# once except the old section body, which is replaced wholesale.
+function emit_section(   bline) {
   print "## Symptoms index"
   print ""
   print "<!--"
@@ -10,28 +14,26 @@ function emit_block() {
   print ""
   while ((getline bline < bfile) > 0) print bline
   close(bfile)
-}
-BEGIN { replaced = 0; in_old = 0; skip_one_blank = 0 }
-/^## Symptoms index/ && !replaced {
-  emit_block()
   print ""
   print "---"
   print ""
+}
+BEGIN { replaced = 0; in_old = 0; fence = 0 }
+/^```/ { fence = !fence; print; next }
+fence { print; next }
+/^## Symptoms index/ && !replaced {
+  emit_section()
   in_old = 1
   replaced = 1
   next
 }
 in_old && /^## / { in_old = 0 }
 in_old { next }
-!has_index && !replaced && /^---$/ {
-  emit_block()
-  print ""
-  print "---"
-  print ""
+!has_index && !replaced && /^## / {
+  emit_section()
   replaced = 1
-  skip_one_blank = 1
-  next
 }
-skip_one_blank && /^$/ { skip_one_blank = 0; next }
-skip_one_blank { skip_one_blank = 0 }
 { print }
+END {
+  if (!replaced) emit_section()
+}

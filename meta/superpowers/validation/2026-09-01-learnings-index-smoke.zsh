@@ -163,6 +163,75 @@ after_sum="$(shasum "$work/victim3.md" | cut -d' ' -f1)"
 [[ "$before_sum" == "$after_sum" ]] && ok "entry-count drop leaves the file byte-identical" \
   || bad "entry-count drop MODIFIED the file ($before_sum -> $after_sum)"
 
+# --- fenced code blocks are not entries -------------------------------------
+
+cat > "$work/fenced.md" <<'MDEOF'
+# fixture
+
+### 7. real entry
+Slug: real-one
+
+**The trap.** x
+
+**Symptom.** the real symptom line
+
+**Fix.** here is how the heading looks:
+
+```markdown
+### 7. an example heading inside a fence
+Slug: real-one
+**Symptom.** this line is an example, not an entry
+```
+
+---
+MDEOF
+out="$(bash "$lib/learnings-index.sh" report "$work/fenced.md")"
+print -r -- "$out" | grep -q DUPNUM && bad "fenced example produced a false DUPNUM: $out" \
+  || ok "report ignores entry headings inside fenced code blocks"
+print -r -- "$out" | grep -q DUPSLUG && bad "fenced example produced a false DUPSLUG: $out" \
+  || ok "report ignores Slug: lines inside fenced code blocks"
+bash "$lib/learnings-index.sh" reindex "$work/fenced.md" > /dev/null
+n_bullets="$(grep -c '^- .* — #' "$work/fenced.md")"
+[[ "$n_bullets" -eq 1 ]] && ok "reindex indexes 1 symptom, not the fenced example" \
+  || bad "reindex indexed $n_bullets bullets, expected 1"
+
+# --- YAML front matter survives ---------------------------------------------
+
+cat > "$work/frontmatter.md" <<'MDEOF'
+---
+title: My learnings
+author: someone
+---
+
+# Learnings
+
+Intro prose.
+
+## Runtime
+
+### 1. thing
+Slug: thing
+
+**The trap.** x
+
+**Symptom.** it broke badly
+
+**Fix.** x
+
+---
+MDEOF
+bash "$lib/learnings-index.sh" reindex "$work/frontmatter.md" > /dev/null
+head -1 "$work/frontmatter.md" | grep -q '^---$' && ok "front matter opener still on line 1" \
+  || bad "front matter opener was displaced: $(head -1 "$work/frontmatter.md")"
+sed -n '2p' "$work/frontmatter.md" | grep -q '^title: My learnings$' && ok "front matter body intact" \
+  || bad "front matter body was mangled: $(sed -n '2p' "$work/frontmatter.md")"
+grep -q '^## Symptoms index' "$work/frontmatter.md" && ok "index inserted into a front-matter file" \
+  || bad "no index inserted into the front-matter file"
+after1="$(cat "$work/frontmatter.md")"
+bash "$lib/learnings-index.sh" reindex "$work/frontmatter.md" > /dev/null
+[[ "$after1" == "$(cat "$work/frontmatter.md")" ]] && ok "front-matter file reindex is idempotent" \
+  || bad "front-matter file changed on the second reindex"
+
 rm -rf "$work"
 print ""
 print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"
