@@ -57,3 +57,17 @@ count check). Invariant (CLAUDE.md rule 4): every count or
 named-entity-list claim in shipped docs must match actual repo state at
 commit time, enforced at the gate that runs on every commit. Design:
 `meta/superpowers/recommendations/docguard-design-sketch.md`.
+
+### 5. End-session Step 2 — cost attribution and heuristic execution
+
+Measured across 28 real `architect-workbench` invocations and 10 in this
+repo: `step-4-compute-only` books human idle time (turn-boundary gaps up
+to 95% of a run) as agent compute, Step 2's Heuristics A-D re-filter the
+already-extracted transcript JSON six extra times per run instead of
+reading the in-memory arrays as documented, and `LEARNINGS.md`'s Step 6
+`## Symptoms index` regeneration has never run at scale (zero index
+entries in a 68-entry, 161KB file). Proposed fix ships the extraction +
+heuristics and the index regeneration as scripts (not prose) and replaces
+the prompt-wait subtraction with a turn-boundary derivation over the
+transcript. Spec approved, needs an implementation plan:
+`meta/superpowers/specs/2026-09-01-end-session-step2-cost-attribution-design.md`.
