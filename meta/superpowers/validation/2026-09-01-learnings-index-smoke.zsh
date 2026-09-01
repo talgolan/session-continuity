@@ -135,7 +135,7 @@ rc=$?
 after_sum="$(shasum "$work/victim2.md" | cut -d' ' -f1)"
 [[ "$rc" -eq 2 ]] && ok "contract-skewed awk sibling exits 2" || bad "contract-skewed sibling: expected exit 2, got $rc (out: $out)"
 [[ "$before_sum" == "$after_sum" ]] && ok "contract-skewed sibling leaves the file byte-identical" \
-  || bad "contract-skewed sibling MODIFIED the file"
+  || bad "contract-skewed sibling MODIFIED the file ($before_sum -> $after_sum)"
 
 # report must fail the same way rather than printing a bogus MAX 0.
 out="$(bash "$work/orphan/learnings-index.sh" report "$work/victim.md" 2>&1)"
@@ -161,7 +161,7 @@ rc=$?
 after_sum="$(shasum "$work/victim3.md" | cut -d' ' -f1)"
 [[ "$rc" -eq 2 ]] && ok "entry-count drop exits 2" || bad "entry-count drop: expected exit 2, got $rc (out: $out)"
 [[ "$before_sum" == "$after_sum" ]] && ok "entry-count drop leaves the file byte-identical" \
-  || bad "entry-count drop MODIFIED the file"
+  || bad "entry-count drop MODIFIED the file ($before_sum -> $after_sum)"
 
 rm -rf "$work"
 print ""
