@@ -28,26 +28,44 @@ cat > "$work/stale.sh" <<'EOF'
 echo hi
 EOF
 
-source "$lib/require-script.sh"
+# Fixture: a script with no CONTRACT_VERSION line at all.
+cat > "$work/no-version.sh" <<'EOF'
+#!/usr/bin/env bash
+echo hi
+EOF
 
-if require_script "$work/good.sh" 1; then
+# Source require-script.sh inside bash -c to avoid DevBar's grep wrapper function
+# shadowing the real binary, following the pattern from gate-common-smoke.zsh
+
+if bash -c 'source "'"$lib"'/require-script.sh"; require_script "'"$work/good.sh"'" 1'; then
   ok "matching contract version returns 0"
 else
-  bad "matching contract version should return 0, got 1 (msg: $SC_REQUIRE_SCRIPT_MSG)"
+  bad "matching contract version should return 0, got 1"
 fi
 
-if require_script "$work/stale.sh" 1; then
+if bash -c 'source "'"$lib"'/require-script.sh"; require_script "'"$work/stale.sh"'" 1'; then
   bad "mismatched contract version should return 1, got 0"
 else
+  bash -c 'source "'"$lib"'/require-script.sh"; require_script "'"$work/stale.sh"'" 1; echo "$SC_REQUIRE_SCRIPT_MSG"' > /dev/null
   ok "mismatched contract version returns 1"
-  [[ -n "$SC_REQUIRE_SCRIPT_MSG" ]] && ok "mismatch sets a message" || bad "mismatch left SC_REQUIRE_SCRIPT_MSG empty"
+  msg="$(bash -c 'source "'"$lib"'/require-script.sh"; require_script "'"$work/stale.sh"'" 1; echo "$SC_REQUIRE_SCRIPT_MSG"')"
+  [[ -n "$msg" ]] && ok "mismatch sets a message" || bad "mismatch left SC_REQUIRE_SCRIPT_MSG empty"
 fi
 
-if require_script "$work/does-not-exist.sh" 1; then
+if bash -c 'source "'"$lib"'/require-script.sh"; require_script "'"$work/does-not-exist.sh"'" 1'; then
   bad "missing script should return 1, got 0"
 else
   ok "missing script returns 1"
-  [[ -n "$SC_REQUIRE_SCRIPT_MSG" ]] && ok "missing-script sets a message" || bad "missing-script left SC_REQUIRE_SCRIPT_MSG empty"
+  msg="$(bash -c 'source "'"$lib"'/require-script.sh"; require_script "'"$work/does-not-exist.sh"'" 1; echo "$SC_REQUIRE_SCRIPT_MSG"')"
+  [[ -n "$msg" ]] && ok "missing-script sets a message" || bad "missing-script left SC_REQUIRE_SCRIPT_MSG empty"
+fi
+
+if bash -c 'source "'"$lib"'/require-script.sh"; require_script "'"$work/no-version.sh"'" 1'; then
+  bad "script with no version should return 1, got 0"
+else
+  ok "script with no version returns 1"
+  msg="$(bash -c 'source "'"$lib"'/require-script.sh"; require_script "'"$work/no-version.sh"'" 1; echo "$SC_REQUIRE_SCRIPT_MSG"')"
+  [[ -n "$msg" ]] && ok "no-version sets a message" || bad "no-version left SC_REQUIRE_SCRIPT_MSG empty"
 fi
 
 rm -rf "$work"
