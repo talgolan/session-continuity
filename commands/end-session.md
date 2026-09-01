@@ -557,7 +557,17 @@ if [[ "$prior_epoch" =~ ^[0-9]+$ ]]; then
 fi
 ```
 
-Once the user confirms, insert each accepted draft at the top of its chosen section per **Step 5 of `commands/learning.md`** and stage per **Step 6**: `git add .session-continuity/LEARNINGS.md`.
+Once the user confirms, insert each accepted draft at the top of its chosen section per **Step 5 of `commands/learning.md`**, then run the same index-regeneration script Step 6 of `commands/learning.md` calls (duplicated here deliberately — see Resolved decision 3 of the spec — rather than delegating, so this path can never leave the index stale regardless of whether a future change routes entries differently):
+
+```bash
+source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" 1; then
+  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" reindex .session-continuity/LEARNINGS.md
+else
+  echo "⚠️ $SC_REQUIRE_SCRIPT_MSG — Symptoms index not regenerated this run."
+fi
+git add .session-continuity/LEARNINGS.md
+```
 
 Do not loop one-prompt-per-candidate. The batch is the unit.
 
