@@ -14,15 +14,15 @@
 # silently degraded to an old prose path.
 
 require_script() {
-  local path="$1" expected="$2" found
+  local script_path="$1" expected="$2" found
   SC_REQUIRE_SCRIPT_MSG=""
-  if [[ ! -r "$path" ]]; then
-    SC_REQUIRE_SCRIPT_MSG="${path##*/} not found at $path — plugin cache is out of date. Run \`/session-continuity:update\`."
+  if [[ ! -r "$script_path" ]]; then
+    SC_REQUIRE_SCRIPT_MSG="${script_path##*/} not found at $script_path — plugin cache is out of date. Run \`/session-continuity:update\`."
     return 1
   fi
-  found="$(grep -m1 '^# CONTRACT_VERSION=' "$path" 2>/dev/null | sed -E 's/^# CONTRACT_VERSION=//')"
+  found="$(grep -m1 '^# CONTRACT_VERSION=' "$script_path" 2>/dev/null | sed -E 's/^# CONTRACT_VERSION=//')"
   if [[ "$found" != "$expected" ]]; then
-    SC_REQUIRE_SCRIPT_MSG="${path##*/} contract version mismatch (found '${found:-none}', need '$expected') — plugin cache is out of date. Run \`/session-continuity:update\`."
+    SC_REQUIRE_SCRIPT_MSG="${script_path##*/} contract version mismatch (found '${found:-none}', need '$expected') — plugin cache is out of date. Run \`/session-continuity:update\`."
     return 1
   fi
   return 0
