@@ -20,8 +20,7 @@ rarely.
 
 ## Current state
 
-- **v0.23.0 shipped this session on branch
-  `feat/end-session-step2-cost-attribution`, not yet merged/released.**
+- **v0.23.0 merged to `main` via PR #24 (`fc481da`).**
   Ships candidate extraction + Heuristics A-D
   (`hooks/lib/candidate-extract.sh`), the `step-4-agent-active` derivation
   (`hooks/lib/agent-active.sh`, retiring `step-4-compute-only`), and
@@ -30,19 +29,22 @@ rarely.
   re-executed or re-derived by hand each invocation, plus a shared
   `CONTRACT_VERSION` skew guard (`hooks/lib/require-script.sh`).
   `commands/end-session.md` Steps 2 and 4 and `commands/learning.md` Steps
-  4 and 6 now delegate to these scripts. Closes BACKLOG item 5. Four new
+  4 and 6 now delegate to these scripts. Closed BACKLOG item 5; filed
+  items 6 (two parked edge cases + doc staleness — the fallback needs a
+  spec amendment, not a silent patch) and 7 (an unrelated, pre-existing
+  smoke-test staleness found during final verification). Four new
   hermetic smoke suites (32 assertions: 7 require-script + 8
   candidate-extract + 5 agent-active + 12 learnings-index), all green;
   full validation suite now 16 `2026-*-smoke.zsh` runners. Static checks
   confirmed `step-4-compute-only`/`compute_only` retired with zero
   remaining references in `commands/` or `hooks/`, and all four scripts'
   degenerate-input behavior (`/dev/null`) matches their documented
-  contracts. **Residual gap: nobody has yet run
-  `/session-continuity:end-session` or `/session-continuity:learning` live
-  end-to-end against this branch** — Task 9's validation was static
-  (grep + direct script invocation + smoke suites), not a live slash-command
-  ritual; do that once after this branch merges, per
-  `meta/superpowers/sdd/2026-09-01-end-session-step2-cost-attribution/task-9-report.md`.
+  contracts. **Residual gap, still open:** this session's own
+  `/session-continuity:end-session` invocation ran against the still-cached
+  v0.22.0 plugin build (the merge doesn't hot-reload an installed plugin
+  cache) — real end-to-end verification of the *new* Step 2/4 delegation
+  and `learnings-index.sh` wiring still needs a run after
+  `/session-continuity:update` + `/reload-plugins` picks up v0.23.0.
   Spec: `meta/superpowers/specs/2026-09-01-end-session-step2-cost-attribution-design.md`.
 - **v0.22.0 released** — renamed OUTSTANDING_ITEMS.md to BACKLOG.md, added
   ROADMAP.md, added /session-continuity:help. PR #23 merged to `main`
@@ -438,11 +440,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-d2ff918 Merge pull request #23 from talgolan/feature/backlog-roadmap-help
-3dba137 docs: fix stale file-count references found in final review
-e0c0ab0 docs: migrate this repo's own OUTSTANDING_ITEMS.md to BACKLOG.md, add ROADMAP.md
-db15d1a docs: README documents BACKLOG.md, ROADMAP.md, and /help
-70600f6 chore: bump to 0.22.0 — BACKLOG.md rename, ROADMAP.md, /help command
+fc481da Merge pull request #24 from talgolan/feat/end-session-step2-cost-attribution
+43db28a docs: file backlog item for stale session-start smoke fixtures
+2dcfaa8 docs: file follow-up backlog item from v0.23.0's final review
+78bbf7a docs: close BACKLOG item 5, refresh primer for v0.23.0 cost-attribution work
+14a362b chore: bump to 0.23.0 — candidate-extract, agent-active, learnings-index scripts
 ```
 
 Regenerate this block whenever you commit — see
