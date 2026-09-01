@@ -14,25 +14,29 @@ bad() { print -P "%F{red}✗%f $1"; (( fail++ )); return 0; }
 
 jline() { print -r -- "$1"; }  # readability alias
 
-# --- degradation cases ------------------------------------------------------
+work_ce="$(mktemp -d)"
+mk_edit() {  # <ts> <tool_use_id>
+  jline "{\"type\":\"assistant\",\"timestamp\":\"$1\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"name\":\"Edit\",\"id\":\"$2\",\"input\":{\"file_path\":\"/tmp/x.ts\"}}]}}"
+}
+
+# --- degradation cases (now include detail field per new taxonomy) -----------
 
 out="$(bash "$lib/candidate-extract.sh" /no/such/file.jsonl)"
-if [[ "$out" == '{"mode":"unavailable","candidates":[],"overflow":0}' ]]; then
-  ok "missing transcript -> mode:unavailable"
-else
-  bad "missing transcript: got $out"
-fi
+mode="$(print -r -- "$out" | jq -r .mode)"
+[[ "$mode" == "unavailable" ]] && ok "missing transcript -> mode:unavailable" || bad "missing transcript: got $out"
 
 empty_f="$(mktemp)"
 out="$(bash "$lib/candidate-extract.sh" "$empty_f")"
-[[ "$out" == '{"mode":"unavailable","candidates":[],"overflow":0}' ]] && ok "empty transcript -> mode:unavailable" || bad "empty transcript: got $out"
+mode="$(print -r -- "$out" | jq -r .mode)"
+[[ "$mode" == "unavailable" ]] && ok "empty transcript -> mode:unavailable" || bad "empty transcript: got $out"
 rm -f "$empty_f"
 
 stale_f="$(mktemp)"
 jline '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","message":{"content":[]}}' > "$stale_f"
 touch -t 202001010000 "$stale_f" 2>/dev/null || touch -mt 202001010000 "$stale_f"
 out="$(bash "$lib/candidate-extract.sh" "$stale_f")"
-[[ "$out" == '{"mode":"unavailable","candidates":[],"overflow":0}' ]] && ok "stale (>5min old) transcript -> mode:unavailable" || bad "stale transcript: got $out"
+mode="$(print -r -- "$out" | jq -r .mode)"
+[[ "$mode" == "unavailable" ]] && ok "stale (>5min old) transcript -> mode:unavailable" || bad "stale transcript: got $out"
 rm -f "$stale_f"
 
 # --- Heuristic A: retry burst ------------------------------------------------
@@ -118,6 +122,61 @@ else
 fi
 rm -f "$d_f"
 
+# --- failure taxonomy: bad input vs broken install ---------------------------
+
+out="$(bash "$lib/candidate-extract.sh" /no/such/file.jsonl)"
+mode="$(print -r -- "$out" | jq -r .mode)"
+[[ "$mode" == "unavailable" ]] && ok "missing transcript -> mode:unavailable" || bad "missing transcript gave mode:$mode"
+[[ -n "$(print -r -- "$out" | jq -r .detail)" ]] && ok "unavailable carries a detail string" || bad "unavailable had an empty detail"
+
+# A missing .jq sibling is an install fault, not missing input.
+mkdir -p "$work_ce/orphan"
+cp "$lib/candidate-extract.sh" "$work_ce/orphan/"
+fresh_f="$(mktemp)"
+mk_bash_call "2026-09-01T00:00:00.000Z" "t1" "bun test" > "$fresh_f"
+out="$(bash "$work_ce/orphan/candidate-extract.sh" "$fresh_f")"
+mode="$(print -r -- "$out" | jq -r .mode)"
+[[ "$mode" == "error" ]] && ok "missing candidate-extract.jq -> mode:error" || bad "missing .jq gave mode:$mode (out: $out)"
+print -r -- "$out" | jq -r .detail | grep -q 'session-continuity:update' \
+  && ok "mode:error names the update command" || bad "mode:error detail was unhelpful: $out"
+
+# A contract-skewed .jq sibling is also an install fault.
+mkdir -p "$work_ce/skewed"
+cp "$lib/candidate-extract.sh" "$work_ce/skewed/"
+sed 's/^# CONTRACT_VERSION=2$/# CONTRACT_VERSION=1/' "$lib/candidate-extract.jq" > "$work_ce/skewed/candidate-extract.jq"
+out="$(bash "$work_ce/skewed/candidate-extract.sh" "$fresh_f")"
+mode="$(print -r -- "$out" | jq -r .mode)"
+[[ "$mode" == "error" ]] && ok "contract-skewed .jq -> mode:error" || bad "contract-skewed .jq gave mode:$mode"
+
+# A malformed timestamp must not abort the whole filter.
+mixed_f="$(mktemp)"
+{
+  jline '{"type":"assistant","timestamp":"not-a-timestamp","message":{"content":[{"type":"tool_use","name":"Bash","id":"bad","input":{"command":"bun test src/x.test.ts"}}]}}'
+  mk_bash_call "2026-09-01T00:00:00.000Z" "m1" "bun test src/x.test.ts"
+  mk_edit      "2026-09-01T00:00:30.000Z" "e1"
+  mk_bash_call "2026-09-01T00:01:00.000Z" "m2" "bun test src/x.test.ts"
+  mk_bash_call "2026-09-01T00:02:00.000Z" "m3" "bun test src/x.test.ts"
+} > "$mixed_f"
+out="$(bash "$lib/candidate-extract.sh" "$mixed_f")"
+mode="$(print -r -- "$out" | jq -r .mode)"
+[[ "$mode" == "transcript" ]] && ok "a malformed timestamp does not abort the filter" \
+  || bad "malformed timestamp gave mode:$mode (out: $out)"
+rm -f "$mixed_f" "$fresh_f"
+
+# --- self-timing ------------------------------------------------------------
+
+timing_repo="$(gt_make_repo)"
+timing_f="$(mktemp)"
+mk_bash_call "2026-09-01T00:00:00.000Z" "s1" "bun test" > "$timing_f"
+( cd "$timing_repo" && bash "$lib/candidate-extract.sh" "$timing_f" > /dev/null )
+if grep -q '"step":"step-2-transcript-extraction"' "$timing_repo/.session-continuity/performance.log" 2>/dev/null; then
+  ok "the script logs its own step-2-transcript-extraction line"
+else
+  bad "no step-2-transcript-extraction line was logged by the script"
+fi
+rm -f "$timing_f"
+gt_cleanup "$timing_repo"
+
 # --- determinism -------------------------------------------------------------
 
 out1="$(bash "$lib/candidate-extract.sh" "$a_f" 2>/dev/null || true)"
@@ -133,6 +192,8 @@ a_f2="$(mktemp)"
 out2="$(bash "$lib/candidate-extract.sh" "$a_f2")"
 [[ "$out1" == "$out2" ]] && ok "determinism: identical transcript twice -> identical JSON" || bad "determinism: outputs differ"
 rm -f "$a_f" "$a_f2"
+
+rm -rf "$work_ce"
 
 print ""
 print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"

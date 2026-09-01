@@ -1,3 +1,4 @@
+# CONTRACT_VERSION=2
 # hooks/lib/candidate-extract.jq — LEARNINGS candidate extraction + heuristics A-D.
 # Invoked via: jq -n --argjson tracked_files <json array from `git ls-files`> \
 #   -f candidate-extract.jq <transcript.jsonl>
