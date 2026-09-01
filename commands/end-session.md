@@ -354,112 +354,28 @@ When in context-window mode, note the limitation in the candidate
 output: "session context may be compacted; some early-session events
 may not have surfaced." Do not pretend to have full visibility.
 
-### Combined extraction pass (transcript-file mode only)
+### Candidate extraction (transcript-file mode only)
 
-Do this ONCE, before applying any heuristic below — not once per heuristic.
-Four independent greps/jq passes over the same (possibly multi-megabyte)
-file is pure redundant cost; one pass produces everything all four
-heuristics need.
+Run once, via the shipped script — never re-derive this jq filter or
+re-filter the extracted JSON per heuristic (that was the entire cost
+problem this replaced; see Finding 2 of
+`meta/superpowers/specs/2026-09-01-end-session-step2-cost-attribution-design.md`).
 
-Run the `jq` filter below over the transcript file in **one Bash call**
-(`jq -n -f <(cat <<'JQEOF' ... JQEOF) "$TRANSCRIPT"` or write it to a temp
-file and `jq -n -f`). It has been validated against real Claude Code
-transcripts across schema variants (some tool_result lines carry a
-`toolUseResult.{stdout,stderr}` object, others carry only a `content`
-string prefixed `"Exit code N\n..."` — the filter handles both) and runs in
-well under a second even on multi-megabyte, 200+-call transcripts. Use it
-as-is; do not re-derive a filter from scratch (a naive rewrite is exactly
-what caused a syntax-error retry round trip in past runs — e.g. `"" |
-split("\n")[0]` returns `null` in jq, not `""`, and crashes the next
-`gsub` in the chain). Time this Bash call: capture
-`_PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")` immediately
-before running `jq`, `_PERF_END` the same way immediately after, compute
-`_PERF_DURATION` the same way as elsewhere in this file, and call:
 ```bash
+source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
+_PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/candidate-extract.sh" 1; then
+  CANDIDATE_JSON="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/candidate-extract.sh" "$TRANSCRIPT")"
+else
+  echo "⚠️ $SC_REQUIRE_SCRIPT_MSG"
+  CANDIDATE_JSON='{"mode":"unavailable","candidates":[],"overflow":0}'
+fi
+_PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+_PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-2-transcript-extraction --duration="$_PERF_DURATION"
 ```
-in the same call, right after `jq` returns.
 
-```jq
-def norm_err:
-  if (. == null or . == "") then ""
-  else
-    .
-    | gsub("(?<p>/[^ :\"]+/)(?<b>[^/ :\"]+)"; "\(.b)")
-    | gsub(":[0-9]+:[0-9]+"; "")
-    | gsub("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z?"; "")
-    | gsub("[0-9]{2}:[0-9]{2}:[0-9]{2}"; "")
-    | gsub("0x[0-9a-fA-F]+"; "0xN")
-  end;
-# First useful line out of a tool_result's text blob: skips a leading
-# "Exit code N" line (Bash convention), skips blank lines.
-def first_line_from_text:
-  (split("\n") | map(select(length>0))) as $ls
-  | if ($ls|length)==0 then ""
-    elif ($ls[0] | test("^Exit code")) then ($ls[1] // "")
-    else $ls[0]
-    end;
-def err_line_of($is_error; $stderr; $text):
-  if ($stderr // "") != "" then $stderr
-  elif $is_error then ($text // "" | first_line_from_text)
-  else (($text // "" | split("\n") | map(select(test("^Error:"))) | .[0]) // "")
-  end;
-[inputs] as $lines
-| ($lines
-    | map(select(.type=="user" and (.message.content|type)=="array"))
-    | map(. as $line
-        | $line.message.content[]?
-        | select(.type=="tool_result")
-        | {
-            ts: $line.timestamp,
-            tool_use_id: .tool_use_id,
-            is_error: (.is_error // false),
-            text: (.content | if type=="string" then . else tostring end),
-            stderr: ($line.toolUseResult | if type=="object" then .stderr else null end)
-          })
-  ) as $tool_results
-| ($tool_results | map(. + {err_line: err_line_of(.is_error; .stderr; .text)})) as $tool_results2
-| ($tool_results2 | map({key: .tool_use_id, value: .}) | from_entries) as $results_by_id
-| ($lines
-    | map(select(.type=="assistant"))
-    | map(. as $line | .message.content[]? | select(.type=="tool_use" and .name=="Bash") | {
-        ts: $line.timestamp,
-        tool_use_id: .id,
-        command: .input.command,
-        result: ($results_by_id[.id] // {is_error:false, err_line:""})
-      })
-  ) as $bash_calls
-| {
-    bash_calls: ($bash_calls | map({ts, command, is_error: .result.is_error, first_err_line: (.result.err_line | norm_err)})),
-    commits: ($bash_calls | map(select(.command | test("git commit"))) | map({ts, command})),
-    errors: ($tool_results2 | map(select(.err_line != "")) | map({ts, err: (.err_line | norm_err)}))
-  }
-```
-
-Output shape — three arrays in one JSON object:
-
-- **`bash_calls`** — every Bash tool call: timestamp (`ts`), raw command,
-  `is_error`, normalized first error line (`first_err_line`, empty string
-  if none). Feeds Heuristics A and D. Apply Heuristic A's own command
-  normalization (strip-after-newline, whitespace-collapse, drop pure-read
-  commands) on top of the raw `command` field — that normalization is
-  heuristic-specific, not part of this shared pass.
-- **`commits`** — every Bash call whose command matches `git commit`:
-  timestamp, raw command (parse `sha`/`subject` from the `-m` argument or
-  from stdout's `[branch sha] subject` line — the filter doesn't attempt
-  this since it varies by whether a heredoc or `-m` string was used).
-  Feeds Heuristic D's trigger.
-- **`errors`** — every tool result (any tool, not just Bash) whose derived
-  error line is non-empty: timestamp, normalized error string. Feeds
-  Heuristic C. Entries are already deduped to non-empty `err` — an
-  `is_error: true` result with no extractable text is silently excluded
-  rather than appearing as a spurious empty-string "error", which would
-  otherwise falsely satisfy Heuristic C's ≥3-recurrence trigger.
-
-Heuristics A–D below all read from these three in-memory arrays. None of
-them re-reads or re-filters the transcript file — if a heuristic's logic
-seems to require a fresh scan, derive it from `bash_calls`/`commits`/`errors`
-instead.
+Parse `$CANDIDATE_JSON`'s `.mode`, `.candidates[]` (each with `.heuristic`, `.title`, `.evidence[]`), and `.overflow`.
 
 ### Privacy
 
@@ -470,6 +386,8 @@ output, or any value that could plausibly be a secret. When in
 doubt, paraphrase.
 
 ### Heuristics
+
+The subsections below describe what `hooks/lib/candidate-extract.jq` decides. They are documentation, not an execution path — the agent never re-derives this logic by hand.
 
 Apply each heuristic to the resolved input source (transcript file or
 context window). Each heuristic emits zero-or-more candidates with a
@@ -549,19 +467,11 @@ window).
 
 ### Output
 
-Compute the **union** of triggers from all four heuristics.
-Deduplicate by title (case-insensitive substring match — if two
-candidates share a >70% title overlap, keep the one with more
-evidence). Sort by evidence-bullet count, descending.
+- **`mode:"unavailable"`** (script reported it, or the version-skew guard fired above): behave exactly as the prior context-window fallback did — proceed with whatever input source Step 2's own resolution order already selected (context window, if the transcript path itself was never resolved) or, if a transcript path *was* resolved but the script still reported unavailable, treat it the same as zero candidates (print the no-candidates line below) rather than re-deriving anything by hand.
+- **`.overflow > 0`**: after the candidate list, append the same `+N more candidates...` line as before, using `.overflow` as N.
+- **Zero candidates** (`.candidates` is empty and `.overflow` is 0): print `No LEARNINGS candidates surfaced from this session — Step 2 is a no-op.` and proceed directly to Step 3, same as before.
 
-**Cap:** present at most 5 candidates. If more triggered, show the
-top 5 and append:
-
-```
-+N more candidates not shown — capture these first, then re-run /session-continuity:end-session.
-```
-
-**Zero candidates:** print `No LEARNINGS candidates surfaced from this session — Step 2 is a no-op.` and proceed directly to Step 3.
+Render exactly as the `### Presentation` section below already specifies, reading `heuristic`/`title`/`evidence` from each `.candidates[]` entry instead of from hand-computed heuristic results.
 
 ### Presentation
 
