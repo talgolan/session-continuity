@@ -1,3 +1,4 @@
+# CONTRACT_VERSION=2
 /^### [0-9]+\./ {
   line = $0
   sub(/^### /, "", line)

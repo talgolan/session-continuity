@@ -1,3 +1,4 @@
+# CONTRACT_VERSION=2
 function emit_block() {
   print "## Symptoms index"
   print ""
