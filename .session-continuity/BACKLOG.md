@@ -93,3 +93,14 @@ migration-to-`BACKLOG.md` nudge instead, per the v0.22.0 rename. The test
 was never updated to match. Fix: rewrite the failing fixtures to use
 `BACKLOG.md` (matching the hook's actual current contract), or fold this
 into item 2 (automated integration tests) if that work supersedes it.
+
+### 9. Backlog item numbers double as "position in full historical list" — confusing when referenced
+
+Sequential integers are correct for showing the user a scannable list and
+for the user's own back-references ("do item 3"). But the same integers
+also encode each item's place in the all-time backlog sequence (gaps like
+the missing 5 above are closed items, never reused) — so an integer
+quoted back to the user doesn't distinguish "3rd item currently on the
+list" from "the 3rd item ever filed." Give backlog items a non-integer ID
+(e.g. a short slug or hex tag) distinct from the display-order integer
+shown to the user.
