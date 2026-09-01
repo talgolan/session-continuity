@@ -57,3 +57,26 @@ count check). Invariant (CLAUDE.md rule 4): every count or
 named-entity-list claim in shipped docs must match actual repo state at
 commit time, enforced at the gate that runs on every commit. Design:
 `meta/superpowers/recommendations/docguard-design-sketch.md`.
+
+### 6. `agent-active.sh` fallback + `learning.md` empty-`$REPORT` gap, plus doc staleness cleanup
+
+Both from v0.23.0's cost-attribution work, deferred by that implementation's
+final review (Ready to merge: Yes) as narrow, non-blocking edge cases:
+(a) `hooks/lib/agent-active.sh`'s fallback mechanism (used only when a
+transcript has zero `turn_duration` records) has an unreachable "skip if
+earlier record is turn_duration" clause — it always sums unconditional
+wall-clock time, silently reintroducing idle-as-compute for that minority
+of transcripts. Needs a real assistant-close→gap→next-user boundary walk;
+this is a **spec amendment** (the current fallback is inherited verbatim
+from the approved spec), not a silent code patch — re-review before
+changing it. (b) `commands/learning.md` Step 4 has no explicit "stop if
+`$REPORT` is empty" instruction on a `require_script` failure (script
+missing/outdated) — could compute a wrong next-entry number in that narrow
+version-skew window; the existing "must not already appear in the file"
+check only catches an already-used number, not an unused-but-wrong one.
+(c) `commands/end-session.md`'s untouched `### Heuristics`/Step-2-intro
+prose ("computed once above", agent-side dedup/cap language) still
+describes the pre-refactor execution flow now living in
+`candidate-extract.jq`; `CHANGELOG.md`'s `[0.23.0]` entry says the fallback
+does "a timestamp turn-boundary walk," which is accurate as intent but not
+as shipped behavior per (a) — reword once (a) is actually fixed.
