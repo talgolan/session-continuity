@@ -47,10 +47,12 @@ awk '
 
     if (index(line, "<!--") > 0) {
       # A comment that opens and closes on the same line leaves in_comment
-      # unchanged (false); one that opens without closing sets in_comment
-      # and every line up to the closer is skipped, including this one.
+      # unchanged (false) but still skips this line for heading-matching
+      # purposes; one that opens without closing sets in_comment and every
+      # line up to the closer is skipped, including this one.
       rest = substr(line, index(line, "<!--") + 4)
       if (index(rest, "-->") == 0) { in_comment = 1; next }
+      next
     }
 
     if (line ~ /^### [0-9]+\./) count++

@@ -3,6 +3,12 @@
 # Hermetic: synthetic fixtures + this repo's real BACKLOG.md/LEARNINGS.md,
 # copied into a temp dir before every run. See
 # meta/superpowers/sdd/2026-09-02-zero-turn-read-only-commands/task-2-brief.md
+#
+# NOTE: several assertions below pin hardcoded live-repo values (BACKLOG.md
+# item count, LEARNINGS.md entry count, commands/*.md file count, and the
+# plugin.json version string). Whenever those source files change, update
+# the pins here in the same commit — Task 6's own BACKLOG.md edit broke this
+# suite's hardcoded counts once already (fixed in commit bf15d9d).
 set -uo pipefail
 
 here="${0:A:h}"
