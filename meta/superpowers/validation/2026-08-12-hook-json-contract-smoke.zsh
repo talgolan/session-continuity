@@ -76,6 +76,31 @@ commit_parses "smoke-gate: offender line with quotes" \
 commit_parses "smoke-gate: offender line with backslashes" \
   smoke-gate.sh "meta/plans/p.md" 'The smoke test is optional, see C:\tmp\notes.'
 
+# prompt-intercept.sh: a UserPromptSubmit payload, not a PreToolUse/git-commit
+# payload — its own driver, `prompt_parses`, builds that shape directly with
+# `jq -n` rather than reusing gt_commit_payload. A block response's `reason`
+# is the highest-risk JSON this plugin emits (a real multi-line rendered
+# list, from this repo's own BACKLOG.md/LEARNINGS.md) — exactly the shape a
+# substring assert on "block" would wrongly pass if escaping ever regressed.
+prompt_parses() {  # <desc> <prompt>
+  local desc="$1" prompt="$2" payload out
+  payload="$(jq -n --arg prompt "$prompt" --arg cwd "$repo" '{prompt: $prompt, cwd: $cwd}')"
+  out="$(gt_run "prompt-intercept.sh" "$payload" 2>/dev/null)"
+  if [[ -z "$out" ]]; then
+    bad "$desc (expected a JSON object, got silence — fixture no longer triggers)"
+    return 0
+  fi
+  if printf '%s' "$out" | python3 -c 'import sys, json; json.load(sys.stdin)' 2>/dev/null; then
+    ok "$desc"
+  else
+    bad "$desc — stdout is not valid JSON: $out"
+  fi
+}
+
+prompt_parses "prompt-intercept: backlog block (multi-line reason from this repo's real BACKLOG.md) parses" "backlog"
+prompt_parses "prompt-intercept: learnings block (multi-line reason from this repo's real LEARNINGS.md) parses" "learnings"
+prompt_parses "prompt-intercept: /session-continuity:help block parses" "/session-continuity:help"
+
 # Completeness: every gate must own at least one fixture above. A newly added
 # gate fails this runner until someone adds one — that is the point.
 covered=(proven-gate.sh smoke-gate.sh evidence-gate.sh flaky-gate.sh backend-parity-gate.sh occurrence-gate.sh)
