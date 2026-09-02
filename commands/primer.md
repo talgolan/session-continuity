@@ -182,9 +182,8 @@ they currently have, and those become the first permanent IDs.
 1. Read the existing `.session-continuity/SESSION_PRIMER.md` in full.
 2. Copy every top-level numbered item under `## Outstanding items`
    (the numbered line plus indented continuation lines until the next
-   top-level number) into a new `.session-continuity/OUTSTANDING_ITEMS.md`
-   — or into the existing empty-skeleton file from Init mode if one was
-   just created by Step 2/Step 3 above. Reformat each into the `### N.
+   top-level number) into a new `.session-continuity/OUTSTANDING_ITEMS.md`.
+   Reformat each into the `### N.
    <Title>` heading shape (bold title text becomes the heading text; the
    rest of the item's prose becomes the body). If an item exceeds the
    title + 1-3 sentence length cap (a design sketch, an invariant
@@ -327,8 +326,17 @@ Gather the report data in **one Bash call**, timed:
 _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 git rev-parse --short HEAD
 stat -f '%Sm' .session-continuity/SESSION_PRIMER.md 2>/dev/null || stat -c '%y' .session-continuity/SESSION_PRIMER.md
-grep -cE '^### [0-9]+\.' .session-continuity/BACKLOG.md 2>/dev/null || echo 0
-grep -c '^### [0-9]\+\.' .session-continuity/LEARNINGS.md 2>/dev/null || echo 0
+source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/count-entries.sh" 1; then
+  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/count-entries.sh" .session-continuity/BACKLOG.md
+else
+  echo "?"
+fi
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/count-entries.sh" 1; then
+  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/count-entries.sh" .session-continuity/LEARNINGS.md
+else
+  echo "?"
+fi
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-5-check-mode --duration="$_PERF_DURATION"
