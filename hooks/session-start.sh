@@ -65,8 +65,18 @@ status_mtime="$(stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$cwd/$primer_path" 2>/dev/nul
   || stat -c '%y' "$cwd/$primer_path" 2>/dev/null \
   || echo '?')"
 outstanding_path="$cwd/.session-continuity/BACKLOG.md"
-status_learnings="$(grep -cE '^### [0-9]+\.' "$cwd/$learnings_path" 2>/dev/null || true)"
-status_learnings="${status_learnings:-0}"
+
+# Comment-and-fence-aware heading counter (see hooks/lib/count-entries.sh
+# for the contract). Resolved next to this script rather than via
+# CLAUDE_PLUGIN_ROOT so the hook keeps working when a test harness runs it
+# directly. Its absence is a "?" like the other best-effort probes above,
+# not a hard failure.
+count_helper="$(dirname "$0")/lib/count-entries.sh"
+if [ -f "$count_helper" ]; then
+  status_learnings="$(bash "$count_helper" "$cwd/$learnings_path" 2>/dev/null || echo '?')"
+else
+  status_learnings="?"
+fi
 
 # Migration check: an old-format project has the inline heading in the
 # primer but no BACKLOG.md yet, OR has OUTSTANDING_ITEMS.md under its old
@@ -74,10 +84,20 @@ status_learnings="${status_learnings:-0}"
 # instead of tolerating multiple formats — no awk range-scan against the
 # primer survives this change.
 if [ -f "$outstanding_path" ]; then
-  status_outstanding="$(grep -cE '^### [0-9]+\.' "$outstanding_path" 2>/dev/null || true)"
-  status_outstanding="${status_outstanding:-0}"
+  if [ -f "$count_helper" ]; then
+    status_outstanding="$(bash "$count_helper" "$outstanding_path" 2>/dev/null || echo '?')"
+  else
+    status_outstanding="?"
+  fi
+  # outstanding_items pulls the raw heading lines to render in the
+  # shortlist below — grep has no notion of "inside a comment", so it will
+  # also match a template's HTML-commented exemplar heading. Gating on
+  # count_helper's comment-aware count (not on whether this raw grep
+  # happened to match something) is what keeps a fresh-install BACKLOG.md
+  # — all real content commented out — from rendering a shortlist for
+  # zero real entries.
   outstanding_items="$(grep -E '^### [0-9]+\.' "$outstanding_path" 2>/dev/null || true)"
-  if [ -n "$outstanding_items" ]; then
+  if [ "$status_outstanding" != "0" ] && [ "$status_outstanding" != "?" ] && [ -n "$outstanding_items" ]; then
     outstanding_block=$'\nBacklog:\n'"$outstanding_items"$'\n\nPresent these to the user as a numbered list, numbered starting at 1 (never 0), keeping each item\'s [hex tag] and [YYYY-MM-DD] filing date visible alongside its number even in a short reply, and ask which of these (if any) they want to tackle this session.\n'
   else
     outstanding_block=""
