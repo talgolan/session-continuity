@@ -55,8 +55,11 @@ Run the shared derivation script rather than re-deriving this by hand:
 
 ```bash
 source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
-if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" 1; then
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" 2; then
   REPORT="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" report .session-continuity/LEARNINGS.md)"
+  if [ -z "$REPORT" ]; then
+    echo "⚠️ learnings-index.sh report failed — see the message above."
+  fi
 else
   echo "⚠️ $SC_REQUIRE_SCRIPT_MSG"
   REPORT=""
@@ -68,6 +71,9 @@ fi
    > "LEARNINGS.md has duplicate entry numbers: #X (line A, line B), #Y (line C, line D). Fix the file before appending — pick which entry keeps the number and renumber the other (or merge them). Re-run `/session-continuity:learning` after."
 
    (Build the message from every `DUPNUM <n> <lines>` line in `$REPORT`.) Exit. Do not append on top of a corrupt file.
+
+   An empty `$REPORT` means the script could not run at all — report that and stop,
+   rather than treating it as "no duplicates found".
 
 2. **Compute next number.** Read `MAX` from `$REPORT` (the `MAX <n>` line). New entry gets `MAX + 1`.
 
@@ -113,8 +119,10 @@ Run the shared derivation script after Step 5 has inserted the new entry:
 
 ```bash
 source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
-if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" 1; then
-  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" reindex .session-continuity/LEARNINGS.md
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" 2; then
+  if ! bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" reindex .session-continuity/LEARNINGS.md; then
+    echo "⚠️ Symptoms index not regenerated — LEARNINGS.md was left untouched (see the message above)."
+  fi
 else
   echo "⚠️ $SC_REQUIRE_SCRIPT_MSG — Symptoms index not regenerated this run."
 fi

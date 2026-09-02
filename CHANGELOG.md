@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.0] — 2026-09-01
+
+### Fixed
+- **`hooks/lib/learnings-index.sh reindex` could empty `LEARNINGS.md`.** It copied awk's output over the source file without checking awk's exit status, so a missing `.awk` sibling — an interrupted or partial plugin-cache update — produced an empty temp file that was then written over the corpus, with exit 0 and the message `regenerated 0 bullet(s)`. The write site now verifies every sibling's presence and contract version, checks each awk exit status, and requires the regenerated file to be non-empty with an unchanged entry count. Installation faults exit 2 and never open the target for writing.
+- **LEARNINGS candidate heuristics produced mostly noise on real sessions.** Replaying the v0.23.0 filter over four real multi-megabyte transcripts produced titles like `bun -e ' — investigated for 6 retries`, `git status --short — investigated for 4 retries`, and fix-burst titles carrying an entire multi-line commit body — one session surfaced five heredoc fragments plus an eight-candidate overflow warning. Command identity is now the full normalized command text rather than its first line, near-variants merge on a digit-family key, bookkeeping commands are excluded, a retry burst requires an intervening file edit, fix bursts use the parsed commit subject and require a repeated-command cluster in their window, and no heuristic contributes more than two of the five candidates.
+- **Error recurrence could never fire.** It read `toolUseResult.stderr` and lines beginning `Error:`, neither of which appears in the current transcript schema (0 matches across 1,155 real tool results), and then required three identical errors spanning fifteen minutes. It now reads `is_error` results and bodies opening with a non-zero `Exit code` line, at two occurrences spanning five minutes.
+- **Every candidate-extraction failure looked like "no candidates".** A missing `jq`, a missing or version-skewed filter file, and any filter runtime error all returned `mode:"unavailable"`. They now return `mode:"error"` with a `detail` string the command prints. A malformed timestamp no longer aborts the whole filter.
+- **The transcript staleness guard was skipped on GNU coreutils**, where `stat -f %m` means `--file-system`, writes to stdout, and exits 1 — polluting the mtime value so the age check silently never ran.
+- **The Symptoms index could be spliced into YAML front matter**, and entry headings inside fenced code examples counted as real entries, producing false duplicate-number reports that block `/session-continuity:learning` from appending.
+- **`require_script` corrupted `$PATH` when sourced into a zsh shell.** Its `local path=...` shadowed zsh's special `path`/`$PATH` linkage, breaking its internal version check and silently reporting every correctly-installed script as mismatched — discovered while verifying this release's own ritual end-to-end.
+
+### Changed
+- `hooks/lib/candidate-extract.sh` times itself through `perf-log.sh` instead of relying on a timing wrapper in the command prose.
+- `commands/end-session.md` Step 2's heuristic section no longer instructs the agent to "apply each heuristic"; it documents what `candidate-extract.jq` decides and scopes hand-application to context-window mode, where no script can run.
+
 ## [0.24.0] — 2026-09-01
 
 ### Changed

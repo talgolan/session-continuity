@@ -366,19 +366,20 @@ problem this replaced; see Finding 2 of
 
 ```bash
 source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
-_PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
-if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/candidate-extract.sh" 1; then
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/candidate-extract.sh" 2; then
   CANDIDATE_JSON="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/candidate-extract.sh" "$TRANSCRIPT")"
 else
   echo "⚠️ $SC_REQUIRE_SCRIPT_MSG"
-  CANDIDATE_JSON='{"mode":"unavailable","candidates":[],"overflow":0}'
+  CANDIDATE_JSON='{"mode":"error","candidates":[],"overflow":0,"detail":"candidate-extract.sh is missing or outdated."}'
 fi
-_PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
-_PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
-bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-2-transcript-extraction --duration="$_PERF_DURATION"
 ```
 
-Parse `$CANDIDATE_JSON`'s `.mode`, `.candidates[]` (each with `.heuristic`, `.title`, `.evidence[]`), and `.overflow`.
+The script times itself — do not wrap this call in a timer, and do not add a
+`perf-log.sh record` line for `step-2-transcript-extraction`; you would
+double-log it.
+
+Parse `$CANDIDATE_JSON`'s `.mode`, `.candidates[]` (each with `.heuristic`,
+`.title`, `.evidence[]`), `.overflow`, and `.detail`.
 
 ### Privacy
 
@@ -390,31 +391,42 @@ doubt, paraphrase.
 
 ### Heuristics
 
-The subsections below describe what `hooks/lib/candidate-extract.jq` decides. They are documentation, not an execution path — the agent never re-derives this logic by hand.
+`hooks/lib/candidate-extract.jq` decides all of this. The subsections below
+record what it decides so a reader can audit the output without reading jq —
+they are **not instructions to you**. In transcript-file mode you have already
+received the finished candidate list from the script; do not re-derive, re-filter,
+or re-check any of it. Re-deriving these by hand is what made this step cost
+~88 seconds of round trips before the script existed (Finding 2 of the design
+spec).
 
-Apply each heuristic to the resolved input source (transcript file or
-context window). Each heuristic emits zero-or-more candidates with a
-title and supporting evidence (1-3 bullet citations).
+In context-window mode there is no script and no transcript to run it against.
+There, and only there, apply the rules below by hand against what you can still
+see in the conversation, skipping the wall-clock gates you cannot evaluate.
 
 #### Heuristic A — retry burst
 
-From `bash_calls` (computed once above), group consecutive calls by
-**normalized command**:
+Commands are grouped by **full normalized text** — every run of whitespace,
+newlines included, collapsed to a single space. A heredoc's body is part of its
+identity, so two commits with different messages are two commands, not two runs
+of one.
 
-- Strip arguments after the first newline (heredocs collapse to their
-  command head).
-- Collapse runs of whitespace to single spaces.
-- Drop pure-read commands: `cat`, `ls`, `grep`, `find`, `stat`,
-  `pwd`, `which`, `echo`. (These are noise — not investigatory
-  retries.)
+Near-variants merge on a **family key**: digits following a `-` or `=` are
+rewritten to `N`, so `tail -8` and `tail -15` are one family, while
+`gh pr merge 22` and `gh pr merge 24` are not (that digit follows a space).
 
-**Trigger:** the same normalized command appears ≥3 times in the
-session.
+Bookkeeping commands never count: `cat`, `ls`, `grep`, `rg`, `find`, `stat`,
+`pwd`, `which`, `echo`, `printf`, `wc`, `head`, `tail`, `sed`, `awk`, `jq`,
+`du`, `file`, `date`, `env`, `tree`, `mkdir`, `touch`, `chmod`, `open`, and
+`git status|diff|log|show|branch|add|commit|stash|rev-parse|ls-files` — tested
+after stripping a leading `cd <path> &&`, `timeout <n>`, or `env VAR=x`.
 
-**Candidate title:** `<command> — investigated for N retries.`
+**Trigger:** one command family appears ≥3 times AND at least one `Edit`,
+`Write`, or `MultiEdit` call falls between the first and last occurrence. A
+command repeated with no intervening edit is polling, not investigation.
 
-**Evidence:** up to 3 of the invocation timestamps + `is_error` flags
-(redact stdout/stderr beyond the first error line).
+**Candidate title:** `<command> — re-run N times with M file edits in between.`
+
+**Evidence:** up to 3 timestamps, each annotated `ok` or `failed: <first error line>`.
 
 #### Heuristic B — revert / reset
 
@@ -427,27 +439,33 @@ session.
 - `rm -rf <path>` where `<path>` appears in `git ls-files` output
   (i.e. a tracked file, not a tmp directory).
 
-**Candidate title:** `Reverted approach: <commit subject of reverted
-commit if available, else 'unrecorded'>.`
+A git verb counts only at a **command position** — the start of the command, or
+directly after `&&`, `;`, or `|`. A command that merely contains the string
+`git revert` (a jq program filtering for it, say) is not a revert. The `rm -rf`
+branch requires a tracked path to appear as an actual argument token, or as a
+parent directory of one, not as a substring anywhere in the command.
 
-**Evidence:** the offending Bash invocation + the commit being
-reverted (look up `git show <reverted-sha> --format=%s` if known).
+**Candidate title:** `Reverted approach: <the matched segment, ≤76 chars>.` The
+segment, not the head of the command — a real `git checkout -- <path>` was found
+sitting behind two unrelated `tmux kill-session` calls.
+
+**Evidence:** the offending Bash invocation.
 
 #### Heuristic C — error recurrence
 
-`errors` (computed once above) already holds the normalized error string per
-entry:
+The error string comes from any tool result that either carries `is_error: true`
+or whose body opens with `Exit code <non-zero>`. Within that body, the first
+line matching an error vocabulary (`error`, `fail`, `fatal`, `cannot`, `no such`,
+`not found`, `no matches`, `denied`, `refused`, `unexpected`, `invalid`,
+`missing`) wins over the first line of output, because the first line of a
+failing `bun test` is its version banner. Capped at 160 characters, and at 120
+in the title. Normalized: home directories
+rewritten to `~/`, absolute paths reduced to basenames, `:line:col` refs,
+ISO-8601 and `HH:MM:SS` timestamps, and hex addresses stripped.
 
-- First non-empty line of stderr, or
-- The `Error:`-prefixed line, whichever appears first.
-- Normalized: absolute paths stripped to basenames, line:column refs
-  (`:42:7`) stripped, ISO-8601/`HH:MM:SS` timestamps stripped, hex addresses
-  (`0x[0-9a-f]+`) stripped.
-
-**Trigger:** the same normalized error string appears ≥3 times in `errors` AND
-the first and last occurrences span ≥15 minutes (use timestamps from
-the JSONL `timestamp` field; in context-window fallback skip the
-wall-clock gate and trigger on count alone).
+**Trigger:** the same normalized error appears ≥2 times spanning ≥5 minutes.
+(Measured on real transcripts: a multi-megabyte session carries 5-8 error
+results total, so the previous ≥3-over-15-minutes threshold could never fire.)
 
 **Candidate title:** `<error string> — recurred N times over M minutes.`
 
@@ -455,14 +473,16 @@ wall-clock gate and trigger on count alone).
 
 #### Heuristic D — fix burst
 
-**Trigger:** in `commits`, a subject (parse from the `-m` argument, or the
-first line of a `<<'EOF'` heredoc body, in the entry's raw `command` field)
-matching `^fix(\(.+\))?: ` preceded, in `bash_calls`, by ≥10 calls within
-the prior 30 minutes (count both successful and failing invocations; use
-JSONL timestamps; in fallback mode use ordinal proximity rather than
-wall-clock).
+**Trigger:** a commit whose **parsed subject** — from `-m "…"`, `-m '…'`, or
+the first non-empty line of a `<<'EOF'` body — matches `^fix(\(…\))?: `, AND
+whose preceding 30 minutes contain ≥10 non-bookkeeping Bash calls, AND among
+those a command family repeated ≥3 times. Without that cluster the fix was
+straightforward and there is nothing to learn; with the cluster requirement,
+one measured session went from 8 fix-burst candidates to 3.
 
-**Candidate title:** `<commit subject> — fix preceded by N-action investigation.`
+**Candidate title:** `<commit subject> — fix preceded by a N-action investigation.`
+The subject only — never the raw command, which on a real commit runs to 20
+lines including the trailer.
 
 **Evidence:** the commit invocation + a representative sample of the
 preceding burst (3 citations, evenly spaced through the 30-minute
@@ -470,11 +490,21 @@ window).
 
 ### Output
 
-- **`mode:"unavailable"`** (script reported it, or the version-skew guard fired above): behave exactly as the prior context-window fallback did — proceed with whatever input source Step 2's own resolution order already selected (context window, if the transcript path itself was never resolved) or, if a transcript path *was* resolved but the script still reported unavailable, treat it the same as zero candidates (print the no-candidates line below) rather than re-deriving anything by hand.
-- **`.overflow > 0`**: after the candidate list, append the same `+N more candidates...` line as before, using `.overflow` as N.
-- **Zero candidates** (`.candidates` is empty and `.overflow` is 0): print `No LEARNINGS candidates surfaced from this session — Step 2 is a no-op.` and proceed directly to Step 3, same as before.
+- **`mode:"unavailable"`**: the transcript could not be used (absent, stale,
+  unreadable). Fall back to context-window mode exactly as before, and append
+  the compaction note to the candidate list.
+- **`mode:"error"`**: the plugin or its environment is broken — print
+  `⚠️ LEARNINGS candidates unavailable: <detail>` using `.detail` verbatim,
+  then continue to Step 3. Do **not** silently treat this as "no candidates";
+  a derivation that fails invisibly is the failure this whole design exists to
+  prevent.
+- **`.overflow > 0`**: append the `+N more candidates…` line as before. Note
+  that no heuristic contributes more than 2 of the 5 shown, so an overflow can
+  mean "one signal fired many times", not "there are 5 better ones hidden".
+- **Zero candidates** (`.candidates` empty, `.overflow` 0, `mode:"transcript"`):
+  print `No LEARNINGS candidates surfaced from this session — Step 2 is a no-op.`
 
-Render exactly as the `### Presentation` section below already specifies, reading `heuristic`/`title`/`evidence` from each `.candidates[]` entry instead of from hand-computed heuristic results.
+Render exactly as the `### Presentation` section below already specifies, reading `heuristic`/`title`/`evidence` from each `.candidates[]` entry instead of from hand-computed heuristic results. Enumerate every entry in `.candidates[]` — the example below shows three numbered entries to illustrate the format, not a cap; if `.candidates[]` holds four or five entries, print all four or five. Never summarize multiple candidates into one line or silently drop one to keep the list short.
 
 ### Presentation
 
@@ -484,17 +514,18 @@ and indented evidence bullets. Format:
 ```
 LEARNINGS candidates from this session:
 
-1. [retry-burst] `<command>` — investigated for N retries.
+1. [retry-burst] `bun test 2>&1 | tail -10` — re-run 31 times with 112 file edits in between.
    Evidence:
-   - Bash @ HH:MM → exit 1 ("<paraphrased error>")
-   - Bash @ HH:MM → exit 1 ("<paraphrased error>")
-   - Bash @ HH:MM → exit 0 (after <paraphrased fix>)
+   - Bash @ 2026-09-01T00:12:04Z → failed: FAIL src/foo.test.ts
+   - Bash @ 2026-09-01T00:19:41Z → failed: FAIL src/foo.test.ts
+   - Bash @ 2026-09-01T00:26:02Z → ok
 
 2. [error-recurrence] "<normalized error string>" — recurred N times over M minutes.
    Evidence: N Bash invocations across <paraphrased context>; resolved by <paraphrased fix>.
 
-3. [revert] Reverted approach: "<commit subject>" (commit <sha> → git reset --hard).
-   Evidence: <paraphrased justification>.
+3. [revert] Reverted approach: `git checkout -- docs/history.jsonl.`
+   Evidence:
+   - Bash @ 2026-09-01T00:05:12Z → tmux kill-session -t smoke 2>/dev/null; git checkout -- docs/history.jsonl; echo done
 
 Capture any? (1, 2, 3, all, none, or describe another)
 ```
@@ -564,8 +595,10 @@ Once the user confirms, insert each accepted draft at the top of its chosen sect
 
 ```bash
 source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
-if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" 1; then
-  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" reindex .session-continuity/LEARNINGS.md
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" 2; then
+  if ! bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/learnings-index.sh" reindex .session-continuity/LEARNINGS.md; then
+    echo "⚠️ Symptoms index not regenerated — LEARNINGS.md was left untouched (see the message above)."
+  fi
 else
   echo "⚠️ $SC_REQUIRE_SCRIPT_MSG — Symptoms index not regenerated this run."
 fi

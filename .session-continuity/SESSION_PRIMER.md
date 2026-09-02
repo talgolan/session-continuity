@@ -39,18 +39,43 @@ rarely.
   had no per-session debounce, causing the repeated `docs-current
   reminder` nag; fixed there, outside this repo since that file is
   git-excluded/personal).
-- **Filed backlog item 7 [b10f]: LEARNINGS generation hardening plan,
-  unexecuted.** Full 7-task plan at
-  `meta/superpowers/plans/2026-09-01-learnings-generation-hardening.md`
-  (currently untracked, not yet committed) closes real findings measured
-  against archived transcripts: `learnings-index.sh reindex` can truncate
-  `LEARNINGS.md` to 0 bytes on a missing awk sibling; candidate heuristics
-  produce mostly noise (heredoc-fragment titles, unfireable error
-  recurrence); every extraction failure collapses to a silent "no
-  candidates"; the staleness guard is skipped on GNU coreutils; fenced
-  examples and front matter break Symptoms-index regeneration. Overlaps
-  item 5(b)'s empty-`$REPORT` gap (this plan's Task 6 Step 6) — fold
-  rather than fix twice.
+- **v0.25.0 implemented on branch `feat/learnings-generation-hardening`
+  (not yet merged to `main` — awaiting merge decision), executed via
+  subagent-driven-development: all 7 tasks complete, each task-reviewed
+  (2 fix rounds total: Task 4's fix-burst title privacy redaction, Task
+  5's empty-transcript-dir zsh nullglob bug, Task 6's stale Presentation
+  example, Task 1's smoke-message hash values — 4 fix rounds across 4
+  tasks), final whole-branch review clean (**Ready to merge: Yes**, 0
+  Critical, 1 Important triaged non-blocking).** Closes the plan's F1-F11:
+  `learnings-index.sh reindex` now refuses to write unless the regenerated
+  file is provably intact (was: could truncate `LEARNINGS.md` to 0 bytes
+  on a missing awk sibling, exit 0); the three `learnings-index-*.awk`
+  passes are fence-aware and front-matter-safe; `candidate-extract.sh`
+  distinguishes `mode:"unavailable"` (bad input, silent) from
+  `mode:"error"` (broken install, surfaces `.detail`) and fixes a
+  GNU-coreutils staleness-check bug; `candidate-extract.jq`'s 4 heuristics
+  are retuned against real archived transcripts (replay harness:
+  `meta/superpowers/validation/2026-09-01-candidate-replay.zsh`) — real
+  sessions now produce 2-5 genuine candidates instead of heredoc
+  fragments and 8-candidate overflow warnings; `commands/end-session.md`/
+  `learning.md` prose rewired to match, no longer instructing the agent
+  to hand-derive what the script already computed. **Unplanned but
+  user-approved mid-task fix:** `hooks/lib/require-script.sh` declared
+  `local path=...`, colliding with zsh's special `$PATH`-linked `path`
+  variable — sourcing it directly into a zsh shell (exactly what
+  `end-session.md`/`learning.md` do) corrupted `$PATH`, broke its
+  internal `sed` call, and made every command falsely report a healthy
+  install as version-mismatched. Fixed (renamed to `script_path`), with a
+  regression test that sources directly into zsh (no `bash -c` wrapper —
+  the pattern that hid the bug in the pre-existing 7/7-passing suite).
+  Closed backlog item 7 [b10f] (this plan, now done) and trimmed item
+  5 [e8e2] (its `learning.md`/`end-session.md` sub-parts resolved here;
+  the `agent-active.sh` fallback sub-part stays open, explicitly out of
+  this plan's scope). Filed new backlog item 7 [c9a4]: `overlap()`'s
+  dedup math in `candidate-extract.jq` is a real (not just synthetic)
+  asymmetric-Jaccard defect that over-merges distinct retry-bursts whose
+  titles share the common boilerplate suffix — non-blocking, deferred.
+  Validation record: `meta/superpowers/validation/2026-09-01-learnings-hardening-verification.md`.
 - **v0.23.0 merged to `main` via PR #24 (`fc481da`).**
   Ships candidate extraction + Heuristics A-D
   (`hooks/lib/candidate-extract.sh`), the `step-4-agent-active` derivation

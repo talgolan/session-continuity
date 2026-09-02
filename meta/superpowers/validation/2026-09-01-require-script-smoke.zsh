@@ -68,6 +68,25 @@ else
   [[ -n "$msg" ]] && ok "no-version sets a message" || bad "no-version left SC_REQUIRE_SCRIPT_MSG empty"
 fi
 
+# Regression guard for the zsh `path`/`$PATH` special-variable collision
+# (require_script's own `local path=...` used to corrupt `$PATH` when
+# sourced directly into a zsh shell, exactly what commands/end-session.md
+# and commands/learning.md do — every `bash -c` wrapper above routes
+# around that, so it stays untested without this). Source directly into
+# *this* zsh process, no wrapper.
+_before_path="$PATH"
+source "$lib/require-script.sh"
+if require_script "$work/good.sh" 1; then
+  ok "sourced directly into zsh: matching contract version returns 0"
+else
+  bad "sourced directly into zsh: matching contract version should return 0, got 1 ($SC_REQUIRE_SCRIPT_MSG)"
+fi
+if [[ "$PATH" == "$_before_path" ]]; then
+  ok "sourced directly into zsh: \$PATH unchanged after require_script"
+else
+  bad "sourced directly into zsh: \$PATH corrupted (before='$_before_path' after='$PATH')"
+fi
+
 rm -rf "$work"
 print ""
 print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"
