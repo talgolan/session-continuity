@@ -101,14 +101,7 @@ only the command-specific portion is scored. Fix it as part of Phase 5
 `primer.md` and `end-session.md` — sharing it unchanged multiplies the
 defect's reach across two call sites instead of one.
 
-### 8. [3b71] [2026-09-02] Determinism Phase 0 — fresh-install count defects
-
-Two reproduced counting bugs affecting every new project: heading examples
-inside the shipped templates are counted as real entries, and
-`grep -c … || echo 0` prints two zeros when a count is genuinely zero.
-Depends on nothing, ships as a patch release, and closes item `6258` — its
-Task 2 repairs that smoke suite. Plan:
-`meta/superpowers/plans/2026-09-02-fresh-install-count-defects.md`.
+### 8. [3b71] — closed. Fixed in `6a57746` (#30).
 
 ### 9. [5c2d] [2026-09-02] Determinism Phase 1 — zero-turn read-only lists
 

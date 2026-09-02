@@ -16,19 +16,19 @@ within each group.
   each time it appends a new entry.
 -->
 
-- After GitHub squash-merged PR #20, `git merge --ff-only origin/main` failed with… — #15
+- After GitHub squash-merged PR #20, `git merge --ff-only — #15
 - Clean-machine acceptance test for v0.4.0. `/session-continuity:primer` ran init mode cleanly, asked for… — #4
 - Denied again, on the same file, despite the escape hatch already being… — #13
 - Discovered when `/session-continuity:end-session` was invoked on this v0.6.0 session. The system-reminder injected… — #6
 - Discovered while hardening the Step 2 transcript-extraction jq filter after a user… — #10
-- Documented as an accepted tradeoff while designing the commit-time gates… — #14
+- Documented as an accepted tradeoff while designing the commit-time gates (`meta/superpowers/specs/2026-08-27-commit-time-content-gates-design.md`'s Tradeoffs… — #14
 - Every run of that one check silently wrote a real entry into… — #12
 - In a live Claude session, the hook runs (verified via debug logs)… — #1
 - Real invocation of `/session-continuity:primer` after installing the change failed every one of… — #11
-- The `/session-continuity:end-session` smoke test had two staged files (primer + `src/foo.js`). The… — #3
 - The Bash call is refused outright: "This session is isolated in the… — #8
 - The first v0.2.0 release fired the workflow, created the GitHub Release, but… — #2
 - The self-gate check returned rc=0 (allowed) — but via the escape hatch… — #7
+- The `/session-continuity:end-session` smoke test had two staged files (primer + `src/foo.js`). The… — #3
 - This repo moved everything to `meta/superpowers/` in v0.3 (per CHANGELOG: "Repo layout:… — #5
 - Three hermetic smoke suites under `meta/superpowers/validation/` had fixtures hardcoded to the exact… — #9
 
@@ -53,6 +53,11 @@ Trigger: Write|Edit /\$CLAUDE_PLUGIN_ROOT\//
 ### 8. `git -C` and compound commands blocked inside a worktree-isolated session
 Slug: worktree-compound-commands-blocked
 Trigger: Bash /git\s+-C\s/
+Occurrence count: 2 of 2
+Invariant: Inside any worktree-isolated session, every git/file-inspecting
+Bash call is a single plain statement targeting the current directory —
+never `-C <other-path>`, never a `&&`/`;`/multi-line/for-loop chain the
+sandbox can't statically verify stays inside the worktree.
 
 **The trap.** Once EnterWorktree switches a session into a worktree, it feels natural to keep using `git -C <other-path>` to peek at another checkout, or to chain several `cd`/`git` statements into one Bash call, the way you would outside a worktree.
 
