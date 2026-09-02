@@ -505,6 +505,7 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+b642de4 chore: bump to 0.25.1 — backlog-echo instructions now require filing date
 a4ce513 Merge pull request #28 from talgolan/fix/backlog-date-in-summaries
 e78eddd fix: backlog-echo instructions omit filing date, only mention hex tag
 fcdabad Merge pull request #27 from talgolan/feat/learnings-generation-hardening
