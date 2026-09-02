@@ -20,6 +20,32 @@ rarely.
 
 ## Current state
 
+- **v0.25.2 — Determinism Phase 0 (fresh-install count defects), committed on
+  branch `worktree-fresh-install-count-defects` (worktree
+  `fresh-install-count-defects`), not yet merged/released.** Fixes two real
+  bugs affecting every fresh install: (1) a fresh project's SessionStart
+  banner and `/session-continuity:primer` check mode both reported nonzero
+  backlog/learnings counts because the shipped templates' exemplar headings
+  (`templates/LEARNINGS.md`'s `### 1./2. {{ENTRY_TITLE}}`,
+  `templates/BACKLOG.md`'s commented `### 1. [a3f9] …`) matched the same
+  pattern used to count real entries — `templates/LEARNINGS.md`'s exemplar
+  headings are now commented out (`3c996f7`); (2) `grep -c ... || echo 0`
+  printed two `0` lines instead of one at the exact zero count it was meant
+  to handle. Both fixed by routing through one new helper,
+  `hooks/lib/count-entries.sh` (comment-and-fence-aware, single definition of
+  "how many entries does this file have"; `f18434b`), wired into
+  `hooks/session-start.sh` (also fixing a shortlist-gating bug; `721b287`)
+  and `commands/primer.md` check mode (also removing a stale cross-reference
+  to a file Init mode never creates; `a26a062`). Along the way, `721b287`
+  repaired the previously-stale `meta/superpowers/validation/2026-08-12-session-start-smoke.zsh`
+  (7 of 17 assertions were failing against a pre-v0.22.0 file-format
+  contract on a clean tree) — closes backlog item `[6258]`, now a one-line
+  closed stub in `BACKLOG.md`. New smoke suite:
+  `meta/superpowers/validation/2026-09-02-count-entries-smoke.zsh` (18
+  assertions). Both mandatory suites green: count-entries 18/18,
+  session-start 27/27 (0 failed). `plugin.json` 0.25.1→0.25.2; patch release,
+  no behavior change to any command's contract. Plan:
+  `meta/superpowers/plans/2026-09-02-fresh-install-count-defects.md`.
 - **v0.24.0 merged to `main` via PR #26 (`578b0b5`).**
   `BACKLOG.md` item headings now carry a permanent 4-hex-char
   tag and filing date alongside the display number:
@@ -505,12 +531,12 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-b642de4 chore: bump to 0.25.1 — backlog-echo instructions now require filing date
-a4ce513 Merge pull request #28 from talgolan/fix/backlog-date-in-summaries
-e78eddd fix: backlog-echo instructions omit filing date, only mention hex tag
-fcdabad Merge pull request #27 from talgolan/feat/learnings-generation-hardening
-ae866ce docs: close backlog item 7, file overlap() defect, refresh primer for v0.25.0
-b51b8f2 chore: bump to 0.25.0 — LEARNINGS write gate, retuned heuristics, failure taxonomy
+3c996f7 fix: comment out exemplar headings in LEARNINGS.md template
+a26a062 fix: replace grep with count-entries.sh in primer check-mode, remove stale reference
+721b287 fix: count-entries.sh at session-start.sh's two call sites, fix shortlist gate
+f18434b feat: add comment-and-fence-aware count-entries.sh helper
+cf5e947 Merge pull request #29 from talgolan/docs/determinism-program-backlog
+e7050a2 docs: file the determinism program as nine backlog items and a roadmap
 ```
 
 Regenerate this block whenever you commit — see

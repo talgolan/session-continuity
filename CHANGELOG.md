@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.2] — 2026-09-02
+
+### Fixed
+- **A fresh install reported nonzero backlog/learnings counts before the user ever added one.** The shipped templates carried exemplar headings (`templates/LEARNINGS.md`'s `### 1. {{ENTRY_TITLE}}`/`### 2. {{ENTRY_TITLE}}`, `templates/BACKLOG.md`'s `### 1. [a3f9] …` inside an `<!-- Example: -->` block) that matched the same pattern used to count real entries, so both the SessionStart banner and `/session-continuity:primer`'s check mode reported "Backlog: 1, Learnings: 2" on a brand-new project with zero real entries. `templates/LEARNINGS.md`'s exemplar headings are now commented out so they're inert against any entry counter.
+- **The entry-count expression printed two zeros instead of one at the exact count (zero) it was written to handle.** `grep -c ... || echo 0` relies on `grep -c` exiting 1 (and still printing `0`) when nothing matches, so the `||` fallback fired too — a no-match file produced two `0` lines instead of one. Both call sites (`hooks/session-start.sh` and `commands/primer.md`'s check mode) now delegate to a new comment-and-fence-aware `hooks/lib/count-entries.sh` helper, which is also what makes the templates fix above possible — it's the one place "how many entries does this file have" is now defined, instead of three divergent expressions.
+
 ## [0.25.1] — 2026-09-02
 
 ### Fixed
