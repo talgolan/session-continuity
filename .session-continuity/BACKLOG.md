@@ -183,3 +183,14 @@ Its five report rows are deterministic and Phase 1 `[5c2d]` would leave a
 zero-turn mechanism available to reuse, but its install-mode branching reads
 environment rather than repo files. Decide during Phase 3 `[a17f]`, when the
 shared status function forces the question.
+
+### 17. [9d17] [2026-09-02] File the concrete `/session-continuity:doctor` retrofit once `4a9d` is decided
+
+Its five report rows are deterministic like `backlog`/`learnings`/`help`/`update`,
+but it reads live installation state (hook registration, plugin cache path,
+file staleness) rather than a static repo file, so it needs a different
+renderer shape than `hooks/lib/render.sh`'s file-parsing model — Phase 1 of
+the determinism program deliberately did not touch it. Distinct from `4a9d`:
+that item is the architectural decision (should `/doctor` become a zero-turn
+script at all); this item is the concrete retrofit work once that decision
+lands.

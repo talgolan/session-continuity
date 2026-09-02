@@ -1,12 +1,12 @@
 # session-continuity
 
-Cross-session memory for Claude Code projects. A skill Claude loads on its own, five plain-Markdown docs committed to your repo, seven slash commands, and a set of session hooks that surface the right knowledge at the right moment.
+Cross-session memory for Claude Code projects. A skill Claude loads on its own, five plain-Markdown docs committed to your repo, nine slash commands — four of which cost no model calls in the common case, a hook intercepts and answers them directly, with a one-model-call fallback if it doesn't fire — and a set of session hooks that surface the right knowledge at the right moment.
 
 ## Why this exists
 
 LLMs start every session cold. Claude doesn't remember yesterday's debugging, last week's refactor, or the three-hour bug you eventually cornered. The usual fixes reach for clever infrastructure: vector databases, MCP memory servers, auto-generated notes stored in vendor-specific ways that hide the knowledge outside the repo, away from human eyes and tangled with whichever tool happens to be installed.
 
-This plugin takes a different route: plain Markdown files, committed to git, alongside the code they describe. Five files hold the memory, seven slash commands keep them honest, and a handful of hooks nudge or gate when the habit slips. That's the whole system.
+This plugin takes a different route: plain Markdown files, committed to git, alongside the code they describe. Five files hold the memory, nine slash commands keep them honest — four of them (`backlog`, `learnings`, `help`, `update`) answered at zero model calls by a hook, falling back to one call apiece if the hook doesn't fire — and a handful of hooks nudge or gate when the habit slips. That's the whole system.
 
 The choice buys three properties most AI memory systems lack. Humans and Claude read the same files, so there's no opaque layer between you and what's remembered. Every change is a git commit, so history is auditable and every edit has an author. The storage is plain text, so it's portable: any tool that reads Markdown can use it, including future LLMs that don't exist yet.
 
@@ -26,6 +26,8 @@ There's a second reason, less obvious than the first: **shorter Claude Code sess
 | **`/session-continuity:learning`** | Append a new LEARNINGS entry interactively, with stable numbering. |
 | **`/session-continuity:end-session`** | Close-out ritual: refresh the primer, mine this session for new learnings, and print a state checklist. |
 | **`/session-continuity:doctor`** | Read-only diagnostic: is the install actually wired up — hooks registered, all five files present and not stale, plugin root resolved and not a stale cache, gate scripts executable. |
+| **`/session-continuity:backlog`** | Render BACKLOG.md's open items. Zero model calls when the prompt-intercept hook fires, one call as fallback. |
+| **`/session-continuity:learnings`** | Render LEARNINGS.md's entries. Zero model calls when the prompt-intercept hook fires, one call as fallback. |
 | **`/session-continuity:update`** | Print the commands to pull and activate this plugin's latest published version. |
 | **`/session-continuity:help`** | Explain what the plugin does, why, and what each of the five files is for. |
 | **`/session-continuity:spike-check`** | Emit the stand-in spike checklist before a spike, so it's designed to hit the real binary + auth/lifecycle/fixed-port path. |
@@ -104,6 +106,14 @@ Read-only, zero-arg diagnostic: is the install actually wired up? Five ✓/⚠�
 ### `/session-continuity:spike-check`
 
 Emits a five-question stand-in checklist *before* a spike is built, so the spike is designed to exercise the real binary and the real auth/lifecycle/fixed-port path rather than a hand-rolled stand-in that passes cleanly and proves nothing. It is the proactive complement to the proven gate: answers 2 and 5 become the `Real path:` and `Stubbed:` fields the proven gate requires at claim-time. Pass an optional one-line spike description to frame each question.
+
+### `/session-continuity:backlog`
+
+Zero-arg, read-only: renders `.session-continuity/BACKLOG.md`'s open items as the standing numbered-list convention (1-indexed, `[hex tag] [date]` per item). A `UserPromptSubmit` hook intercepts the matching natural-language and slash-command forms and answers directly at zero model calls; this command's own body is the one-call fallback for when the hook doesn't fire.
+
+### `/session-continuity:learnings`
+
+Zero-arg, read-only: renders `.session-continuity/LEARNINGS.md`'s entries, grouped by section, in their existing numbering. Same hook, same zero-turn-in-the-common-case, one-call-as-fallback shape as `/session-continuity:backlog`.
 
 ### `/session-continuity:update`
 
@@ -218,7 +228,7 @@ Understanding what this plugin deliberately avoids is as useful as understanding
 
 **Not automatic.** The slash commands require you to invoke them. The hooks nudge or gate; they don't write files themselves. Automatic memory capture sounds appealing but has a predictable failure mode: noise, contradictions, and stale state that Claude confidently believes is current. A memory system is only useful if its contents can be trusted, and trust comes from deliberate capture.
 
-**Not a framework.** There's no extension API, no plugin architecture, no abstraction layer waiting for you to subclass it. The surface is one skill, seven commands, and a handful of hooks, and that's the whole product. The surface stays deliberately small — a new command needs a concrete failure mode behind it (like `/session-continuity:doctor`'s "a mechanism silently never fired and nobody could ask why"), not speculative convenience. PRs that add surface without one will be declined.
+**Not a framework.** There's no extension API, no plugin architecture, no abstraction layer waiting for you to subclass it. The surface is one skill, nine commands, and a handful of hooks, and that's the whole product. The surface stays deliberately small — a new command needs a concrete failure mode behind it (like `/session-continuity:doctor`'s "a mechanism silently never fired and nobody could ask why"), not speculative convenience. PRs that add surface without one will be declined.
 
 **Not a replacement for `CLAUDE.md`, vector search, or MCP memory servers.** Each solves a different problem. `CLAUDE.md` is for durable project conventions ("always use Bun, never commit to main"). Vector search is for semantic retrieval across large unstructured corpora. MCP memory servers are for cross-project context that needs rich querying. This plugin is for *the five specific questions above*, in *a single project's repo*, with *plain text in git* as the storage. When one of the other tools fits your need better, use it instead.
 
