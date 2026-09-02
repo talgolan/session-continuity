@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.1] — 2026-09-02
+
+### Fixed
+- **Backlog-echo instructions omitted the filing date, only the hex tag.** `hooks/session-start.sh`'s injected reminder and `skills/session-continuity/REFERENCE.md`'s standing rule both told Claude to keep each item's `[hex tag]` visible when summarizing the backlog, but never mentioned the `[YYYY-MM-DD]` filing date — so a terse summary silently dropped dates even though the hook output and `BACKLOG.md` itself always carry them. Both instructions now require tag and date together, e.g. `1 [a3f9] [2026-08-30]`.
+
 ## [0.25.0] — 2026-09-01
 
 ### Fixed

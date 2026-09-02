@@ -39,8 +39,9 @@ rarely.
   had no per-session debounce, causing the repeated `docs-current
   reminder` nag; fixed there, outside this repo since that file is
   git-excluded/personal).
-- **v0.25.0 implemented on branch `feat/learnings-generation-hardening`
-  (not yet merged to `main` — awaiting merge decision), executed via
+- **v0.25.0 merged to `main` via PR #27 (`fcdabad`) and released
+  (tag `v0.25.0`, GitHub release auto-published from the tag).**
+  Implemented on branch `feat/learnings-generation-hardening` via
   subagent-driven-development: all 7 tasks complete, each task-reviewed
   (2 fix rounds total: Task 4's fix-burst title privacy redaction, Task
   5's empty-transcript-dir zsh nullglob bug, Task 6's stale Presentation
@@ -76,6 +77,14 @@ rarely.
   asymmetric-Jaccard defect that over-merges distinct retry-bursts whose
   titles share the common boilerplate suffix — non-blocking, deferred.
   Validation record: `meta/superpowers/validation/2026-09-01-learnings-hardening-verification.md`.
+- **v0.25.1 merged to `main` via PR #28 (`a4ce513`) and released
+  (tag `v0.25.1`).** Bugfix: `hooks/session-start.sh`'s injected backlog
+  reminder and `skills/session-continuity/REFERENCE.md`'s standing rule
+  both told Claude to keep each item's `[hex tag]` visible when
+  summarizing the backlog, but never said to keep the `[YYYY-MM-DD]`
+  filing date too — a terse summary could drop dates even though the
+  hook output and `BACKLOG.md` itself always carry them. Both
+  instructions now require tag and date together.
 - **v0.23.0 merged to `main` via PR #24 (`fc481da`).**
   Ships candidate extraction + Heuristics A-D
   (`hooks/lib/candidate-extract.sh`), the `step-4-agent-active` derivation
@@ -496,11 +505,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-578b0b5 Merge pull request #26 from talgolan/feat/backlog-non-integer-ids
-daabc55 feat: permanent hex tags + filing dates on BACKLOG.md items (v0.24.0)
-56486cd Merge pull request #25 from talgolan/fix/docs-current-hook-noise
-a3409cb docs: close backlog item 8, fix docs-current Stop hook noise
-1b6d96b docs: update session continuity
+a4ce513 Merge pull request #28 from talgolan/fix/backlog-date-in-summaries
+e78eddd fix: backlog-echo instructions omit filing date, only mention hex tag
+fcdabad Merge pull request #27 from talgolan/feat/learnings-generation-hardening
+ae866ce docs: close backlog item 7, file overlap() defect, refresh primer for v0.25.0
+b51b8f2 chore: bump to 0.25.0 — LEARNINGS write gate, retuned heuristics, failure taxonomy
 ```
 
 Regenerate this block whenever you commit — see
