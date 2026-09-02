@@ -90,6 +90,8 @@ migration-to-`BACKLOG.md` nudge instead, per the v0.22.0 rename. The test
 was never updated to match. Fix: rewrite the failing fixtures to use
 `BACKLOG.md` (matching the hook's actual current contract), or fold this
 into item 2 (automated integration tests) if that work supersedes it.
+Now owned by Phase 0 `[3b71]`, whose Task 2 repairs this suite as a
+prerequisite for testing its own count fixes — close this item there.
 
 ### 7. [c9a4] [2026-09-01] `overlap()` dedup in `candidate-extract.jq` is an asymmetric, multiplicity-vs-dedup-mismatched Jaccard, and over-merges distinct retry-bursts
 
@@ -107,4 +109,90 @@ retry-bursts on genuinely different commands (e.g. `bun test src/foo…` vs
 silently dropped before the per-heuristic cap even applies. Fix: a
 symmetric, multiplicity-free Jaccard (dedupe `$wa`/`$wb` before comparing),
 and/or exclude the common title-template suffix from the comparison so
-only the command-specific portion is scored.
+only the command-specific portion is scored. Fix it as part of Phase 5
+`[c60e]`, which lifts this exact function into a script shared by
+`primer.md` and `end-session.md` — sharing it unchanged multiplies the
+defect's reach across two call sites instead of one.
+
+### 8. [3b71] [2026-09-02] Determinism Phase 0 — fresh-install count defects
+
+Two reproduced counting bugs affecting every new project: heading examples
+inside the shipped templates are counted as real entries, and
+`grep -c … || echo 0` prints two zeros when a count is genuinely zero.
+Depends on nothing, ships as a patch release, and closes item `6258` — its
+Task 2 repairs that smoke suite. Plan:
+`meta/superpowers/plans/2026-09-02-fresh-install-count-defects.md`.
+
+### 9. [5c2d] [2026-09-02] Determinism Phase 1 — zero-turn read-only lists
+
+Retires the model from `/backlog`, `/learnings`, `/help`, and `/update` via a
+`UserPromptSubmit` interceptor and a shell renderer — the only phase that
+reaches literally zero model calls, where the rest reduce turns and remove
+error modes. Task 1 is a measurement gate probing four unprobed hook
+behaviors, and a negative result there changes the approach before any code
+lands. Plan:
+`meta/superpowers/plans/2026-09-02-zero-turn-read-only-commands.md`.
+
+### 10. [8e4a] [2026-09-02] Determinism Phase 2 — `end-session` Step 2 rendering and reference relocation
+
+Largest single token reduction available: relocates the reference text that
+`commands/end-session.md` itself marks as "**not instructions to you**" into
+`skills/session-continuity/HEURISTICS.md`, and scripts the LEARNINGS-candidate
+rendering. Depends on nothing; has an approved design but still needs an
+implementation plan. Design:
+`meta/superpowers/specs/2026-09-02-end-session-step2-rendering-design.md`.
+
+### 11. [a17f] [2026-09-02] Determinism Phase 3 — shared mechanics library
+
+Adds `perf-log.sh mark` and `perf-log.sh since` to collapse four
+near-identical 14-line epoch-subtraction blocks inlined in
+`commands/end-session.md`, plus one status function shared by
+`hooks/session-start.sh`, `primer.md` check mode, and `doctor.md` so the three
+can no longer disagree. Unblocks phases 4 and 6, and forces the decision filed
+as item `4a9d`. Scope: the Phase 3 entry in
+`meta/superpowers/specs/2026-09-02-determinism-program-design.md`; needs a plan.
+
+### 12. [b93c] [2026-09-02] Determinism Phase 4 — `end-session` Step 3 checklist assembly
+
+One script consuming the six git outputs and a `tag<TAB>verdict<TAB>citation`
+file, emitting the eight finished rows, the four backlog tallies, the per-row
+markers, and the sign-off boolean. Depends on Phase 3's `since`, and removes
+the file-inventory summarization failure that `end-session.md:646` exists to
+prevent. Scope: the Phase 4 entry in the program design; needs a plan.
+
+### 13. [c60e] [2026-09-02] Determinism Phase 5 — backlog mechanics and the commit-overlap gate
+
+Two scripts shared by `primer.md` and `end-session.md`: item bookkeeping (mint
+a 4-hex tag with a uniqueness grep, stamp the date, renumber positions 1..N,
+grep the repo for a tag before deletion) and the overlap gate, which today
+exists as two prose copies that can drift. Must close item `c9a4` rather than
+lift `candidate-extract.jq:101-107` unchanged — that function is the
+asymmetric Jaccard `c9a4` documents. Scope: the Phase 5 entry in the program
+design; needs a plan.
+
+### 14. [d24b] [2026-09-02] Determinism Phase 6 — `primer` detect, migrate, init, drift
+
+Mode detection and migration triggers (pure boolean logic over file
+existence), the backlog rename migration's destructive `git mv`, init-mode
+template copy and placeholder substitution, and the drift check with modal
+test-count pinning. Largest phase, lowest per-invocation frequency, highest
+blast radius — it rewrites five files; depends on Phase 3. Scope: the Phase 6
+entry in the program design; needs a plan.
+
+### 15. [f58a] [2026-09-02] Determinism Phase 7 — the commit gate that keeps the invariant true
+
+A seventh gate in `hooks/hooks.json` blocking staged `commands/*.md` text that
+instructs a model to count, tally, renumber, compute a duration, compare a
+claimed value against an actual one, or print fixed text verbatim, with the
+usual `<Gate-name>: N/A — <reason>` escape. Ships last so its pattern list is
+written from what the earlier phases actually removed; it is distinct from
+item `9eec`, a machine-global claimed-value gate living outside this repo, and
+neither closes the other. Scope: the Phase 7 entry in the program design;
+needs a plan.
+
+### 16. [4a9d] [2026-09-02] Decide whether `/doctor` becomes a zero-turn script or stays a prompt
+
+Its five report rows are deterministic and Phase 1 `[5c2d]` would leave a
+zero-turn mechanism available to reuse, but its install-mode branching reads
+environment rather than repo files. Decide during Phase 3 `[a17f]`, when the
+shared status function forces the question.
