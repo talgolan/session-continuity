@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.0] — 2026-09-02
+
+### Added
+- **New `/session-continuity:backlog` and `/session-continuity:learnings` commands** — render `.session-continuity/BACKLOG.md`'s open items and `LEARNINGS.md`'s entries, respectively. Zero args, read-only.
+- **New `UserPromptSubmit` hook, `hooks/prompt-intercept.sh`** — intercepts the fixed set of natural-language phrasings and fully plugin-scoped slash forms for `backlog`, `learnings`, `help`, and `update`, and answers them directly via the new `hooks/lib/render.sh` (plus two `.awk` siblings), at zero model calls. Fails open on every ambiguity (no `jq`, unparseable payload, non-exact match, `render.sh` missing/erroring/silent) rather than risk swallowing a real prompt.
+- Each of the four intercepted commands (`commands/backlog.md`, `commands/learnings.md`, and the retrofitted `commands/help.md`/`commands/update.md`) keeps a one-model-call fallback body — a single Bash call to `render.sh` followed by print-verbatim — for when the hook doesn't fire. No version floor introduced.
+
 ## [0.25.2] — 2026-09-02
 
 ### Fixed

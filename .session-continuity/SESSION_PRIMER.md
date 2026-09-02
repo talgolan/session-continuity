@@ -20,6 +20,42 @@ rarely.
 
 ## Current state
 
+- **v0.26.0 — Determinism program Phase 1 ("zero-turn read-only commands"),
+  committed on branch `worktree-zero-turn-read-only-commands` (worktree
+  `zero-turn-read-only-commands`), not yet merged/released.** Retires
+  `/session-continuity:backlog`, `/session-continuity:learnings`,
+  `/session-continuity:help`, and `/session-continuity:update` to zero model
+  calls in the common case. Task 1 (`9b33acf`) measured the
+  `UserPromptSubmit` interception surface (four hook behaviors, empirically
+  confirmed). Task 2 (`eb85948`, `909c494`) shipped `hooks/lib/render.sh`
+  plus two `.awk` siblings — a pure renderer, zero model calls when invoked
+  directly; new smoke suite `meta/superpowers/validation/2026-09-02-render-
+  smoke.zsh` 40/40. Task 3 (`1b60892`) shipped `hooks/prompt-intercept.sh`,
+  registered as a new `UserPromptSubmit` hook in `hooks/hooks.json` —
+  intercepts the fixed table (backlog/learnings natural language plus the
+  fully plugin-scoped slash forms of all four commands) and blocks the
+  prompt, answering with `render.sh`'s output directly; fails open on every
+  ambiguity (no `jq`, unparseable payload, non-exact match, `render.sh`
+  missing/erroring/silent). New smoke suite `meta/superpowers/validation/
+  2026-09-02-prompt-intercept-smoke.zsh` 44/44; the pre-existing hook-JSON
+  contract runner (`meta/superpowers/validation/2026-08-12-hook-json-
+  contract-smoke.zsh`), extended to cover the new hook, 19/19. Task 4
+  (`cf6746e`) added `commands/backlog.md` and `commands/learnings.md`
+  (new), and retrofitted `commands/help.md` and `commands/update.md` — all
+  four are now one-Bash-call-then-print-verbatim fallback bodies, used only
+  when the hook doesn't fire. Task 6 (this entry): doc/changelog/version
+  bookkeeping — `SKILL.md`'s inline command list, `REFERENCE.md`'s hook
+  table (new `prompt-intercept.sh` bullet with its fail-open contract
+  spelled out, plus a pointer from the standing backlog-numbering rule to
+  `render.sh backlog` as the canonical shape), and `README.md` (command
+  count, table rows, prose subsections) all updated seven→nine commands;
+  `plugin.json` 0.25.2→0.26.0; filed backlog item `9d17` (concrete
+  `/session-continuity:doctor` retrofit, deferred until architectural item
+  `4a9d` decides whether `/doctor` becomes a zero-turn script at all — this
+  phase deliberately did not touch `/doctor`). Plan:
+  `meta/superpowers/plans/2026-09-02-zero-turn-read-only-commands.md`.
+  Design spec: `meta/superpowers/specs/2026-09-02-zero-turn-read-only-
+  commands-design.md`.
 - **v0.25.2 — Determinism Phase 0 (fresh-install count defects), committed on
   branch `worktree-fresh-install-count-defects` (worktree
   `fresh-install-count-defects`), not yet merged/released.** Fixes two real
@@ -531,12 +567,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-3c996f7 fix: comment out exemplar headings in LEARNINGS.md template
-a26a062 fix: replace grep with count-entries.sh in primer check-mode, remove stale reference
-721b287 fix: count-entries.sh at session-start.sh's two call sites, fix shortlist gate
-f18434b feat: add comment-and-fence-aware count-entries.sh helper
-cf5e947 Merge pull request #29 from talgolan/docs/determinism-program-backlog
-e7050a2 docs: file the determinism program as nine backlog items and a roadmap
+cf6746e feat: fallback-body command files for backlog/learnings/help/update
+1b60892 feat: zero-turn interception for backlog/learnings/help/update prompts
+909c494 fix: missing project-dir arg falls through to bad-input path, not exit 2
+eb85948 feat: renderer layer for zero-turn read-only commands (Task 2)
+9b33acf docs: measure the UserPromptSubmit interception surface (Phase 1 Task 1)
 ```
 
 Regenerate this block whenever you commit — see

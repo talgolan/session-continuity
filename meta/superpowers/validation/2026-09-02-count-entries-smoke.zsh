@@ -42,20 +42,22 @@ assert_count "real LEARNINGS.md" "$repo/.session-continuity/LEARNINGS.md" 15
 # .session-continuity/BACKLOG.md's true count as of this session. The plan
 # text that specified this task was written against an earlier BACKLOG.md
 # (7 entries); nine more items were filed for the determinism program in a
-# later commit (e7050a2) before this task started, so the current correct
-# answer is 16, not 7. Pinning the live number (rather than re-deriving it
-# from grep in this test) keeps this a real regression anchor: if BACKLOG.md
-# changes again, this assertion goes red and whoever touched it must update
-# the pin, instead of the test silently tracking the file forever.
-assert_count "real BACKLOG.md" "$repo/.session-continuity/BACKLOG.md" 16
+# later commit (e7050a2) before this task started, bringing it to 16; Task 6
+# (commit 8700944) filed one more (item 17: the `/doctor` retrofit), so the
+# current correct answer is 17. Pinning the live number (rather than
+# re-deriving it from grep in this test) keeps this a real regression
+# anchor: if BACKLOG.md changes again, this assertion goes red and whoever
+# touched it must update the pin, instead of the test silently tracking the
+# file forever.
+assert_count "real BACKLOG.md" "$repo/.session-continuity/BACKLOG.md" 17
 
 # Independent cross-check that the pin above is still the naive-grep answer,
 # i.e. that BACKLOG.md still has no comment/fence-wrapped heading of its own
 # (only the shipped *template* does) — if this ever drifts from the helper,
 # something is wrapping a real entry in a comment or fence.
 grep_backlog="$(grep -cE '^### [0-9]+\.' "$repo/.session-continuity/BACKLOG.md")"
-[[ "$grep_backlog" == "16" ]] && ok "real BACKLOG.md: naive grep also says 16 (sanity check on the pin)" \
-  || bad "real BACKLOG.md: naive grep says $grep_backlog, expected 16 — the pin above is now stale"
+[[ "$grep_backlog" == "17" ]] && ok "real BACKLOG.md: naive grep also says 17 (sanity check on the pin)" \
+  || bad "real BACKLOG.md: naive grep says $grep_backlog, expected 17 — the pin above is now stale"
 
 # --- shipped templates: every one must count to zero -----------------------
 #
@@ -91,6 +93,20 @@ cat > "$work/same-line-comment.md" <<'EOF'
 ### 3. after inline comment, must still count
 EOF
 assert_count "comment that opens and closes on one line does not stick" "$work/same-line-comment.md" 2
+
+# A heading line that ITSELF contains a self-closing inline comment (as
+# opposed to the fixture above, where the comment delimiters are the whole
+# line and the line never matches the heading pattern to begin with). This
+# is the drift case from the final whole-branch review: render-backlog.awk
+# and render-learnings.awk unconditionally `next` any line containing
+# "<!--", self-closing or not, so a heading with an inline comment never
+# renders. count-entries.sh must agree and not count it either.
+cat > "$work/heading-with-inline-comment.md" <<'EOF'
+### 1. real entry
+### 2. [foo] [2026-01-01] Title with inline <!-- note --> text
+### 3. another real entry
+EOF
+assert_count "heading line containing a self-closing inline comment is not counted (matches the renderers)" "$work/heading-with-inline-comment.md" 2
 
 # --- fence-awareness ----------------------------------------------------------
 

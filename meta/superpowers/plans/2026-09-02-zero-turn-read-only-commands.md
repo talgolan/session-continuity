@@ -1,9 +1,14 @@
 # Zero-turn read-only commands — Implementation Plan (Phase 1)
 
-Proven-gate: N/A — this is an unexecuted implementation plan. Every task's
-checkboxes are unchecked and no code in it has been written or run. Task 1 is
-a measurement gate whose results are expected to revise Tasks 2-6; nothing
-below claims a working mechanism.
+Proven-gate: Task 1 is done — Real path: headless `claude -p` driven against
+this worktree via `--plugin-dir`, hitting the real `UserPromptSubmit`/
+`UserPromptExpansion` hook contract and a real plugin-scoped slash command
+(`/session-continuity:help`); Stubbed: nothing — the throwaway logging/
+blocking hooks were the only new code, and they are deleted, not shipped.
+Results and raw payloads:
+`meta/superpowers/specs/2026-09-02-zero-turn-read-only-commands-design.md`.
+Tasks 2-6 remain unexecuted implementation — every one of their checkboxes
+is still unchecked and no code in them has been written or run.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -124,20 +129,29 @@ Nothing else starts until this finishes. Output is a spec file, not code.
 - Produces: four measured answers, each with the raw payload pasted into the
   spec. Tasks 2-6 consume them.
 
-- [ ] **Step 1: Sync the plugin cache and confirm which copy runs**
+- [x] **Step 1: Sync the plugin cache and confirm which copy runs**
 
 Confirm the running plugin root and that it matches this working tree before
 measuring anything. A measurement taken against a stale cache measures the
 old version.
 
-- [ ] **Step 2: Register a throwaway logging hook on both events**
+Ruling: measured via `claude -p --plugin-dir <this worktree>` in a throwaway
+scratch repo rather than syncing the installed marketplace cache — the
+installed plugin's source is `github:talgolan/session-continuity`, so a
+cache sync means publish-a-release, which this measurement task does not
+warrant. `--plugin-dir` is this repo's own documented dev-loop
+(`CONTRIBUTING.md`'s "Run the plugin against a scratch repo") and gives a
+stronger guarantee than a cache sync: it runs this exact worktree's files,
+not a cached copy that could still be stale.
+
+- [x] **Step 2: Register a throwaway logging hook on both events**
 
 A single script registered on `UserPromptSubmit` and on
 `UserPromptExpansion` that appends its entire stdin payload plus the event
 name to a log file and exits 0. It must alter nothing — no block, no output
 on stdout.
 
-- [ ] **Step 3: Measure, and paste every payload into the spec**
+- [x] **Step 3: Measure, and paste every payload into the spec**
 
 1. **Does a typed slash command reach `UserPromptSubmit`, and what is
    `prompt`?** Type `/session-continuity:help` and read the log. If the
@@ -160,7 +174,7 @@ on stdout.
    `hookSpecificOutput` in the same table. Measure both placements and
    record which one suppresses the echoed prompt text.
 
-- [ ] **Step 4: Write the spec, then remove the throwaway hook**
+- [x] **Step 4: Write the spec, then remove the throwaway hook**
 
 The spec records the four answers, the raw payloads, and any amendment the
 measurements force on Tasks 2-6. Then unregister and delete the logging hook
