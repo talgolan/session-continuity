@@ -28,6 +28,7 @@ within each group.
   this project. Delete layers that don't apply.
 -->
 
+<!-- Example:
 ### 1. {{ENTRY_TITLE}}
 <!-- Optional metadata lines, each on its own line directly under the heading,
      in this order (omit any that don't apply):
@@ -52,14 +53,17 @@ within each group.
 ```
 
 **Diagnostic signal** *(optional)*. {{HOW_TO_RECOGNIZE_THIS_NEXT_TIME}}
+-->
 
 ---
 
 ## {{LAYER_2_NAME}}
 
+<!-- Example:
 ### 2. {{ENTRY_TITLE}}
 
 <!-- same structure -->
+-->
 
 ---
 
