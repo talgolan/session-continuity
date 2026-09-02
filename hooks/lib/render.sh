@@ -150,12 +150,10 @@ EOF
 
 case "$SUBCOMMAND" in
   backlog)
-    [[ -n "${2:-}" ]] || die_install "backlog requires a <project-dir> argument."
-    render_backlog "$2"
+    render_backlog "${2:-}"
     ;;
   learnings)
-    [[ -n "${2:-}" ]] || die_install "learnings requires a <project-dir> argument."
-    render_learnings "$2"
+    render_learnings "${2:-}"
     ;;
   help)   render_help ;;
   update) render_update ;;

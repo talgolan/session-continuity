@@ -262,12 +262,27 @@ out="$(bash "$work/skewed/render.sh" backlog "$proj1" 2>&1)"; rc=$?
 [[ "$rc" -eq 2 ]] && ok "contract-skewed render-backlog.awk exits 2" \
   || bad "contract-skewed sibling: expected exit 2, got $rc (out: $out)"
 
-# --- unknown subcommand / missing arg -> exit 2 -----------------------------
+# --- unknown subcommand -> exit 2 (broken/unsupported invocation) ----------
 
 out="$(bash "$render" bogus 2>&1)"; rc=$?
 [[ "$rc" -eq 2 ]] && ok "unknown subcommand exits 2" || bad "unknown subcommand: expected exit 2, got $rc (out: $out)"
+
+# --- missing <project-dir> arg falls through to the bad-input path, exit 0 -
+# (same class as a missing/unreadable file — per the brief's contract, this
+# is not a broken-install condition)
+
 out="$(bash "$render" backlog 2>&1)"; rc=$?
-[[ "$rc" -eq 2 ]] && ok "backlog with no project-dir exits 2" || bad "backlog with no project-dir: expected exit 2, got $rc (out: $out)"
+[[ "$rc" -eq 0 ]] && ok "backlog with no project-dir exits 0 (bad input, not broken install)" \
+  || bad "backlog with no project-dir: expected exit 0, got $rc (out: $out)"
+print -r -- "$out" | grep -q '/session-continuity:primer' \
+  && ok "backlog with no project-dir points at /session-continuity:primer" \
+  || bad "backlog with no project-dir message was: $out"
+out="$(bash "$render" learnings 2>&1)"; rc=$?
+[[ "$rc" -eq 0 ]] && ok "learnings with no project-dir exits 0 (bad input, not broken install)" \
+  || bad "learnings with no project-dir: expected exit 0, got $rc (out: $out)"
+print -r -- "$out" | grep -q '/session-continuity:primer' \
+  && ok "learnings with no project-dir points at /session-continuity:primer" \
+  || bad "learnings with no project-dir message was: $out"
 
 # --- help: absorbs the version parse and commands/*.md frontmatter loop ----
 
