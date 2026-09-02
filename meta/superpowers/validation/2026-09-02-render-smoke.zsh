@@ -25,13 +25,13 @@ out="$(bash "$render" backlog "$proj1")"
 rc=$?
 n="$(print -r -- "$out" | grep -cE '^[0-9]+ \[')"
 [[ "$rc" -eq 0 ]] && ok "backlog(real): exit 0" || bad "backlog(real): exit $rc"
-[[ "$n" -eq 15 ]] && ok "backlog(real): renders 15 items (16 headings minus 1 closed stub)" \
-  || bad "backlog(real): expected 15 rendered items, got $n"
+[[ "$n" -eq 16 ]] && ok "backlog(real): renders 16 items (17 headings minus 1 closed stub)" \
+  || bad "backlog(real): expected 16 rendered items, got $n"
 print -r -- "$out" | grep -q '^1 \[d7f5\] \[2026-08-30\] Submit to the Anthropic marketplace$' \
   && ok "backlog(real): item 1 matches file order + own counter" \
   || bad "backlog(real): line 1 was: $(print -r -- "$out" | sed -n 1p)"
-print -r -- "$out" | grep -q '^15 \[4a9d\] \[2026-09-02\] Decide whether' \
-  && ok "backlog(real): last item renumbered to 15, not its file position (16)" \
+print -r -- "$out" | grep -q '^16 \[9d17\] \[2026-09-02\] File the concrete' \
+  && ok "backlog(real): last item renumbered to 16, not its file position (17)" \
   || bad "backlog(real): last line was: $(print -r -- "$out" | tail -1)"
 print -r -- "$out" | grep -q '6258' \
   && bad "backlog(real): closed stub [6258] leaked into rendered output" \
