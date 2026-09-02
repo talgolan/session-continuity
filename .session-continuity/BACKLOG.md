@@ -78,20 +78,7 @@ approved spec), not a silent code patch — re-review before changing it.
 `end-session.md`'s stale Heuristics prose — were resolved by the LEARNINGS
 generation hardening plan, v0.25.0.)
 
-### 6. [6258] [2026-09-01] `2026-08-12-session-start-smoke.zsh` tests a pre-v0.22.0 contract — 7/17 assertions fail
-
-Confirmed on a clean `main` worktree (zero diff in either the test or
-`hooks/session-start.sh`): the test's fixtures write
-`.session-continuity/OUTSTANDING_ITEMS.md` expecting the hook to list its
-items directly, but the hook — unchanged since before this finding, so
-this isn't a regression from any recent work — now treats *any*
-`OUTSTANDING_ITEMS.md` presence as stale-format and always emits a
-migration-to-`BACKLOG.md` nudge instead, per the v0.22.0 rename. The test
-was never updated to match. Fix: rewrite the failing fixtures to use
-`BACKLOG.md` (matching the hook's actual current contract), or fold this
-into item 2 (automated integration tests) if that work supersedes it.
-Now owned by Phase 0 `[3b71]`, whose Task 2 repairs this suite as a
-prerequisite for testing its own count fixes — close this item there.
+### 6. [6258] — closed. Fixed in `721b287`.
 
 ### 7. [c9a4] [2026-09-01] `overlap()` dedup in `candidate-extract.jq` is an asymmetric, multiplicity-vs-dedup-mismatched Jaccard, and over-merges distinct retry-bursts
 
