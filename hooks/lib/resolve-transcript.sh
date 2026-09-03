@@ -9,8 +9,8 @@
 # candidate-extract.sh an empty path, which itself reports
 # mode:"unavailable"; that is the one fallback path, not a second one here.
 #
-# Resolution: encode `pwd` with '/' -> '-' (a leading '/' becomes a leading
-# '-'), look under ~/.claude/projects/<encoded-cwd>/, and pick the .jsonl
+# Resolution: encode `pwd` by replacing '/', '.', and '_' with '-',
+# look under ~/.claude/projects/<encoded-cwd>/, and pick the .jsonl
 # file with the newest mtime. Prints nothing if that directory does not
 # exist or holds no .jsonl file.
 #

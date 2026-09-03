@@ -12,18 +12,24 @@ ok()  { print -P "%F{green}✓%f $1"; (( pass++ )); return 0; }
 bad() { print -P "%F{red}✗%f $1"; (( fail++ )); return 0; }
 
 fake_home="$(mktemp -d)"
-proj_cwd_raw="$(mktemp -d)"
-# Resolve symlinks (e.g. macOS /tmp -> /private/tmp) so the encoded path we
-# assert against matches what the script itself computes via `pwd`.
-proj_cwd="$(cd "$proj_cwd_raw" && pwd)"
-# Create a subdirectory with . and _ to exercise the encoding of those chars.
-# Compute expected encoding independently (using tr, not sed) to avoid sharing
-# the implementation's bug-blindness.
-test_subdir="$proj_cwd/my_project.name"
-mkdir -p "$test_subdir"
-proj_cwd="$test_subdir"
-# Independent encoding: replace /, ., and _ with - using tr (different tool than sed).
-encoded="$(print -r -- "$proj_cwd" | tr '/._' '---')"
+
+# Fixed-name fixture (not mktemp-random) so the expected encoded directory
+# name below can be a hand-typed literal, never computed by the same
+# character-class transform the script under test uses — a bug in that
+# transform could not silently cancel out against this oracle.
+proj_cwd="/tmp/sc-resolve-transcript-smoke.fixture_$$"
+mkdir -p "$proj_cwd"
+resolved_cwd="$(cd "$proj_cwd" && pwd)"
+
+# macOS resolves /tmp -> /private/tmp; Linux typically does not. Branch on
+# the resolved prefix (a string comparison, not a per-character transform)
+# to pick which hand-typed literal applies — both literals are written by
+# hand, not derived from resolved_cwd.
+if [[ "$resolved_cwd" == /private/tmp/* ]]; then
+  encoded="-private-tmp-sc-resolve-transcript-smoke-fixture-$$"
+else
+  encoded="-tmp-sc-resolve-transcript-smoke-fixture-$$"
+fi
 sess_dir="$fake_home/.claude/projects/$encoded"
 
 run_it() {
@@ -66,7 +72,7 @@ out="$(run_it)"
 [[ "$out" == "$sess_dir/session-b.jsonl" ]] && ok "picks newest-mtime .jsonl" \
   || bad "expected $sess_dir/session-b.jsonl, got: $out"
 
-rm -rf "$fake_home" "$proj_cwd_raw"
+rm -rf "$fake_home" "$proj_cwd"
 
 print ""
 print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"
