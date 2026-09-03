@@ -32,7 +32,8 @@ mtime_epoch() {
   return 1
 }
 
-encoded="$(pwd | sed 's#/#-#g')"
+encoded="$(pwd | sed -E 's#[/._]#-#g')"
+[[ -n "${HOME:-}" ]] || exit 0
 dir="$HOME/.claude/projects/$encoded"
 
 [[ -d "$dir" ]] || exit 0

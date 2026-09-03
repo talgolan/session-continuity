@@ -16,7 +16,14 @@ proj_cwd_raw="$(mktemp -d)"
 # Resolve symlinks (e.g. macOS /tmp -> /private/tmp) so the encoded path we
 # assert against matches what the script itself computes via `pwd`.
 proj_cwd="$(cd "$proj_cwd_raw" && pwd)"
-encoded="$(print -r -- "$proj_cwd" | sed 's#/#-#g')"
+# Create a subdirectory with . and _ to exercise the encoding of those chars.
+# Compute expected encoding independently (using tr, not sed) to avoid sharing
+# the implementation's bug-blindness.
+test_subdir="$proj_cwd/my_project.name"
+mkdir -p "$test_subdir"
+proj_cwd="$test_subdir"
+# Independent encoding: replace /, ., and _ with - using tr (different tool than sed).
+encoded="$(print -r -- "$proj_cwd" | tr '/._' '---')"
 sess_dir="$fake_home/.claude/projects/$encoded"
 
 run_it() {
