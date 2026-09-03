@@ -18,6 +18,12 @@ out="$(render 'not json at all')"
 [[ "$out" == SC-FALLBACK:* ]] && ok "malformed JSON -> SC-FALLBACK" \
   || bad "expected SC-FALLBACK, got: $out"
 
+# --- candidate missing the evidence key must not crash --------------------
+malformed='{"mode":"transcript","candidates":[{"heuristic":"retry-burst","title":"T"}],"overflow":0,"detail":""}'
+out="$(render "$malformed")"
+[[ "$out" == SC-FALLBACK:* ]] && ok "candidate missing evidence key -> SC-FALLBACK, no crash" \
+  || bad "expected SC-FALLBACK, got: $out"
+
 # --- mode:unavailable -----------------------------------------------------------
 out="$(render '{"mode":"unavailable","candidates":[],"overflow":0,"detail":"the transcript is stale."}')"
 [[ "$out" == "SC-FALLBACK: context-window — the transcript is stale." ]] \

@@ -56,7 +56,7 @@ case "$MODE" in
     ;;
 esac
 
-printf '%s' "$INPUT" | jq -r '
+RENDER_OUT="$(printf '%s' "$INPUT" | jq -r '
   def render_candidate($i; $c):
     (($i+1)|tostring) + ". [" + $c.heuristic + "] " + $c.title + "\n"
     + "   Evidence:\n"
@@ -75,4 +75,9 @@ printf '%s' "$INPUT" | jq -r '
          else "" end)
       + "\nCapture any? (1, 2, 3, all, none, or describe another)"
     end
-'
+' 2>/dev/null)"
+RENDER_STATUS=$?
+if [[ "$RENDER_STATUS" -ne 0 ]]; then
+  fallback "candidate JSON did not match the expected shape."
+fi
+printf '%s\n' "$RENDER_OUT"
