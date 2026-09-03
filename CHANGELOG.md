@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.27.0] — 2026-09-02
+
+### Changed
+- **`end-session` Step 2's heuristics documentation and JSON-to-markdown formatting rules are now conditional, not unconditional.** Roughly 160 of `commands/end-session.md`'s 790 lines described what `hooks/lib/candidate-extract.jq` already decides and handed the model a formatting job it did unreliably (three anti-drift instructions existed because of it). Two new sibling scripts, `hooks/lib/resolve-transcript.sh` and `hooks/lib/candidate-render.sh`, now resolve the transcript path and render the finished candidate block; the relocated heuristics prose lives in the new `skills/session-continuity/HEURISTICS.md`, read only when there is no script-derived answer (no transcript, a stale/unreadable one, or a missing/outdated script). Step 4's `agent-active.sh` call now resolves the transcript on demand as well, instead of depending on a shell variable set in Step 2's separate Bash call.
+
 ## [0.26.0] — 2026-09-02
 
 ### Added
