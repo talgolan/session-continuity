@@ -577,13 +577,19 @@ along the way. Rather than subtract specific prompt-wait markers (the old
 approach, retired — see
 `meta/superpowers/specs/2026-09-01-end-session-step2-cost-attribution-design.md`
 Change 2 for why a two-marker subtraction can't be made correct), derive
-active time directly from the transcript:
+active time directly from the transcript. Resolve the transcript again here
+— this is a separate Bash call from Step 2's, and shell state does not
+persist across Bash calls, so Step 2's `$TRANSCRIPT` is not visible here:
 
 ```bash
 source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
-if [[ "$start_epoch" =~ ^[0-9]+$ ]] && [[ -n "${TRANSCRIPT:-}" ]]; then
+STEP4_TRANSCRIPT=""
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/resolve-transcript.sh" 1; then
+  STEP4_TRANSCRIPT="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/resolve-transcript.sh")"
+fi
+if [[ "$start_epoch" =~ ^[0-9]+$ ]] && [[ -n "$STEP4_TRANSCRIPT" ]]; then
   if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/agent-active.sh" 1; then
-    AGENT_ACTIVE="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/agent-active.sh" "$TRANSCRIPT" "$start_epoch")"
+    AGENT_ACTIVE="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/agent-active.sh" "$STEP4_TRANSCRIPT" "$start_epoch")"
     if [[ -n "$AGENT_ACTIVE" ]]; then
       bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-4-agent-active --duration="$AGENT_ACTIVE"
     fi
@@ -593,11 +599,11 @@ if [[ "$start_epoch" =~ ^[0-9]+$ ]] && [[ -n "${TRANSCRIPT:-}" ]]; then
 fi
 ```
 
-If Step 2 never resolved a transcript path (context-window mode, or the
-candidate-extraction script reported `mode:"unavailable"`), `$TRANSCRIPT`
-is unset and this block is skipped entirely — no `step-4-agent-active` line
-is logged for this invocation, same "skip rather than log a wrong number"
-rule that already governs the rest of this design.
+If `resolve-transcript.sh` prints nothing (no readable `.jsonl` under this
+session's transcript directory, or the script is missing/outdated), this
+block is skipped entirely — no `step-4-agent-active` line is logged for
+this invocation, same "skip rather than log a wrong number" rule that
+already governs the rest of this design.
 
 **Always emit one of these two lines, exactly:**
 
