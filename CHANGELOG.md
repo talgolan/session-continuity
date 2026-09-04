@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.27.1] — 2026-09-04
+
+### Fixed
+- **A commit-time content gate's own escape hatch could become the claim that condemns it.** Every gate with a `Label: N/A — <reason>` escape hatch has a label that overlaps its own claim-trigger regex (`Proven-gate` contains "proven", the flaky-labeled gate contains "flaky", `Smoke` contains "smoke", `Backend-parity` contains "backend"), so any failure of the escape check turned the exemption line itself into the sole claim that denied the doc — observed live 2026-09-04, writeup in `.session-continuity/COMMIT_HOOKS.md` §4. `gate_mask_escape`/`gate_first_match` (new, `hooks/lib/gate-common.sh`) blank a gate's own hatch line before the claim scan and report the real line number of whatever match remains, wired into `proven-gate.sh`, the flaky-labeled gate, `smoke-gate.sh`, and `backend-parity-gate.sh` (found unpatched despite already having smoke-test coverage written for the fix). The two gates whose labels don't overlap their own claim vocabulary were audited and left untouched.
+- **`smoke-gate.sh`'s binary/engine fallback check still read raw content after masking landed for its sibling branch** — the escape hatch's own reason text could leak a false positive through the one check the masking fix missed.
+
 ## [0.27.0] — 2026-09-02
 
 ### Changed
