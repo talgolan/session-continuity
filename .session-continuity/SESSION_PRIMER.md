@@ -20,6 +20,27 @@ rarely.
 
 ## Current state
 
+- **Uncommitted, branch `fix/gate-escape-self-condemn` (worktree `sc-4e81`) —
+  the gate-escape self-condemnation hazard is fixed and verified, not yet
+  committed.** Backlog: architect-workbench's `4e81` / this repo's own
+  writeup in `COMMIT_HOOKS.md` §4 tracked a hazard where a gate's own
+  `Label: N/A` escape hatch matches that same gate's claim-trigger regex, so
+  any failure of the escape check turns the exemption line into the sole
+  claim that condemns the doc. `gate_mask_escape`/`gate_first_match` added to
+  `hooks/lib/gate-common.sh`; wired into `proven-gate.sh`, `flaky-gate.sh`,
+  `smoke-gate.sh`, and (this session — found unpatched despite having smoke
+  tests already written for it) `backend-parity-gate.sh`. `evidence-gate.sh`
+  and `occurrence-gate.sh` audited and left alone: their escape labels don't
+  overlap their own claim vocabulary, so they were never exposed. Also fixed
+  in this session: `smoke-gate.sh`'s binary/engine fallback check was still
+  reading raw `$content` after the weak-smoke branch above it had been
+  converted to the masked `$scan` — see LEARNINGS #16. All six
+  `*-gate*-smoke.zsh` suites pass (proven 10/10, flaky 10/10, smoke 9/9,
+  backend-parity 7/7, evidence 7/7, occurrence 6/6, gate-common 18/18).
+  `2026-09-02-render-smoke.zsh`'s 2 failures are pre-existing on this branch's
+  base and unrelated (a backlog-render count mismatch); left untouched.
+  Nothing committed yet — next step is committing this fix and opening a PR.
+
 - **v0.26.0 — Determinism program Phase 1 ("zero-turn read-only commands"),
   committed on branch `worktree-zero-turn-read-only-commands` (worktree
   `zero-turn-read-only-commands`), not yet merged/released.** Retires

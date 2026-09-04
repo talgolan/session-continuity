@@ -33,6 +33,34 @@ check "decorated escape matches" "yes" "$out"
 out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_has_escape "'"$none"'" "Proven-gate" && echo yes || echo no')"
 check "no escape does not match" "no" "$out"
 
+# gate_mask_escape: blanks this gate's own hatch line so the claim scan can
+# never be triggered by the line that exempts the doc. Blanks rather than
+# deletes, so reported line numbers still match the real file.
+mask() {  # <text> <Label> -> masked text, newlines rendered as | for comparison
+  MASK_IN="$1" bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_mask_escape "$MASK_IN" "'"$2"'"' | tr '\n' '|'
+}
+out="$(mask $'before\nProven-gate: N/A — reason here\nafter' "Proven-gate")"
+check "well-formed hatch blanked, neighbours kept" "before||after|" "$out"
+out="$(mask $'before\n> **Proven-gate:** N/A — reason\nafter' "Proven-gate")"
+check "decorated hatch blanked" "before||after|" "$out"
+# The load-bearing case: a hatch gate_has_escape REJECTS (no dash/reason) must
+# still be masked, or it becomes the sole claim that condemns the doc.
+out="$(mask $'before\nProven-gate: N/A\nafter' "Proven-gate")"
+check "malformed hatch blanked too" "before||after|" "$out"
+out="$(mask $'plain one\nplain two' "Proven-gate")"
+check "no hatch leaves text untouched" "plain one|plain two|" "$out"
+out="$(mask $'Smoke: N/A — not a binary plan\nkeep' "Proven-gate")"
+check "another gate's hatch is not masked" "Smoke: N/A — not a binary plan|keep|" "$out"
+
+# gate_first_match: word-boundary first hit, reported with its real line number
+first() {  # <text> <ere> -> "N:line"
+  MASK_IN="$1" bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_first_match "$MASK_IN" "'"$2"'"'
+}
+out="$(first $'nothing here\nwe verified it\nlater proven' 'proven|verified')"
+check "first match reports real line number" "2:we verified it" "$out"
+out="$(first $'unproven only' 'proven|verified')"
+check "word boundary respected, no match is empty" "" "$out"
+
 # staged enumeration + blob read against a real temp repo
 repo="$(gt_make_repo)"
 gt_stage "$repo" "meta/plans/x.md" $'line one\nRealword\n'
