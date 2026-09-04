@@ -55,4 +55,21 @@ out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
 check "no binary/engine/smoke words -> allow" "allow" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+# 8. self-condemnation: a malformed hatch (no dash/reason) whose own reason text
+#    contains a weak-smoke word makes the hatch line its own offender.
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'Update the primer prose only.\nSmoke: N/A deferred, this plan touches no binary\n'
+out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
+check "malformed own hatch is not a weak smoke -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 9. a masked hatch must not exempt a binary plan from needing a smoke task:
+#    with the hatch line masked there is no real smoke mention left, so the
+#    binary/engine branch applies and this denies on the normal rule.
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'Rebuild the engine binary with --compile.\nSmoke: N/A\n'
+out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
+check "malformed hatch does not exempt a binary plan -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

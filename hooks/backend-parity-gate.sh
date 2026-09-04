@@ -17,10 +17,14 @@ gate_in_scope() {
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
 gate_check() {
   local content="$1" path="$2" n hit_count=0
-  printf '%s' "$content" | grep -Eiq 'backends?\b' || return 0
   if gate_has_escape "$content" "Backend-parity"; then return 0; fi
+  # "Backend-parity" itself contains "backend": scan with the hatch blanked so
+  # the line that exempts this doc cannot be the sole "backend" mention that
+  # triggers this gate in the first place.
+  local scan; scan="$(gate_mask_escape "$content" "Backend-parity")"
+  printf '%s' "$scan" | grep -Eiq 'backends?\b' || return 0
   for n in docker apple podman containerd colima kata lima orbstack; do
-    if printf '%s' "$content" | grep -Eiq "\\b${n}\\b"; then hit_count=$((hit_count + 1)); fi
+    if printf '%s' "$scan" | grep -Eiq "\\b${n}\\b"; then hit_count=$((hit_count + 1)); fi
   done
   if [ "$hit_count" -lt 2 ]; then
     deny "In staged file $path: mentions 'backend(s)' but names fewer than two concrete backends. A smoke runner proven on only one backend has an unverified half — pair every backend-specific section with the other (e.g. Docker + Apple container). Name the second backend, or add: Backend-parity: N/A — <reason> (decoration fine) if there genuinely is only one."

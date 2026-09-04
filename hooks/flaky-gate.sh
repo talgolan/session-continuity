@@ -18,8 +18,11 @@ gate_check() {  # <text> <label-for-reason>
   local text="$1" where="$2"
   if [ -z "$text" ]; then return 0; fi
   if gate_has_escape "$text" "Flaky-gate"; then return 0; fi
-  printf '%s' "$text" | grep -Eiq '\b(flaky|transient)\b|CDN[[:space:]]+(blip|flake)' || return 0
-  if ! printf '%s' "$text" | grep -Eiq 'Mechanism:[[:space:]]*[^[:space:]]'; then
+  # "Flaky-gate" contains "flaky": scan with the hatch blanked so the line that
+  # exempts this text cannot be the claim that condemns it.
+  local scan; scan="$(gate_mask_escape "$text" "Flaky-gate")"
+  printf '%s' "$scan" | grep -Eiq '\b(flaky|transient)\b|CDN[[:space:]]+(blip|flake)' || return 0
+  if ! printf '%s' "$scan" | grep -Eiq 'Mechanism:[[:space:]]*[^[:space:]]'; then
     deny "In $where: calls a failure 'flaky'/'transient'/a 'CDN blip' without naming the deterministic cause. CLAUDE.md rule 1: an intermittent failure has a deterministic cause (race, shared/global state, an env/sandbox dependency) — name it or state the precise fail condition. Add a 'Mechanism: <named cause>' line, or add: Flaky-gate: N/A — <reason> (decoration fine)."
   fi
 }

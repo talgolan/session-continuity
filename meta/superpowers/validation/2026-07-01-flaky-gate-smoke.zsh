@@ -60,4 +60,26 @@ out="$(gt_run flaky-gate.sh "$(gt_commit_payload "$repo" 'git status --flaky')")
 check "non-commit Bash -> allow (not a commit)" "allow" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+# 8. self-condemnation, staged-file surface: the LEARNINGS entry's only trigger
+#    word is its own malformed hatch (no dash/reason, so gate_has_escape rejects).
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'A race in the reconciler, cause named inline.\nFlaky-gate: N/A\n'
+out="$(gt_run flaky-gate.sh "$(gt_commit_payload "$repo")")"
+check "malformed own hatch is not a claim -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 9. same, commit-message surface
+repo="$(gt_make_repo)"
+gt_stage "$repo" "README.md" $'placeholder\n'
+out="$(gt_run flaky-gate.sh "$(gt_commit_payload "$repo" 'git commit -m "fix: name the race. Flaky-gate: N/A"')")"
+check "malformed hatch in commit msg -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 10. a real 'flaky' claim beside a malformed hatch still denies
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'Flaky-gate: N/A\nThe suite is flaky, moving on.\n'
+out="$(gt_run flaky-gate.sh "$(gt_commit_payload "$repo")")"
+check "real claim beside malformed hatch -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

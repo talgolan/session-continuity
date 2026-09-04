@@ -45,4 +45,19 @@ out="$(gt_run backend-parity-gate.sh "$(gt_commit_payload "$repo")")"
 check "scratch file skipped -> allow" "allow" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+# 6. self-condemnation: the doc's ONLY match for 'backend' is its own malformed
+#    hatch (no dash/reason), so the parity check must not fire at all.
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'A plan about primer prose.\nBackend-parity: N/A\n'
+out="$(gt_run backend-parity-gate.sh "$(gt_commit_payload "$repo")")"
+check "malformed own hatch is not a backend mention -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 7. a real single-backend mention beside a malformed hatch still denies
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'Backend-parity: N/A\nSmoke on the docker backend only.\n'
+out="$(gt_run backend-parity-gate.sh "$(gt_commit_payload "$repo")")"
+check "real single-backend beside malformed hatch -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

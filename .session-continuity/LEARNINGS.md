@@ -29,6 +29,7 @@ within each group.
 - The first v0.2.0 release fired the workflow, created the GitHub Release, but… — #2
 - The self-gate check returned rc=0 (allowed) — but via the escape hatch… — #7
 - The `/session-continuity:end-session` smoke test had two staged files (primer + `src/foo.js`). The… — #3
+- The smoke test written for exactly this case (`Smoke: N/A deferred, this… — #16
 - This repo moved everything to `meta/superpowers/` in v0.3 (per CHANGELOG: "Repo layout:… — #5
 - Three hermetic smoke suites under `meta/superpowers/validation/` had fixtures hardcoded to the exact… — #9
 
@@ -178,6 +179,20 @@ Applies generally: any time command prose tells Claude to produce an inventory f
 ---
 
 ## Hook scripting (SessionStart / PreToolUse)
+
+### 16. Masking a gate's own escape hatch must cover every raw-`$content` check in that gate, not just the one the bug report named
+Slug: gate-mask-partial-migration
+Trigger: Edit /-gate\.sh$/
+
+**The trap.** Fixing the self-condemnation hazard (backlog `4e81`: a gate's own `Label: N/A` hatch matches that gate's claim-trigger regex, so a failed escape check turns the exemption line into the claim that denies it) means computing a masked `scan` and rescanning. It looks sufficient to swap in `$scan` for the specific `grep` that the failing smoke test names and stop there — `smoke-gate.sh`'s weak-smoke branch was switched to `$scan` while its later `binary|engine|container|daemon|...` fallback check one function below kept reading raw `$content`.
+
+**Symptom.** The smoke test written for exactly this case (`Smoke: N/A deferred, this plan touches no binary`) still failed after the masking fix landed — `want allow got deny` — even though the weak-smoke branch it was supposedly testing had already been converted to scan `$scan`. The denial's own quoted match was the word "binary" sitting inside the hatch's malformed reason text, one `grep` call below the one that got fixed.
+
+**Fix.** After adding a `scan="$(gate_mask_escape ...)"` line to a gate, grep that gate's own `gate_check` function for every remaining `printf '%s' "\$content"` and convert each one to `"$scan"` — not just the branch the original bug report pointed at. A gate with N raw-content greps needs N conversions; fixing N-1 leaves a live self-condemnation path through whichever check was missed. Same audit applies to `backend-parity-gate.sh`, which had the identical hazard (`Backend-parity` label contains `backend`) but had a smoke test written for it (TDD-first) with no corresponding fix ever applied to the gate script — caught by running the full smoke suite, not by re-reading the diff.
+
+**Diagnostic signal.** After patching any `*-gate.sh` for this class of bug, `grep -n '\$content' hooks/<gate>.sh` inside `gate_check` — any hit past the `scan=` assignment line is a candidate the fix missed.
+
+---
 
 ### 14. Commit-time content gates only see the git index — `git commit -a` / pathspec bypasses the scan
 Slug: gate-index-only-staging-miss
@@ -361,7 +376,7 @@ and explains why it loses. -->
 
 ---
 
-*Last entry: 2026-08-30 (#15). Add new entries at the top of each section
+*Last entry: 2026-09-04 (#16). Add new entries at the top of each section
 as they surface. The `/session-continuity:learning` command bumps this
 line automatically (v0.5.1+). Rule of thumb: if a bug takes more than
 15 minutes to diagnose, it goes here.*

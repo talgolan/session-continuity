@@ -60,6 +60,35 @@ gate_has_escape() {  # <text> <Label> -> true if an escape line is present
     | grep -Eiq "$2:[[:space:]]*N/A[[:space:]]*(—|--)[[:space:]]*[^[:space:]]"
 }
 
+gate_mask_escape() {  # <text> <Label> -> text with this gate's escape lines blanked
+  # Every gate's escape label matches its own claim regex ("Proven-gate"
+  # contains "proven", "Flaky-gate" contains "flaky", and so on). Since
+  # gate_has_escape short-circuits, that is invisible while escape matching
+  # works — but the moment it does not, the line added to EXEMPT the doc
+  # becomes the sole "claim" that condemns it, and a doc with no real claim
+  # has no other trigger word. Masking the hatch before the claim scan makes
+  # each gate fail OPEN on its own hatch instead of fail closed.
+  #
+  # Deliberately wider than gate_has_escape: no dash/reason required, so a
+  # MALFORMED hatch attempt is masked too. That is the observed failure — a
+  # hatch gate_has_escape rejects is exactly the one that self-condemns.
+  #
+  # Blanks rather than deletes, so line count is preserved and the line
+  # numbers gate_first_match reports still match the real file. awk, not
+  # `sed -I`, because case-insensitive deletion is a GNU extension and this
+  # ships to arbitrary machines (verified on macOS awk 20200816).
+  printf '%s' "$1" | awk -v lbl="$2" '
+    BEGIN { re = tolower(lbl) ":[ \t]*n/a" }
+    { probe = tolower($0); gsub(/[`*]/, "", probe)
+      if (probe ~ re) { print ""; next }
+      print }
+  '
+}
+
+gate_first_match() {  # <text> <ere> -> "N:<line>" of the first word-boundary match
+  printf '%s' "$1" | grep -Einw "$2" | head -1 || true
+}
+
 # --- output contract -------------------------------------------------------
 json_escape() {
   printf '%s' "$1" | sed -E 's/\\/\\\\/g; s/"/\\"/g' | tr '\000-\037' ' '
