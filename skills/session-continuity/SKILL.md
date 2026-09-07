@@ -56,7 +56,7 @@ Invoke when:
 
 ## Quick start (new project)
 
-Run `/session-continuity:primer`. The command detects that no primer exists, copies four templates from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/` into the project's `.session-continuity/`, fills in every placeholder it can derive automatically (project name, latest commits, working directory, test command), prompts the user for anything left blank, files any named follow-ups as GitHub Issues labeled `backlog` when origin is github.com, and stages all four files. It does not commit.
+Run `/session-continuity:primer`. The command detects that no primer exists, copies four templates from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/` into the project's `.session-continuity/`, fills in every placeholder it can derive automatically (project name, latest commits, working directory, test command), prompts the user for anything left blank, files any named follow-ups as GitHub Issues labeled `backlog` when `gh` is authenticated for the origin's host (github.com or a GitHub Enterprise Server instance), and stages all four files. It does not commit.
 
 After the user commits, remind them of the two maintenance rules: refresh the primer alongside substantive commits (stage the refresh in the same commit as the real change — do not commit the primer by itself), and add a LEARNINGS entry for every bug that took 15+ minutes to diagnose.
 

@@ -9,8 +9,12 @@
 # List mode prints one line per open issue:
 #   N. #NUMBER Title
 # Empty-but-working: "No open backlog issues."
-# Operational failure (no git, origin not github.com, gh missing/fail/timeout):
-#   one warning line, exit 0.
+# Operational failure (no git, origin host gh isn't authenticated for,
+#   gh missing/fail/timeout): one warning line, exit 0.
+#
+# Works against github.com or any GitHub Enterprise Server host — the
+# check is "does `gh` have auth for this remote's host", not a literal
+# "github.com" string match, so it doesn't need to know your GHE hostname.
 #
 # --count prints an integer, or ? on failure, or 0 when the list is empty.
 #
@@ -20,7 +24,7 @@
 
 set -u
 
-WARN='Backlog unavailable: GitHub Issues required (gh, github.com remote, auth). Run /session-continuity:doctor.'
+WARN="Backlog unavailable: GitHub Issues required (gh, authenticated for this remote's host). Run /session-continuity:doctor."
 
 count_only=0
 if [[ "${1:-}" == "--count" ]]; then
@@ -45,15 +49,17 @@ else
 fi
 
 url="$(git -C "$DIR" remote get-url origin 2>/dev/null || true)"
-case "$url" in
-  *github.com*) ;;
-  *) fail_open ;;
-esac
+[[ -z "$url" ]] && fail_open
+
+host="$(printf '%s' "$url" | sed -E 's#^(https?://|git@|ssh://git@)##; s#[:/].*##')"
+[[ -z "$host" ]] && fail_open
 
 gh_bin="${GH_BIN:-gh}"
 if [[ ! -x "$gh_bin" ]] && ! command -v "$gh_bin" >/dev/null 2>&1; then
   fail_open
 fi
+
+"$gh_bin" auth status --hostname "$host" >/dev/null 2>&1 || fail_open
 
 timeout_s="${BACKLOG_ISSUES_TIMEOUT:-3}"
 raw="$(

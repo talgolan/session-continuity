@@ -11,7 +11,7 @@ pass=0; fail=0
 ok()  { print -P "%F{green}✓%f $1"; (( pass++ )); return 0; }
 bad() { print -P "%F{red}✗%f $1"; (( fail++ )); return 0; }
 
-WARN='Backlog unavailable: GitHub Issues required (gh, github.com remote, auth). Run /session-continuity:doctor.'
+WARN="Backlog unavailable: GitHub Issues required (gh, authenticated for this remote's host). Run /session-continuity:doctor."
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -27,6 +27,10 @@ git -C "$work" remote add origin "https://github.com/example/repo.git"
 mock="$work/fake-gh"
 cat > "$mock" <<'EOF'
 #!/usr/bin/env bash
+if [[ "$1" == "auth" && "$2" == "status" ]]; then
+  [[ "${GH_MOCK_AUTH_FAIL:-}" == "1" ]] && exit 1
+  exit 0
+fi
 if [[ "${GH_MOCK_FAIL:-}" == "1" ]]; then
   echo "boom" >&2
   exit 1
@@ -63,14 +67,14 @@ out="$(bash "$helper" "$work")"
 cnt="$(bash "$helper" --count "$work")"
 [[ "$cnt" == "0" ]] && ok "--count: 0 when empty" || bad "--count empty: got '$cnt'"
 
-# --- origin not github.com -----------------------------------------------
-git -C "$work" remote set-url origin "https://gitlab.com/example/repo.git"
+# --- origin host gh has no auth for ---------------------------------------
+export GH_MOCK_AUTH_FAIL=1
 out="$(bash "$helper" "$work")"
 cnt="$(bash "$helper" --count "$work")"
-[[ "$out" == "$WARN" ]] && ok "non-github origin: warning line" \
-  || bad "non-github list: got '$out'"
-[[ "$cnt" == "?" ]] && ok "non-github origin: count ?" || bad "non-github count: got '$cnt'"
-git -C "$work" remote set-url origin "https://github.com/example/repo.git"
+[[ "$out" == "$WARN" ]] && ok "unauthenticated host: warning line" \
+  || bad "unauthenticated host list: got '$out'"
+[[ "$cnt" == "?" ]] && ok "unauthenticated host: count ?" || bad "unauthenticated host count: got '$cnt'"
+unset GH_MOCK_AUTH_FAIL
 
 # --- ssh github origin still works ---------------------------------------
 git -C "$work" remote set-url origin "git@github.com:example/repo.git"
@@ -78,6 +82,13 @@ export GH_MOCK_OUT="$work/two.tsv"
 out="$(bash "$helper" "$work")"
 [[ "$out" == "$expect" ]] && ok "ssh github.com origin accepted" \
   || bad "ssh origin: got '$out'"
+git -C "$work" remote set-url origin "https://github.com/example/repo.git"
+
+# --- GitHub Enterprise Server origin accepted (any hostname, if gh has auth) ---
+git -C "$work" remote set-url origin "https://git.example-enterprise.internal/example/repo.git"
+out="$(bash "$helper" "$work")"
+[[ "$out" == "$expect" ]] && ok "GHE origin accepted (gh authenticated for its host)" \
+  || bad "GHE origin: got '$out'"
 git -C "$work" remote set-url origin "https://github.com/example/repo.git"
 
 # --- gh missing ----------------------------------------------------------

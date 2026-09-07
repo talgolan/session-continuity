@@ -45,7 +45,7 @@ Two classes of call, both to GitHub.
 
 **What data is sent:** Issue titles and bodies you supply; your GitHub credentials via `gh`; the repository identity inferred from `origin`.
 
-**How to disable:** Use a non-github.com origin, or do not install/auth `gh`. The queue surface no-ops and `doctor` warns. There is no markdown fallback.
+**How to disable:** Do not install/auth `gh` for the origin's host. The queue surface no-ops and `doctor` warns. There is no markdown fallback.
 
 ## What the plugin does **not** do
 

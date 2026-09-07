@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.29.1] — 2026-09-07
+
+### Fixed
+- **The GitHub Issues backlog now works on GitHub Enterprise Server, not just github.com.** `hooks/lib/backlog-issues.sh` no longer string-matches the origin URL for a literal `github.com`; it extracts the origin's hostname and checks `gh auth status --hostname <host>`, so any host `gh` is authenticated against — github.com or a GHE instance — works without the plugin needing to know your GHE hostname in advance. Docs updated to match (README, PRIVACY, SKILL.md, `doctor`'s report copy).
+
 ## [0.29.0] — 2026-09-07
 
 ### Changed
