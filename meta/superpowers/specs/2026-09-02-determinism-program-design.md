@@ -174,11 +174,12 @@ single token reduction available. Depends on nothing. Design:
 `meta/superpowers/specs/2026-09-02-end-session-step2-rendering-design.md`;
 needs a plan.
 
-**Phase 3 `[a17f]` — shared mechanics library.** `perf-log.sh mark` and
-`perf-log.sh since`, collapsing the four duplicated epoch blocks
-(`end-session.md` 228-241, 295-308, 579-592, 715-729) to one-liners; and one
-status function shared by `session-start.sh`, `primer.md` check mode, and
-`doctor.md`, so the three can no longer disagree. Unblocks phases 4 and 6.
+**Phase 3 `[a17f]` — shared mechanics library.** `perf-log.sh mark`/`since`,
+plus `primer-status.sh` shared by `session-start.sh` and `primer.md`'s
+check mode. Unblocks phases 4 and 6 and closes `52dc` as a side effect.
+`doctor.md`'s drift verdict was scoped out — deferred to `9d17`, once `4a9d`
+is decided. Plan:
+`meta/superpowers/plans/2026-09-03-shared-mechanics-library.md`.
 
 **Phase 4 `[b93c]` — `end-session` Step 3 checklist assembly.** One script consuming the
 six git outputs and a `tag<TAB>verdict<TAB>citation` file, emitting the eight

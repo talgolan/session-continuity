@@ -320,35 +320,32 @@ split/migration step in this command.
 
 ## Step 5 — Check mode
 
-Gather the report data in **one Bash call**, timed:
+Gather the report data in **one Bash call**, timed, via the shared status
+script (also used by `hooks/session-start.sh`, so the two can no longer
+disagree about sha/mtime/counts):
 
 ```bash
 _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
-git rev-parse --short HEAD
-stat -f '%Sm' .session-continuity/SESSION_PRIMER.md 2>/dev/null || stat -c '%y' .session-continuity/SESSION_PRIMER.md
 source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
-if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/count-entries.sh" 1; then
-  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/count-entries.sh" .session-continuity/BACKLOG.md
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-status.sh" 1; then
+  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-status.sh" .
 else
-  echo "?"
-fi
-if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/count-entries.sh" 1; then
-  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/count-entries.sh" .session-continuity/LEARNINGS.md
-else
-  echo "?"
+  echo "⚠️ $SC_REQUIRE_SCRIPT_MSG"
 fi
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-5-check-mode --duration="$_PERF_DURATION"
 ```
 
-Report:
+The output above is four `KEY=value` lines: `HEAD_SHA=`, `PRIMER_MTIME=`,
+`BACKLOG_COUNT=`, `LEARNINGS_COUNT=` (any of them may read `?` if that
+probe failed — report it as `?`, never invent a value). Report:
 
 ```
-.session-continuity/SESSION_PRIMER.md: up to date against HEAD (<short-sha>)
-Last refresh: <primer mtime>
-Backlog: <count from BACKLOG.md>
-Learnings: <count from .session-continuity/LEARNINGS.md>
+.session-continuity/SESSION_PRIMER.md: up to date against HEAD (<HEAD_SHA>)
+Last refresh: <PRIMER_MTIME>
+Backlog: <BACKLOG_COUNT>
+Learnings: <LEARNINGS_COUNT>
 ```
 
 No changes made. Exit.

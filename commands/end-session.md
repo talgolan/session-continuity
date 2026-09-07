@@ -217,7 +217,7 @@ A lighter-weight alternative to the refresh flow below — no git-log regenerati
 2. Before rendering the question below, log a prompt-shown marker (isolates the human-response wait from ritual compute time — see Step 4):
 
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-prompt-shown --duration=0.000
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" mark --source=command --name=end-session --step=step-1-prompt-shown
    ```
 
    Then ask a close-only question, scoped narrower than the refresh flow's combined prompt since there are no commit subjects or free-form drift to fold in:
@@ -226,18 +226,7 @@ A lighter-weight alternative to the refresh flow below — no git-log regenerati
 3. **Wait for the answer before continuing.** Same refusal rule as the refresh flow: never close an item without explicit confirmation. Once the answer arrives, log the wait duration:
 
    ```bash
-   prior_ts="$(grep '"name":"end-session"' .session-continuity/performance.log 2>/dev/null \
-     | grep '"step":"step-1-prompt-shown"' | tail -1 \
-     | sed -E 's/.*"ts":"([^"]*)".*/\1/' || true)"
-   prior_epoch=""
-   if [ -n "$prior_ts" ]; then
-     prior_epoch="$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$prior_ts" +%s 2>/dev/null \
-       || date -u -d "$prior_ts" +%s 2>/dev/null || true)"
-   fi
-   if [[ "$prior_epoch" =~ ^[0-9]+$ ]]; then
-     now_epoch="$(date -u +%s)"
-     bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-prompt-wait --duration="$(( now_epoch - prior_epoch )).000"
-   fi
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" since --source=command --name=end-session --mark-step=step-1-prompt-shown --emit-step=step-1-prompt-wait
    ```
 4. If the user closes any items, edit only `.session-continuity/BACKLOG.md` (the drift check already confirmed the primer's `git log --oneline -5` block is current and untouched, so the primer itself needs no edit here) and stage that file: `git diff --quiet .session-continuity/BACKLOG.md 2>/dev/null || git add .session-continuity/BACKLOG.md`. Step 3's Primer refresh row reads ✓ "Primer updated (outstanding item(s) closed)".
 5. If the user declines, skip the rest of Step 1. Step 3's Primer refresh row reads ✓ "Primer already current (no-op)", and the still-open `appears-DONE` item(s) surface again as a ⚠️ in the Backlog row (same standing-reminder behavior as before — it'll be offered again next session).
@@ -283,7 +272,7 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 4. **Single combined prompt.** After printing the subject list (and overlay block if any), log a prompt-shown marker (same mechanism as the drift-clean prompt above — isolates human-response wait from ritual compute time, see Step 4):
 
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-prompt-shown --duration=0.000
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" mark --source=command --name=end-session --step=step-1-prompt-shown
    ```
 
    Then ask the user one question covering both close-candidates and free-form edits:
@@ -293,18 +282,7 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
    **Wait for the answer before continuing.** Do not preemptively edit the list, clear items you interpret as "stale," or proceed based on your own reading. Do not split this into two sequential prompts — one prompt covers the same answer space. Once the answer arrives, log the wait duration:
 
    ```bash
-   prior_ts="$(grep '"name":"end-session"' .session-continuity/performance.log 2>/dev/null \
-     | grep '"step":"step-1-prompt-shown"' | tail -1 \
-     | sed -E 's/.*"ts":"([^"]*)".*/\1/' || true)"
-   prior_epoch=""
-   if [ -n "$prior_ts" ]; then
-     prior_epoch="$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$prior_ts" +%s 2>/dev/null \
-       || date -u -d "$prior_ts" +%s 2>/dev/null || true)"
-   fi
-   if [[ "$prior_epoch" =~ ^[0-9]+$ ]]; then
-     now_epoch="$(date -u +%s)"
-     bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-prompt-wait --duration="$(( now_epoch - prior_epoch )).000"
-   fi
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" since --source=command --name=end-session --mark-step=step-1-prompt-shown --emit-step=step-1-prompt-wait
    ```
 5. Apply the edits the user specified. If the user replied "no changes" (or similar), skip this step.
 6. Stage the updated primer and `BACKLOG.md` (if the user closed or
@@ -408,7 +386,7 @@ If the user describes "another" candidate not on your list, treat that descripti
 **Single confirm prompt.** Present every pre-drafted entry together in one rendered block (numbered, full body, target section labeled). Before asking, log a prompt-shown marker (same mechanism as Step 1's prompts — isolates human-response wait from ritual compute time, see Step 4):
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-2-prompt-shown --duration=0.000
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" mark --source=command --name=end-session --step=step-2-prompt-shown
 ```
 
 Then ask one question:
@@ -420,18 +398,7 @@ Possible replies you must handle: "all" / "stage" → stage every draft; "revise
 Once the answer arrives, log the wait duration:
 
 ```bash
-prior_ts="$(grep '"name":"end-session"' .session-continuity/performance.log 2>/dev/null \
-  | grep '"step":"step-2-prompt-shown"' | tail -1 \
-  | sed -E 's/.*"ts":"([^"]*)".*/\1/' || true)"
-prior_epoch=""
-if [ -n "$prior_ts" ]; then
-  prior_epoch="$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$prior_ts" +%s 2>/dev/null \
-    || date -u -d "$prior_ts" +%s 2>/dev/null || true)"
-fi
-if [[ "$prior_epoch" =~ ^[0-9]+$ ]]; then
-  now_epoch="$(date -u +%s)"
-  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-2-prompt-wait --duration="$(( now_epoch - prior_epoch )).000"
-fi
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" since --source=command --name=end-session --mark-step=step-2-prompt-shown --emit-step=step-2-prompt-wait
 ```
 
 Once the user confirms, insert each accepted draft at the top of its chosen section per **Step 5 of `commands/learning.md`**, then run the same index-regeneration script Step 6 of `commands/learning.md` calls (duplicated here deliberately — see Resolved decision 3 of the spec — rather than delegating, so this path can never leave the index stale regardless of whether a future change routes entries differently):
@@ -553,22 +520,10 @@ invocation's own `step-1-fast-path` timestamp (always the first thing every
 invocation logs, fast-path or not) and diffs it against now, so the log
 carries one real end-to-end number per invocation alongside the per-step
 ones. Skip the log call entirely rather than record a bogus duration if the
-timestamp is missing or unparseable:
+mark is missing or unparseable — `since` already does this silently:
 
 ```bash
-last_ts="$(grep '"name":"end-session"' .session-continuity/performance.log 2>/dev/null \
-  | grep '"step":"step-1-fast-path"' | tail -1 \
-  | sed -E 's/.*"ts":"([^"]*)".*/\1/' || true)"
-start_epoch=""
-if [ -n "$last_ts" ]; then
-  start_epoch="$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$last_ts" +%s 2>/dev/null \
-    || date -u -d "$last_ts" +%s 2>/dev/null || true)"
-fi
-if [[ "$start_epoch" =~ ^[0-9]+$ ]]; then
-  now_epoch="$(date -u +%s)"
-  _PERF_DURATION="$(( now_epoch - start_epoch )).000"
-  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-4-ritual-complete --duration="$_PERF_DURATION"
-fi
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" since --source=command --name=end-session --mark-step=step-1-fast-path --emit-step=step-4-ritual-complete
 ```
 
 **Then derive agent-active time** — `step-4-ritual-complete` is real wall
@@ -577,9 +532,13 @@ along the way. Rather than subtract specific prompt-wait markers (the old
 approach, retired — see
 `meta/superpowers/specs/2026-09-01-end-session-step2-cost-attribution-design.md`
 Change 2 for why a two-marker subtraction can't be made correct), derive
-active time directly from the transcript. Resolve the transcript again here
-— this is a separate Bash call from Step 2's, and shell state does not
-persist across Bash calls, so Step 2's `$TRANSCRIPT` is not visible here:
+active time directly from the transcript. Resolve both the transcript and
+the start epoch again here — this is a separate Bash call from Step 2's and
+from the `since` call above, and shell state does not persist across Bash
+calls, so neither Step 2's `$TRANSCRIPT` nor a `$start_epoch` set above
+would be visible here even if it were still computed as a shell variable
+(the previous version of this block was exactly this bug — backlog item
+`52dc` — depending on `$start_epoch` across that same boundary):
 
 ```bash
 source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
@@ -587,9 +546,10 @@ STEP4_TRANSCRIPT=""
 if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/resolve-transcript.sh" 1; then
   STEP4_TRANSCRIPT="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/resolve-transcript.sh")"
 fi
-if [[ "$start_epoch" =~ ^[0-9]+$ ]] && [[ -n "$STEP4_TRANSCRIPT" ]]; then
+START_EPOCH="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" since --print-epoch --name=end-session --mark-step=step-1-fast-path)"
+if [[ "$START_EPOCH" =~ ^[0-9]+$ ]] && [[ -n "$STEP4_TRANSCRIPT" ]]; then
   if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/agent-active.sh" 1; then
-    AGENT_ACTIVE="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/agent-active.sh" "$STEP4_TRANSCRIPT" "$start_epoch")"
+    AGENT_ACTIVE="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/agent-active.sh" "$STEP4_TRANSCRIPT" "$START_EPOCH")"
     if [[ -n "$AGENT_ACTIVE" ]]; then
       bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-4-agent-active --duration="$AGENT_ACTIVE"
     fi

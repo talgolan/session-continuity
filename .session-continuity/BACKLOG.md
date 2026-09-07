@@ -103,34 +103,22 @@ defect's reach across two call sites instead of one.
 
 ### 8. [3b71] — closed. Fixed in `6a57746` (#30).
 
-### 9. [5c2d] [2026-09-02] Determinism Phase 1 — zero-turn read-only lists
+### 9. [5c2d] — closed. Fixed in `d99054d` (#31, v0.26.0).
 
-Retires the model from `/backlog`, `/learnings`, `/help`, and `/update` via a
-`UserPromptSubmit` interceptor and a shell renderer — the only phase that
-reaches literally zero model calls, where the rest reduce turns and remove
-error modes. Task 1 is a measurement gate probing four unprobed hook
-behaviors, and a negative result there changes the approach before any code
-lands. Plan:
-`meta/superpowers/plans/2026-09-02-zero-turn-read-only-commands.md`.
-
-### 10. [8e4a] [2026-09-02] Determinism Phase 2 — `end-session` Step 2 rendering and reference relocation
-
-Largest single token reduction available: relocates the reference text that
-`commands/end-session.md` itself marks as "**not instructions to you**" into
-`skills/session-continuity/HEURISTICS.md`, and scripts the LEARNINGS-candidate
-rendering. Depends on nothing; has an approved design but still needs an
-implementation plan. Design:
-`meta/superpowers/specs/2026-09-02-end-session-step2-rendering-design.md`.
+### 10. [8e4a] — closed. Fixed in `66ba8f9`/`2fb0ca4`/`6bd4616`/`48725ff`/`175c1e4` (#32, v0.27.0).
 
 ### 11. [a17f] [2026-09-02] Determinism Phase 3 — shared mechanics library
 
-Adds `perf-log.sh mark` and `perf-log.sh since` to collapse four
-near-identical 14-line epoch-subtraction blocks inlined in
-`commands/end-session.md`, plus one status function shared by
-`hooks/session-start.sh`, `primer.md` check mode, and `doctor.md` so the three
-can no longer disagree. Unblocks phases 4 and 6, and forces the decision filed
-as item `4a9d`. Scope: the Phase 3 entry in
-`meta/superpowers/specs/2026-09-02-determinism-program-design.md`; needs a plan.
+Adds `perf-log.sh mark`/`since` to collapse the four near-identical
+epoch-subtraction blocks in `commands/end-session.md` (also closes item
+`52dc` as a side effect — `step-4-agent-active` re-derives its epoch fresh
+via `since --print-epoch` instead of depending on a shell variable that
+doesn't survive across Bash tool calls), plus a new `primer-status.sh`
+shared by `hooks/session-start.sh` and `primer.md`'s check mode so the two
+can no longer disagree on sha/mtime/counts. `doctor.md`'s drift verdict is
+a different function and stays out of scope here — deferred to item `9d17`
+once `4a9d` is decided. Unblocks phases 4 and 6. Plan:
+`meta/superpowers/plans/2026-09-03-shared-mechanics-library.md`.
 
 ### 12. [b93c] [2026-09-02] Determinism Phase 4 — `end-session` Step 3 checklist assembly
 
@@ -170,12 +158,10 @@ item `9eec`, a machine-global claimed-value gate living outside this repo, and
 neither closes the other. Scope: the Phase 7 entry in the program design;
 needs a plan.
 
-### 16. [4a9d] [2026-09-02] Decide whether `/doctor` becomes a zero-turn script or stays a prompt
-
-Its five report rows are deterministic and Phase 1 `[5c2d]` would leave a
-zero-turn mechanism available to reuse, but its install-mode branching reads
-environment rather than repo files. Decide during Phase 3 `[a17f]`, when the
-shared status function forces the question.
+### 16. [4a9d] — closed. Decided during Phase 3 `[a17f]`: the shared status
+function stays narrow (unifies the sha/mtime/count 4-tuple only); `doctor.md`'s
+drift verdict stays out of scope, deferred to `[9d17]`. See
+`meta/superpowers/plans/2026-09-03-shared-mechanics-library.md:21`.
 
 ### 17. [9d17] [2026-09-02] File the concrete `/session-continuity:doctor` retrofit once `4a9d` is decided
 
@@ -187,3 +173,15 @@ the determinism program deliberately did not touch it. Distinct from `4a9d`:
 that item is the architectural decision (should `/doctor` become a zero-turn
 script at all); this item is the concrete retrofit work once that decision
 lands.
+
+### 18. [52dc] [2026-09-03] `end-session` Step 4's `$start_epoch` doesn't survive its own cross-Bash-call boundary, so `step-4-agent-active` never logs
+
+Same class of bug Phase 2 (`8e4a`) fixed for `$TRANSCRIPT`: Step 4's
+"record total ritual time" block computes `$start_epoch` in one Bash tool
+call, then a separate block reads it again to gate the `agent-active.sh`
+call — but shell state doesn't persist across Bash calls, so the guard
+`[[ "$start_epoch" =~ ^[0-9]+$ ]]` in the second block always sees an unset
+variable and silently skips logging `step-4-agent-active`. Fix: recompute
+`$start_epoch` (or read it back from `performance.log`, same technique the
+block already uses to derive it in the first place) inside the second
+block, not just `$TRANSCRIPT`.

@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.0] — 2026-09-03
+
+### Changed
+- **`perf-log.sh` gains `mark`/`since`, collapsing `end-session.md`'s four duplicated epoch-subtraction blocks to one-liners.** Each block re-derived the same ~14-line "grep the log for a prior timestamp, parse it, diff against now" pattern; `mark` writes a named timestamp and `since` reads it back, either recording the elapsed duration under a new step or (`--print-epoch`) printing the raw epoch for a caller that needs the number itself. This also closes backlog item `52dc`: the `step-4-agent-active` block now re-resolves its start epoch fresh, in its own Bash call, instead of depending on a `$start_epoch` shell variable set in a different call that never survived the boundary.
+- **New `hooks/lib/primer-status.sh` unifies the primer status computation duplicated between `hooks/session-start.sh` and `commands/primer.md`'s check mode.** The two previously re-derived the same sha/mtime/backlog-count/learnings-count values with slightly different shell incantations (their `stat` format strings already disagreed); both now call one script.
+
 ## [0.27.1] — 2026-09-04
 
 ### Fixed

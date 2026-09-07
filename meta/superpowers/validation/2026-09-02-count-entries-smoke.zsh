@@ -37,27 +37,24 @@ work="$(mktemp -d)"
 # against `grep -cE '^### [0-9]+\.'` directly (the naive expression is
 # correct here precisely because no real entry heading sits inside a
 # comment or a fence — that only happens in the shipped templates below).
-assert_count "real LEARNINGS.md" "$repo/.session-continuity/LEARNINGS.md" 15
+# Pin last bumped 2026-09-07 (15 -> 16, one more entry landed since).
+assert_count "real LEARNINGS.md" "$repo/.session-continuity/LEARNINGS.md" 16
 
-# .session-continuity/BACKLOG.md's true count as of this session. The plan
-# text that specified this task was written against an earlier BACKLOG.md
-# (7 entries); nine more items were filed for the determinism program in a
-# later commit (e7050a2) before this task started, bringing it to 16; Task 6
-# (commit 8700944) filed one more (item 17: the `/doctor` retrofit), so the
-# current correct answer is 17. Pinning the live number (rather than
-# re-deriving it from grep in this test) keeps this a real regression
-# anchor: if BACKLOG.md changes again, this assertion goes red and whoever
-# touched it must update the pin, instead of the test silently tracking the
-# file forever.
-assert_count "real BACKLOG.md" "$repo/.session-continuity/BACKLOG.md" 17
+# .session-continuity/BACKLOG.md's true count as of this session. Pinning
+# the live number (rather than re-deriving it from grep in this test) keeps
+# this a real regression anchor: if BACKLOG.md changes again, this
+# assertion goes red and whoever touched it must update the pin, instead of
+# the test silently tracking the file forever. Pin last bumped 2026-09-07
+# (17 -> 18, one more item filed since — Phase 3's own plan pointer, [a17f]).
+assert_count "real BACKLOG.md" "$repo/.session-continuity/BACKLOG.md" 18
 
 # Independent cross-check that the pin above is still the naive-grep answer,
 # i.e. that BACKLOG.md still has no comment/fence-wrapped heading of its own
 # (only the shipped *template* does) — if this ever drifts from the helper,
 # something is wrapping a real entry in a comment or fence.
 grep_backlog="$(grep -cE '^### [0-9]+\.' "$repo/.session-continuity/BACKLOG.md")"
-[[ "$grep_backlog" == "17" ]] && ok "real BACKLOG.md: naive grep also says 17 (sanity check on the pin)" \
-  || bad "real BACKLOG.md: naive grep says $grep_backlog, expected 17 — the pin above is now stale"
+[[ "$grep_backlog" == "18" ]] && ok "real BACKLOG.md: naive grep also says 18 (sanity check on the pin)" \
+  || bad "real BACKLOG.md: naive grep says $grep_backlog, expected 18 — the pin above is now stale"
 
 # --- shipped templates: every one must count to zero -----------------------
 #
