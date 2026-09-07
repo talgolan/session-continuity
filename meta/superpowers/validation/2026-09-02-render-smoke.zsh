@@ -17,7 +17,7 @@ pass=0; fail=0
 ok()  { print -P "%F{green}✓%f $1"; (( pass++ )); return 0; }
 bad() { print -P "%F{red}✗%f $1"; (( fail++ )); return 0; }
 
-WARN='Backlog unavailable: GitHub Issues required (gh, github.com remote, auth). Run /session-continuity:doctor.'
+WARN="Backlog unavailable: GitHub Issues required (gh, authenticated for this remote's host). Run /session-continuity:doctor."
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT

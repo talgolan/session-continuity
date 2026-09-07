@@ -68,9 +68,9 @@ The four files ship as templates. The backlog does not — it lives on GitHub.
 
 One command, six behaviors, dispatched on the repo's current state:
 
-- **No primer yet** → copies the templates into `.session-continuity/`, fills every placeholder it can derive (project name, latest commits, working directory, test command), asks you for the rest, files named follow-ups as GitHub Issues labeled `backlog` when origin is github.com, and stages four files. Any field you skip becomes `TBD` rather than a leftover `{{PLACEHOLDER}}`.
+- **No primer yet** → copies the templates into `.session-continuity/`, fills every placeholder it can derive (project name, latest commits, working directory, test command), asks you for the rest, files named follow-ups as GitHub Issues labeled `backlog` when `gh` is authenticated for the origin's host (github.com or a GitHub Enterprise Server instance), and stages four files. Any field you skip becomes `TBD` rather than a leftover `{{PLACEHOLDER}}`.
 - **Primer exists but not yet split** → partitions its stable sections (layout, conventions, module table, "where to look for what") into a new `.session-continuity/PROJECT_CONTEXT.md`, leaving the primer with only the volatile shortlist. One-time content move, no file move.
-- **Primer has an inline Outstanding items section, or a leftover `OUTSTANDING_ITEMS.md` / `BACKLOG.md`** → migrates that markdown queue to GitHub Issues labeled `backlog` when origin is github.com, then deletes the file. Without a github.com origin, the file is left as a fossil and `doctor` warns.
+- **Primer has an inline Outstanding items section, or a leftover `OUTSTANDING_ITEMS.md` / `BACKLOG.md`** → migrates that markdown queue to GitHub Issues labeled `backlog` when `gh` is authenticated for the origin's host, then deletes the file. Without that, the file is left as a fossil and `doctor` warns.
 - **Primer exists but drifted** → regenerates the `git log --oneline -5` block, re-runs the primer's test commands (retrying flaky suites up to three times so a single bad sample doesn't cry wolf), surfaces every commit since the last refresh as a candidate, and prompts you for backlog changes before staging.
 - **Primer current** → reports a four-line status (HEAD, last refresh, backlog count, learnings count) and exits without touching anything.
 
