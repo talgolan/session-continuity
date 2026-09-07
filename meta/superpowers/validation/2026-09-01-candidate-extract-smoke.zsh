@@ -365,6 +365,97 @@ out2="$(bash "$lib/candidate-extract.sh" "$a_f2")"
 [[ "$out1" == "$out2" ]] && ok "determinism: identical transcript twice -> identical JSON" || bad "determinism: outputs differ"
 rm -f "$a_f" "$a_f2"
 
+# --- c9a4 regression: overlap() symmetry and suffix over-merge ---------------
+
+# Two genuinely distinct retry-bursts whose titles differ only in the
+# command-specific portion, sharing the boilerplate
+# " — re-run N times with M file edits in between." suffix. Before the
+# fix, this suffix's shared tokens pushed the pair's score to 0.722 --
+# over the 0.7 threshold -- so the second command was silently dropped.
+overlap_a_f="$(mktemp)"
+{
+  mk_bash_call "2026-09-01T10:00:00.000Z" "oa1" "bun test src/foo.test.ts"
+  mk_bash_call "2026-09-01T10:01:00.000Z" "oa2" "bun test src/foo.test.ts"
+  mk_bash_call "2026-09-01T10:02:00.000Z" "oa3" "bun test src/foo.test.ts"
+  mk_edit      "2026-09-01T10:00:30.000Z" "oae1"
+} > "$overlap_a_f"
+overlap_b_f="$(mktemp)"
+{
+  mk_bash_call "2026-09-01T11:00:00.000Z" "ob1" "bun test src/bar.test.ts"
+  mk_bash_call "2026-09-01T11:01:00.000Z" "ob2" "bun test src/bar.test.ts"
+  mk_bash_call "2026-09-01T11:02:00.000Z" "ob3" "bun test src/bar.test.ts"
+  mk_edit      "2026-09-01T11:00:30.000Z" "obe1"
+} > "$overlap_b_f"
+combined_f="$(mktemp)"
+cat "$overlap_a_f" "$overlap_b_f" > "$combined_f"
+out="$(bash "$lib/candidate-extract.sh" "$combined_f")"
+n="$(print -r -- "$out" | jq '[.candidates[] | select(.heuristic=="retry-burst")] | length')"
+[[ "$n" -eq 2 ]] && ok "c9a4: two retry-bursts sharing the title-template suffix stay distinct" \
+  || bad "c9a4: expected 2 distinct retry-bursts, got $n (suffix over-merge regressed): $out"
+rm -f "$overlap_a_f" "$overlap_b_f" "$combined_f"
+
+# Regression: two genuinely similar candidates (one extra word, non-boilerplate)
+# still merge into one under the fixed formula -- the fix must not turn
+# dedup off entirely. Two separate 3x retry-bursts on lexically similar but
+# distinct commands; each burst independently qualifies as heuristic A, so
+# without dedup this would report 2 candidates.
+merge_a_f="$(mktemp)"
+{
+  mk_bash_call "2026-09-01T13:00:00.000Z" "ma1" "bun test src/foo.test.ts"
+  mk_bash_call "2026-09-01T13:01:00.000Z" "ma2" "bun test src/foo.test.ts"
+  mk_bash_call "2026-09-01T13:02:00.000Z" "ma3" "bun test src/foo.test.ts"
+  mk_edit      "2026-09-01T13:00:30.000Z" "mae1"
+} > "$merge_a_f"
+merge_b_f="$(mktemp)"
+{
+  mk_bash_call "2026-09-01T14:00:00.000Z" "mb1" "bun test src/foo.test.ts --verbose"
+  mk_bash_call "2026-09-01T14:01:00.000Z" "mb2" "bun test src/foo.test.ts --verbose"
+  mk_bash_call "2026-09-01T14:02:00.000Z" "mb3" "bun test src/foo.test.ts --verbose"
+  mk_edit      "2026-09-01T14:00:30.000Z" "mbe1"
+} > "$merge_b_f"
+merge_combined_f="$(mktemp)"
+cat "$merge_a_f" "$merge_b_f" > "$merge_combined_f"
+out="$(bash "$lib/candidate-extract.sh" "$merge_combined_f")"
+n="$(print -r -- "$out" | jq '[.candidates[] | select(.heuristic=="retry-burst")] | length')"
+[[ "$n" -eq 1 ]] && ok "c9a4: two genuinely similar retry-bursts (one extra flag word) still merge to 1" \
+  || bad "c9a4: expected 1 merged retry-burst (dedup direction broken), got $n: $out"
+rm -f "$merge_a_f" "$merge_b_f" "$merge_combined_f"
+
+# overlap() itself must be symmetric: swapping which title is "a" and
+# which is "b" must not change the score. Before the fix, the numerator
+# counted $wa's words with multiplicity while the denominator was the
+# deduped union, so overlap(A;B) != overlap(B;A). candidate-extract.jq is
+# a filter, not an includable module (its top-level pipeline reads
+# $tracked_files/inputs, undefined outside a real run) -- build a driver
+# program instead: everything up to the top-level pipeline's start, plus
+# a call comparing both directions. Anchored on the `[inputs] as $lines`
+# marker, not a line number, so this survives Task 1 Step 3 inserting
+# `dedup_key` before `overlap` and shifting every line below it.
+driver_f="$(mktemp)"
+{ awk '/^\[inputs\] as \$lines/ { exit } { print }' "$lib/candidate-extract.jq"; \
+  print -r -- '[overlap("Reverted approach: vitest run."; "Reverted approach: jest run."), overlap("Reverted approach: jest run."; "Reverted approach: vitest run.")]'; \
+} > "$driver_f"
+scores="$(jq -n -f "$driver_f" 2>/dev/null)"
+rm -f "$driver_f"
+a_score="$(print -r -- "$scores" | jq '.[0]')"
+b_score="$(print -r -- "$scores" | jq '.[1]')"
+[[ -n "$a_score" && "$a_score" == "$b_score" ]] && ok "c9a4: overlap() is symmetric (both directions score $a_score)" \
+  || bad "c9a4: overlap() is asymmetric or errored: A;B=$a_score B;A=$b_score"
+
+# Regression: genuinely similar titles (one word swapped out of few) must
+# still dedupe -- the fix must not turn dedup off entirely.
+sim_a_f="$(mktemp)"
+mk_bash_call "2026-09-01T12:00:00.000Z" "sa1" "rm -rf src/broken.ts" > "$sim_a_f"
+sim_repo="$(gt_make_repo)"
+gt_stage "$sim_repo" "src/broken.ts" "old content"
+git -C "$sim_repo" commit -q -m "add broken.ts"
+out="$(cd "$sim_repo" && bash "$lib/candidate-extract.sh" "$sim_a_f")"
+print -r -- "$out" | jq -e '.candidates | length == 1' >/dev/null 2>&1 \
+  && ok "c9a4: a single genuine candidate still survives dedup unchanged" \
+  || bad "c9a4: single-candidate baseline broke: $out"
+rm -f "$sim_a_f"
+gt_cleanup "$sim_repo"
+
 rm -rf "$work_ce"
 
 print ""

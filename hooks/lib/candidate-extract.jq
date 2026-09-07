@@ -98,9 +98,23 @@ def title_words:
   | [splits(" +")]
   | map(select(length > 0));
 
+# Strips the retry-burst heuristic's shared title-template suffix before
+# scoring for dedup. Without this, two distinct retry-bursts on
+# genuinely different commands score high purely on the ~10 boilerplate
+# words ("re run N times with M file edits in between") they share
+# regardless of which command actually ran.
+def dedup_key:
+  sub(" — re-run [0-9]+ times with [0-9]+ file edits? in between\\.$"; "");
+
+# Symmetric, multiplicity-free Jaccard: both sides are deduped to sets
+# before computing intersection/union, so overlap(A;B) == overlap(B;A).
+# The prior version's numerator counted $wa's words with multiplicity
+# while the denominator was the deduped union -- an asymmetric mismatch
+# that scored short/similar titles (e.g. "vitest"/"jest") above the 0.7
+# threshold when they shouldn't have merged.
 def overlap($ta; $tb):
-  ($ta | title_words) as $wa
-  | ($tb | title_words) as $wb
+  ($ta | dedup_key | title_words | unique) as $wa
+  | ($tb | dedup_key | title_words | unique) as $wb
   | ($wa + $wb | unique) as $u
   | if ($u | length) == 0 then 0
     else (($wa - ($wa - $wb)) | length) / ($u | length)
