@@ -60,23 +60,24 @@ fi
 # Claude both see at a glance how fresh the primer is. Every probe is
 # best-effort — any failure falls back to "?" so the reminder still
 # lands even on shallow clones, missing primers, etc.
-status_sha="$(cd "$cwd" 2>/dev/null && git rev-parse --short HEAD 2>/dev/null || echo '?')"
-status_mtime="$(stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$cwd/$primer_path" 2>/dev/null \
-  || stat -c '%y' "$cwd/$primer_path" 2>/dev/null \
-  || echo '?')"
-outstanding_path="$cwd/.session-continuity/BACKLOG.md"
-
-# Comment-and-fence-aware heading counter (see hooks/lib/count-entries.sh
-# for the contract). Resolved next to this script rather than via
-# CLAUDE_PLUGIN_ROOT so the hook keeps working when a test harness runs it
-# directly. Its absence is a "?" like the other best-effort probes above,
-# not a hard failure.
-count_helper="$(dirname "$0")/lib/count-entries.sh"
-if [ -f "$count_helper" ]; then
-  status_learnings="$(bash "$count_helper" "$cwd/$learnings_path" 2>/dev/null || echo '?')"
+# Shared status computation (see hooks/lib/primer-status.sh for the
+# contract) — the same script commands/primer.md's check mode calls, so the
+# two can no longer disagree about sha/mtime/counts. Resolved next to this
+# script rather than via CLAUDE_PLUGIN_ROOT so the hook keeps working when a
+# test harness runs it directly. Its absence falls back to "?" for every
+# field, like the other best-effort probes here.
+status_helper="$(dirname "$0")/lib/primer-status.sh"
+if [ -f "$status_helper" ]; then
+  status_out="$(bash "$status_helper" "$cwd" 2>/dev/null || true)"
 else
-  status_learnings="?"
+  status_out=""
 fi
+status_sha="$(printf '%s\n' "$status_out" | sed -n 's/^HEAD_SHA=//p')"; status_sha="${status_sha:-?}"
+status_mtime="$(printf '%s\n' "$status_out" | sed -n 's/^PRIMER_MTIME=//p')"; status_mtime="${status_mtime:-?}"
+status_backlog_count="$(printf '%s\n' "$status_out" | sed -n 's/^BACKLOG_COUNT=//p')"; status_backlog_count="${status_backlog_count:-?}"
+status_learnings="$(printf '%s\n' "$status_out" | sed -n 's/^LEARNINGS_COUNT=//p')"; status_learnings="${status_learnings:-?}"
+
+outstanding_path="$cwd/.session-continuity/BACKLOG.md"
 
 # Migration check: an old-format project has the inline heading in the
 # primer but no BACKLOG.md yet, OR has OUTSTANDING_ITEMS.md under its old
@@ -84,11 +85,9 @@ fi
 # instead of tolerating multiple formats — no awk range-scan against the
 # primer survives this change.
 if [ -f "$outstanding_path" ]; then
-  if [ -f "$count_helper" ]; then
-    status_outstanding="$(bash "$count_helper" "$outstanding_path" 2>/dev/null || echo '?')"
-  else
-    status_outstanding="?"
-  fi
+  # Reuse the count already computed above — no second count-entries.sh
+  # invocation needed.
+  status_outstanding="$status_backlog_count"
   # outstanding_items pulls the raw heading lines to render in the
   # shortlist below — grep has no notion of "inside a comment", so it will
   # also match a template's HTML-commented exemplar heading. Gating on
