@@ -20,6 +20,7 @@ rarely.
 
 ## Current state
 
+- **v0.29.0 released** — GitHub Issues labeled `backlog` replace `.session-continuity/BACKLOG.md`. Merged to `main` via PR #47 (`999e1f2`), tag `v0.29.0`, release https://github.com/talgolan/session-continuity/releases/tag/v0.29.0. Identity is `#N`; LEARNINGS stays a local file. This repo's live items are issues #35–#45.
 - **v0.27.1 — gate-escape self-condemnation hazard fixed, merged to `main`
   via PR #33 (`dd84ee7`) and released (tag `v0.27.1`, bumped in `c00cf17`).**
   Backlog: architect-workbench's `4e81` / this repo's own
@@ -620,11 +621,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
+999e1f2 Merge pull request #47 from talgolan/feat/github-issues-backlog
+dc9c788 feat: replace BACKLOG.md with GitHub Issues labeled backlog (v0.29.0)
 f79eb10 chore: bump to 0.28.0 — shared mechanics library (perf-log mark/since, primer-status.sh)
 6b70556 Merge pull request #34 from talgolan/feat/shared-mechanics-library
 ff6b8c8 test: bump stale count-entries-smoke pins to real BACKLOG/LEARNINGS counts (16/18)
-c8e3670 docs: Phase 3 doc pointers and changelog entry for the shared mechanics library
-7358719 refactor: end-session.md collapses its four epoch-subtraction blocks to mark/since, fixing step-4-agent-active's start_epoch scope bug (52dc)
 ```
 
 Regenerate this block whenever you commit — see
