@@ -40,21 +40,16 @@ work="$(mktemp -d)"
 # Pin last bumped 2026-09-07 (15 -> 16, one more entry landed since).
 assert_count "real LEARNINGS.md" "$repo/.session-continuity/LEARNINGS.md" 16
 
-# .session-continuity/BACKLOG.md's true count as of this session. Pinning
-# the live number (rather than re-deriving it from grep in this test) keeps
-# this a real regression anchor: if BACKLOG.md changes again, this
-# assertion goes red and whoever touched it must update the pin, instead of
-# the test silently tracking the file forever. Pin last bumped 2026-09-07
-# (17 -> 18, one more item filed since — Phase 3's own plan pointer, [a17f]).
-assert_count "real BACKLOG.md" "$repo/.session-continuity/BACKLOG.md" 18
-
-# Independent cross-check that the pin above is still the naive-grep answer,
-# i.e. that BACKLOG.md still has no comment/fence-wrapped heading of its own
-# (only the shipped *template* does) — if this ever drifts from the helper,
-# something is wrapping a real entry in a comment or fence.
-grep_backlog="$(grep -cE '^### [0-9]+\.' "$repo/.session-continuity/BACKLOG.md")"
-[[ "$grep_backlog" == "18" ]] && ok "real BACKLOG.md: naive grep also says 18 (sanity check on the pin)" \
-  || bad "real BACKLOG.md: naive grep says $grep_backlog, expected 18 — the pin above is now stale"
+# count-entries.sh is file-format agnostic (LEARNINGS still uses it). A
+# synthetic markdown file pins the heading-count contract without depending
+# on a BACKLOG.md that this plugin no longer ships.
+cat > "$work/synth-headings.md" <<'EOF'
+# fixture
+### 1. one
+### 2. two
+### 3. three
+EOF
+assert_count "synthetic three headings" "$work/synth-headings.md" 3
 
 # --- shipped templates: every one must count to zero -----------------------
 #
@@ -65,7 +60,7 @@ grep_backlog="$(grep -cE '^### [0-9]+\.' "$repo/.session-continuity/BACKLOG.md")
 # task's own TDD cycle for the class of bug, and it will also catch the
 # templates being un-fixed by any future edit. Every other shipped template
 # already passes today.
-for tmpl in BACKLOG.md LEARNINGS.md PROJECT_CONTEXT.md ROADMAP.md SESSION_PRIMER.md; do
+for tmpl in LEARNINGS.md PROJECT_CONTEXT.md ROADMAP.md SESSION_PRIMER.md; do
   assert_count "shipped template $tmpl" "$repo/skills/session-continuity/templates/$tmpl" 0
 done
 

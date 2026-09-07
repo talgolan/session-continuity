@@ -1,5 +1,5 @@
 ---
-description: List .session-continuity/BACKLOG.md's open items. Zero args, read-only.
+description: List open GitHub Issues labeled backlog. Zero args, read-only.
 ---
 
 # /session-continuity:backlog
@@ -14,7 +14,8 @@ edits, stages, or commits anything.
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/render.sh" backlog "$(pwd)"
 ```
 
-`render.sh` already handles every failure mode (no `.session-continuity/`
-directory, a missing `BACKLOG.md`, an empty backlog, a broken plugin
-install) by printing its own explanatory line — do not add your own
-"if the output looks wrong, do X" branch on top of it.
+`render.sh` already handles every failure mode (GitHub queue
+unavailable, an empty list, a broken plugin install) by printing its
+own explanatory line — do not add your own "if the output looks wrong,
+do X" branch on top of it. If the output tells the user to run
+`/session-continuity:doctor`, stop there.

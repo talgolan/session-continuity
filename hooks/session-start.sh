@@ -77,38 +77,25 @@ status_mtime="$(printf '%s\n' "$status_out" | sed -n 's/^PRIMER_MTIME=//p')"; st
 status_backlog_count="$(printf '%s\n' "$status_out" | sed -n 's/^BACKLOG_COUNT=//p')"; status_backlog_count="${status_backlog_count:-?}"
 status_learnings="$(printf '%s\n' "$status_out" | sed -n 's/^LEARNINGS_COUNT=//p')"; status_learnings="${status_learnings:-?}"
 
-outstanding_path="$cwd/.session-continuity/BACKLOG.md"
+status_outstanding="$status_backlog_count"
+issues_helper="$(dirname "$0")/lib/backlog-issues.sh"
+if [ -f "$issues_helper" ]; then
+  outstanding_items="$(bash "$issues_helper" "$cwd" 2>/dev/null || true)"
+else
+  outstanding_items=""
+fi
 
-# Migration check: an old-format project has the inline heading in the
-# primer but no BACKLOG.md yet, OR has OUTSTANDING_ITEMS.md under its old
-# name. Only one project consumes this plugin today, so we push migration
-# instead of tolerating multiple formats — no awk range-scan against the
-# primer survives this change.
-if [ -f "$outstanding_path" ]; then
-  # Reuse the count already computed above — no second count-entries.sh
-  # invocation needed.
-  status_outstanding="$status_backlog_count"
-  # outstanding_items pulls the raw heading lines to render in the
-  # shortlist below — grep has no notion of "inside a comment", so it will
-  # also match a template's HTML-commented exemplar heading. Gating on
-  # count_helper's comment-aware count (not on whether this raw grep
-  # happened to match something) is what keeps a fresh-install BACKLOG.md
-  # — all real content commented out — from rendering a shortlist for
-  # zero real entries.
-  outstanding_items="$(grep -E '^### [0-9]+\.' "$outstanding_path" 2>/dev/null || true)"
-  if [ "$status_outstanding" != "0" ] && [ "$status_outstanding" != "?" ] && [ -n "$outstanding_items" ]; then
-    outstanding_block=$'\nBacklog:\n'"$outstanding_items"$'\n\nPresent these to the user as a numbered list, numbered starting at 1 (never 0), keeping each item\'s [hex tag] and [YYYY-MM-DD] filing date visible alongside its number even in a short reply, and ask which of these (if any) they want to tackle this session.\n'
-  else
-    outstanding_block=""
-  fi
+# Live queue first. Old-format leftovers still nudge primer so they get
+# migrated; a leftover BACKLOG.md is a fossil and is never read.
+if printf '%s\n' "$outstanding_items" | grep -qE '^[0-9]+\. #'; then
+  outstanding_block=$'\nBacklog:\n'"$outstanding_items"$'\n\nPresent these to the user as a numbered list, numbered starting at 1 (never 0), showing each item as `#N Title`, and ask which of these (if any) they want to tackle this session.\n'
 elif grep -q '^## Outstanding items' "$cwd/$primer_path" 2>/dev/null; then
   status_outstanding="?"
-  outstanding_block=$'\n⚠️ Outstanding items haven\'t migrated to .session-continuity/BACKLOG.md yet — run /session-continuity:primer now to migrate before continuing.\n'
+  outstanding_block=$'\n⚠️ Outstanding items haven\'t migrated to GitHub Issues yet — run /session-continuity:primer now to migrate before continuing.\n'
 elif [ -f "$cwd/.session-continuity/OUTSTANDING_ITEMS.md" ]; then
   status_outstanding="?"
-  outstanding_block=$'\n⚠️ .session-continuity/OUTSTANDING_ITEMS.md hasn\'t migrated to BACKLOG.md yet — run /session-continuity:primer now to migrate before continuing.\n'
+  outstanding_block=$'\n⚠️ .session-continuity/OUTSTANDING_ITEMS.md hasn\'t migrated to GitHub Issues yet — run /session-continuity:primer now to migrate before continuing.\n'
 else
-  status_outstanding="0"
   outstanding_block=""
 fi
 

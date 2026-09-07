@@ -230,7 +230,7 @@ alone.
   shared infrastructure with three consumers is a different risk and test
   surface from a single-file change.
 - The `overlap()` asymmetry in the dedupe, already filed as BACKLOG item 7
-  `[c9a4]`. Deliberately excluded, not merely deferred: fixing it changes
+  `#40`. Deliberately excluded, not merely deferred: fixing it changes
   which candidates survive dedupe, which would invalidate assertions in
   `2026-09-01-candidate-extract-smoke.zsh` — the suite this design relies on
   passing unchanged as its proof that the extractor's contract was left alone.

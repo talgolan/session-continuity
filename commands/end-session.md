@@ -68,37 +68,26 @@ from the fast-path check above). This same list feeds both this section's
 overlap gate below and the Refresh flow's overlay further down — compute it
 here, don't recompute it there.
 
-**Data source.** Read `.session-continuity/BACKLOG.md`, not a
-heading inside the primer — the backlog lives in its own file now.
+**Data source.** Run
+`bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/backlog-issues.sh" .`
+and identify each item by `#N`. Do not read `.session-continuity/BACKLOG.md`.
 
 **Skip conditions.**
-- If `.session-continuity/BACKLOG.md` doesn't exist AND the
-  primer has no leftover inline outstanding-items heading from before the
-  split either: skip verification silently (fresh/already-flat project).
+- If the helper prints `No open backlog issues.`: skip verification.
   Step 3's row reads `Backlog: none tracked`.
-- If `.session-continuity/BACKLOG.md` doesn't exist BUT the
-  primer still has the inline heading: this is an unmigrated project.
-  Skip only the backlog verification sub-flow (this whole
-  section) — everything else in Step 1 (fast path, drift check, git-log
-  regeneration, test-count rerun) proceeds normally, independent of this
-  condition. Tell the user once: "This project's backlog hasn't
-  migrated to `.session-continuity/BACKLOG.md` yet —
-  run `/session-continuity:primer` first (it migrates automatically),
-  then re-run `/session-continuity:end-session`." Step 3's row reads
+- If the helper prints the GitHub-unavailable warning: skip verification.
+  Step 3's row reads `Backlog: GitHub queue unavailable — run /session-continuity:doctor`.
+- If the primer still has an inline `## Outstanding items` heading or
+  `.session-continuity/OUTSTANDING_ITEMS.md` exists: tell the user once
+  to run `/session-continuity:primer` (it migrates), then re-run
+  `/session-continuity:end-session`. Step 3's row reads
   `Backlog: not migrated — run /session-continuity:primer`.
-- If `.session-continuity/BACKLOG.md` exists but is empty
-  (no `### <position>. [<tag>] [<date>]` entries): skip verification,
-  Step 3's row reads `none tracked`, same as the fresh-project case.
 
-**For each `### <position>. [<tag>] [<date>]` entry** in
-`.session-continuity/BACKLOG.md` (scope the item exactly as the overlay
-does: the heading line plus every line until the next `### ` heading or
-end of file; sub-bullets roll up to their parent). Identify the item by
-its `<tag>`, never its `<position>` — position is recomputed on every
-render and carries no permanence.
+**For each open issue** (`N. #NUMBER Title` from the helper). Identify
+the item by `#NUMBER`, never by the ephemeral 1..N list position.
 
 **Overlap gate (cost control) — run this before classifying.** Tokenize the
-item (same rule as the overlay below: lowercase, split on non-alphanumeric,
+issue title (same rule as the overlay below: lowercase, split on non-alphanumeric,
 drop tokens <3 chars, drop the overlay's stopword list) and compare against
 each commit subject in the list computed above, tokenized the same way. If
 the intersection with EVERY commit subject has cardinality <3 — nothing that
@@ -213,7 +202,7 @@ elsewhere in this file, captured around this whole check.
 
 A lighter-weight alternative to the refresh flow below — no git-log regeneration, no test-count re-check, no commit-subject overlay matching (there is no "commits since last refresh" list to match against when nothing drifted).
 
-1. Render the `appears-DONE` items as the same markdown ordered list format used by the refresh flow's overlay (item's current `<position> [<tag>]` as ordinal, citing the code evidence).
+1. Render the `appears-DONE` items as the same markdown ordered list format used by the refresh flow's overlay (`#N` as identity, citing the code evidence).
 2. Before rendering the question below, log a prompt-shown marker (isolates the human-response wait from ritual compute time — see Step 4):
 
    ```bash
@@ -228,7 +217,7 @@ A lighter-weight alternative to the refresh flow below — no git-log regenerati
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" since --source=command --name=end-session --mark-step=step-1-prompt-shown --emit-step=step-1-prompt-wait
    ```
-4. If the user closes any items, edit only `.session-continuity/BACKLOG.md` (the drift check already confirmed the primer's `git log --oneline -5` block is current and untouched, so the primer itself needs no edit here) and stage that file: `git diff --quiet .session-continuity/BACKLOG.md 2>/dev/null || git add .session-continuity/BACKLOG.md`. Step 3's Primer refresh row reads ✓ "Primer updated (outstanding item(s) closed)".
+4. If the user closes any items, `gh issue close N --reason completed` for each confirmed `#N`. Do not edit a markdown backlog file. Step 3's Primer refresh row reads ✓ "Primer updated (outstanding item(s) closed)".
 5. If the user declines, skip the rest of Step 1. Step 3's Primer refresh row reads ✓ "Primer already current (no-op)", and the still-open `appears-DONE` item(s) surface again as a ⚠️ in the Backlog row (same standing-reminder behavior as before — it'll be offered again next session).
 
 ### Refresh flow (runs only when drift was detected)
@@ -242,7 +231,7 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
    Then compute a **backlog overlay** for each subject:
 
    - Tokenize the subject: lowercase, split on non-alphanumeric, drop tokens of length <3, drop the stopword list below.
-   - For each `### <position>. [<tag>] [<date>]` entry in `.session-continuity/BACKLOG.md`: tokenize the item text the same way, capped at the first 200 characters of the item (the heading line through everything up to the next `### ` heading or end of file; sub-bullets roll up to their parent item).
+   - For each open backlog issue from the helper: tokenize the title the same way.
    - Match if the intersection of subject tokens and item tokens has cardinality ≥ 3.
 
    **Stopwords** (extend per project as needed):
@@ -268,7 +257,7 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
    **Refusal.** Never close an outstanding item without explicit user confirmation. The overlay is a candidate list, not an auto-close.
 
-   **Skip conditions.** If `.session-continuity/BACKLOG.md` doesn't exist (unmigrated project, or the file was deleted), skip the overlay silently — the raw subject list still appears.
+   **Skip conditions.** If the helper printed a warning or `No open backlog issues.`, skip the overlay silently — the raw subject list still appears.
 4. **Single combined prompt.** After printing the subject list (and overlay block if any), log a prompt-shown marker (same mechanism as the drift-clean prompt above — isolates human-response wait from ritual compute time, see Step 4):
 
    ```bash
@@ -284,15 +273,13 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" since --source=command --name=end-session --mark-step=step-1-prompt-shown --emit-step=step-1-prompt-wait
    ```
-5. Apply the edits the user specified. If the user replied "no changes" (or similar), skip this step.
-6. Stage the updated primer and `BACKLOG.md` (if the user closed or
-   edited any items in step 5 above), and `PROJECT_CONTEXT.md` too if it has
+5. Apply the edits the user specified. If they asked to close issues, `gh issue close N --reason completed` for each confirmed `#N` after checking the claim against the code. If they asked to file new follow-ups, `gh issue create --label backlog --title "..." --body "..."`. If the user replied "no changes" (or similar), skip this step.
+6. Stage the updated primer, and `PROJECT_CONTEXT.md` too if it has
    unstaged changes (e.g. the session edited repo layout / conventions):
 
    ```bash
    git add .session-continuity/SESSION_PRIMER.md
    git diff --quiet .session-continuity/PROJECT_CONTEXT.md 2>/dev/null || git add .session-continuity/PROJECT_CONTEXT.md
-   git diff --quiet .session-continuity/BACKLOG.md 2>/dev/null || git add .session-continuity/BACKLOG.md
    ```
 
 **Do not** commit. Staging only.
@@ -441,8 +428,9 @@ bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --nam
 ```
 
 - **Backlog verdicts** — reuse the per-item verdicts from Step 1's
-  verification sub-block; re-read `.session-continuity/BACKLOG.md` to
-  get the post-edit item set. No new git command — the evidence was already
+  verification sub-block; re-run
+  `bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/backlog-issues.sh" .`
+  to get the post-close issue set. No new git command — the evidence was already
   gathered in Step 1.
 
 Handle these edge cases explicitly:
@@ -461,20 +449,19 @@ Output using this structure. Use ✓ (green), ⚠️ (yellow), or → (suggestio
 |---|---|---|
 | Primer refresh | ✓ | "Primer refreshed and staged" OR "Primer updated (outstanding item(s) closed)" OR "Primer already current (no-op)" |
 | New learnings | ✓ | "N LEARNINGS entry/entries captured (#X, \"<title>\" …)" OR "No new learnings" |
-| Backlog | checkmark if none stale, else warning | "N tracked — <k> appears-DONE (<pos> [tag], evidence), <m> still-open (<pos> [tag]…), <j> manual (<pos> [tag]…)" OR "none tracked" |
+| Backlog | checkmark if none stale, else warning | "N tracked — <k> appears-DONE (#N, evidence), <m> still-open (#N…), <j> manual (#N…)" OR "none tracked" |
 | Staged files | ✓ | "Staged: <file1>, <file2>, …" OR "Nothing staged" |
 | Unstaged modifications | ✓ if none, else ⚠️ | "No unstaged modifications" OR "⚠️ Unstaged: <file1>, <file2>, …" |
 | Untracked files | ✓ if none, else ⚠️ | "No untracked files" OR "⚠️ N untracked: <file1>, <file2>, … — ignore, add, or delete?" |
 | Unpushed commits | ✓ / ⚠️ | "Up to date with origin/<branch>" OR "⚠️ Branch <name> is N commits ahead of origin — push before closing?" OR the detached-HEAD / no-upstream variants |
 | Suggested commit | → | Derived from staged files + captured learnings. Omit row entirely if nothing is staged. |
 
-**Backlog row — re-derive, do not cache.** Step 3 re-reads
-`.session-continuity/BACKLOG.md` AFTER any Step 1 closures the
-user confirmed. The *set* of items and the counts are recomputed against the
-post-edit `.session-continuity/BACKLOG.md`; only the per-item
+**Backlog row — re-derive, do not cache.** Step 3 re-runs the helper AFTER any Step 1 closures the
+user confirmed. The *set* of issues and the counts are recomputed against the
+post-close GitHub list; only the per-item
 verdicts (`still-open` / `appears-DONE` / `manual`) computed in Step 1 are
-reused. If the user closed an item at the Step 1 prompt, it is gone from the
-file and absent from this row. Marker: ✓ if
+reused. If the user closed an issue at the Step 1 prompt, it is gone from the
+list and absent from this row. Marker: ✓ if
 every remaining item is `still-open` or `manual` (nothing stale lingering);
 ⚠️ if any remaining item is `appears-DONE` (a resolved item still listed).
 Cite the evidence for each `appears-DONE` item inline. A `manual` item's
