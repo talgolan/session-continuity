@@ -20,9 +20,9 @@ rarely.
 
 ## Current state
 
-- **Uncommitted, branch `fix/gate-escape-self-condemn` (worktree `sc-4e81`) —
-  the gate-escape self-condemnation hazard is fixed and verified, not yet
-  committed.** Backlog: architect-workbench's `4e81` / this repo's own
+- **v0.27.1 — gate-escape self-condemnation hazard fixed, merged to `main`
+  via PR #33 (`dd84ee7`) and released (tag `v0.27.1`, bumped in `c00cf17`).**
+  Backlog: architect-workbench's `4e81` / this repo's own
   writeup in `COMMIT_HOOKS.md` §4 tracked a hazard where a gate's own
   `Label: N/A` escape hatch matches that same gate's claim-trigger regex, so
   any failure of the escape check turns the exemption line into the sole
@@ -39,11 +39,32 @@ rarely.
   backend-parity 7/7, evidence 7/7, occurrence 6/6, gate-common 18/18).
   `2026-09-02-render-smoke.zsh`'s 2 failures are pre-existing on this branch's
   base and unrelated (a backlog-render count mismatch); left untouched.
-  Nothing committed yet — next step is committing this fix and opening a PR.
+  `LEARNINGS.md` gained entry #16 documenting the partial-migration hazard
+  for this class of gate bug (masking one raw-`$content` check but missing
+  a sibling one).
 
+- **v0.27.0 — `end-session` Step 2's rendering made conditional, not
+  unconditional, merged to `main` via PR #32 (`d3b5feb`) and released
+  (tag `v0.27.0`, bumped in `ad0f50d`).** Roughly 160 of
+  `commands/end-session.md`'s 790 lines described what
+  `hooks/lib/candidate-extract.jq` already decides and handed the model a
+  formatting job it did unreliably (three anti-drift instructions existed
+  because of it). Two new sibling scripts — `hooks/lib/resolve-transcript.sh`
+  and `hooks/lib/candidate-render.sh` — resolve the transcript path and
+  render the finished candidate block deterministically; the relocated
+  heuristics prose now lives in new `skills/session-continuity/HEURISTICS.md`,
+  read only when there's no script-derived answer (no transcript, a
+  stale/unreadable one, or a missing/outdated script). Step 4's
+  `agent-active.sh` call (`175c1e4`) now resolves the transcript on demand
+  too, instead of depending on a shell variable set in Step 2's separate
+  Bash call. New smoke suites `meta/superpowers/validation/2026-09-02-
+  candidate-render-smoke.zsh` (9/9) and `2026-09-02-resolve-transcript-
+  smoke.zsh` (5/5). Plan: `meta/superpowers/plans/2026-09-02-end-session-
+  step2-rendering-plan.md`.
 - **v0.26.0 — Determinism program Phase 1 ("zero-turn read-only commands"),
-  committed on branch `worktree-zero-turn-read-only-commands` (worktree
-  `zero-turn-read-only-commands`), not yet merged/released.** Retires
+  merged to `main` via PR #31 (`d99054d`) and released (tag `v0.26.0`,
+  GitHub release auto-published from the tag). Closes backlog item `[5c2d]`
+  (now a one-line closed stub).** Retires
   `/session-continuity:backlog`, `/session-continuity:learnings`,
   `/session-continuity:help`, and `/session-continuity:update` to zero model
   calls in the common case. Task 1 (`9b33acf`) measured the
@@ -70,13 +91,24 @@ rarely.
   spelled out, plus a pointer from the standing backlog-numbering rule to
   `render.sh backlog` as the canonical shape), and `README.md` (command
   count, table rows, prose subsections) all updated seven→nine commands;
-  `plugin.json` 0.25.2→0.26.0; filed backlog item `9d17` (concrete
+  `plugin.json` 0.25.2→0.26.0; filed backlog item #45 (concrete
   `/session-continuity:doctor` retrofit, deferred until architectural item
   `4a9d` decides whether `/doctor` becomes a zero-turn script at all — this
-  phase deliberately did not touch `/doctor`). Plan:
-  `meta/superpowers/plans/2026-09-02-zero-turn-read-only-commands.md`.
+  phase deliberately did not touch `/doctor`). Final whole-branch review
+  (opus) found one real cross-task defect: `hooks/lib/count-entries.sh`
+  diverged from `render-backlog.awk`/`render-learnings.awk` on a
+  self-closing inline HTML comment on a heading line (counted a line the
+  renderers never rendered) — fixed in `117b8bc`, plus a stale hardcoded
+  BACKLOG-count pin in that same smoke suite (`bf15d9d`, from Task 6's own
+  BACKLOG.md edit). All 19 hermetic smoke suites re-run green pre-merge.
+  Plan: `meta/superpowers/plans/2026-09-02-zero-turn-read-only-commands.md`.
   Design spec: `meta/superpowers/specs/2026-09-02-zero-turn-read-only-
-  commands-design.md`.
+  commands-design.md`. Post-merge: local `main` had an unpushed
+  backlog-item-8-closing commit predating this branch's fork point,
+  rebased onto merged `main` and pushed (`d9ea464`); backlog items `[6258]`,
+  `[3b71]`, `[5c2d]` are now one-line closed stubs (kept, not deleted — all
+  three tags are cross-referenced in `ROADMAP.md`/`RESUME.md`/other specs,
+  per this file's own grep-before-delete rule).
 - **v0.25.2 — Determinism Phase 0 (fresh-install count defects), committed on
   branch `worktree-fresh-install-count-defects` (worktree
   `fresh-install-count-defects`), not yet merged/released.** Fixes two real
@@ -153,9 +185,9 @@ rarely.
   regression test that sources directly into zsh (no `bash -c` wrapper —
   the pattern that hid the bug in the pre-existing 7/7-passing suite).
   Closed backlog item 7 [b10f] (this plan, now done) and trimmed item
-  5 [e8e2] (its `learning.md`/`end-session.md` sub-parts resolved here;
+  5 #39 (its `learning.md`/`end-session.md` sub-parts resolved here;
   the `agent-active.sh` fallback sub-part stays open, explicitly out of
-  this plan's scope). Filed new backlog item 7 [c9a4]: `overlap()`'s
+  this plan's scope). Filed new backlog item 7 #40: `overlap()`'s
   dedup math in `candidate-extract.jq` is a real (not just synthetic)
   asymmetric-Jaccard defect that over-merges distinct retry-bursts whose
   titles share the common boilerplate suffix — non-blocking, deferred.
@@ -581,18 +613,18 @@ rarely.
 - v0.5.0 (commit `aff74c3`) relocated the two files from `docs/` to `.session-continuity/` with auto-migration support.
 - Three slash commands are stable (`primer`, `learning`, `end-session`).
 - `hooks/hooks.json` uses `if: "Bash(git commit *)"` to scope the `PreToolUse` hook; it does not fire on every Bash call.
-- `.claude-plugin/marketplace.json` present so the repo is installable via `/plugin marketplace add talgolan/session-continuity`.
-- `.session-continuity/` holds `SESSION_PRIMER.md`, `PROJECT_CONTEXT.md` (new in v0.13.0), `BACKLOG.md` (new in v0.18.0 as `OUTSTANDING_ITEMS.md`, renamed in v0.22.0), `ROADMAP.md` (new in v0.22.0), and `LEARNINGS.md`. Dev artifacts (marketplace-submission notes, specs, plans, recommendation docs) live under `meta/`.
+- No `.claude-plugin/marketplace.json` in this repo — the marketplace catalog moved to `talgolan/claude-plugins`; installable via `/plugin marketplace add talgolan/claude-plugins` + `/plugin install session-continuity@talgolan`.
+- `.session-continuity/` holds `SESSION_PRIMER.md`, `PROJECT_CONTEXT.md` (new in v0.13.0), `ROADMAP.md` (new in v0.22.0), and `LEARNINGS.md`. The work queue is GitHub Issues labeled `backlog` (v0.29.0; previously `BACKLOG.md`, itself renamed from `OUTSTANDING_ITEMS.md` in v0.22.0). Dev artifacts (marketplace-submission notes, specs, plans, recommendation docs) live under `meta/`.
 - No known open bugs; outstanding items are feature-level.
 
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-cf6746e feat: fallback-body command files for backlog/learnings/help/update
-1b60892 feat: zero-turn interception for backlog/learnings/help/update prompts
-909c494 fix: missing project-dir arg falls through to bad-input path, not exit 2
-eb85948 feat: renderer layer for zero-turn read-only commands (Task 2)
-9b33acf docs: measure the UserPromptSubmit interception surface (Phase 1 Task 1)
+f79eb10 chore: bump to 0.28.0 — shared mechanics library (perf-log mark/since, primer-status.sh)
+6b70556 Merge pull request #34 from talgolan/feat/shared-mechanics-library
+ff6b8c8 test: bump stale count-entries-smoke pins to real BACKLOG/LEARNINGS counts (16/18)
+c8e3670 docs: Phase 3 doc pointers and changelog entry for the shared mechanics library
+7358719 refactor: end-session.md collapses its four epoch-subtraction blocks to mark/since, fixing step-4-agent-active's start_epoch scope bug (52dc)
 ```
 
 Regenerate this block whenever you commit — see

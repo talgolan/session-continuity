@@ -35,11 +35,15 @@ mtime="$(stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$primer_path" 2>/dev/null \
   || echo '?')"
 
 count_helper="$HERE/count-entries.sh"
-if [ -f "$count_helper" ]; then
-  backlog_count="$(bash "$count_helper" "$DIR/.session-continuity/BACKLOG.md" 2>/dev/null || echo '?')"
-  learnings_count="$(bash "$count_helper" "$DIR/.session-continuity/LEARNINGS.md" 2>/dev/null || echo '?')"
+issues_helper="$HERE/backlog-issues.sh"
+if [ -f "$issues_helper" ]; then
+  backlog_count="$(bash "$issues_helper" --count "$DIR" 2>/dev/null || echo '?')"
 else
   backlog_count="?"
+fi
+if [ -f "$count_helper" ]; then
+  learnings_count="$(bash "$count_helper" "$DIR/.session-continuity/LEARNINGS.md" 2>/dev/null || echo '?')"
+else
   learnings_count="?"
 fi
 

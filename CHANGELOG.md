@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.29.0] — 2026-09-07
+
+### Changed
+- **The backlog is GitHub Issues labeled `backlog`, not `.session-continuity/BACKLOG.md`.** `/session-continuity:backlog`, SessionStart injection, and `primer-status.sh`'s `BACKLOG_COUNT` read `gh issue list --label backlog`. File with `gh issue create --label backlog`; close with `gh issue close N --reason completed` after checking the claim against the code. Identity is `#N`. Origin must contain `github.com`; otherwise those surfaces no-op and `doctor` warns. There is no markdown fallback.
+- **Primer init stages four files** (primer, PROJECT_CONTEXT, ROADMAP, LEARNINGS). A leftover `BACKLOG.md` on a github.com remote is one-shot migrated to issues then deleted.
+- **Privacy:** filing a backlog item sends title+body to GitHub; SessionStart and `/backlog` read them back with authenticated `gh`. Public repo → public issues. Weekly unauthenticated version-check is unchanged.
+
+### Removed
+- `hooks/lib/render-backlog.awk` and `skills/session-continuity/templates/BACKLOG.md`. Hex tags, 1..N positions, and closed stubs.
+
+### Migration
+Consumers with `BACKLOG.md` and a github.com origin: run `/session-continuity:primer`. Without GitHub, the file remains a fossil; `doctor` warns the queue is inactive. This plugin repo's 11 live items are issues #35–#45 on `talgolan/session-continuity`.
+
 ## [0.28.0] — 2026-09-03
 
 ### Changed

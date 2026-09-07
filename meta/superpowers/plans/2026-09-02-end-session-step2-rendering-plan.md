@@ -18,8 +18,8 @@
 - Every new script invoked from `commands/end-session.md` carries a `# CONTRACT_VERSION=N` header comment and is called through `require_script` (from `hooks/lib/require-script.sh`), exactly like `candidate-extract.sh`, `learnings-index.sh`, and `agent-active.sh` already are. New scripts start at `CONTRACT_VERSION=1`.
 - `candidate-extract.sh` and `candidate-extract.jq` are **not modified** — their contract (`CONTRACT_VERSION=2`) is left alone, and the existing `meta/superpowers/validation/2026-09-01-candidate-extract-smoke.zsh` must keep passing **unchanged**, byte-for-byte, as the proof of that (spec: "Testing").
 - The renderer treats `evidence` array entries as opaque, pre-formatted strings and prints them as-is — it must never re-derive, reformat, or assume a shape across heuristics (spec: "Two defects found while reading the source").
-- Do not fix the `overlap()` dedupe asymmetry (BACKLOG item `c9a4`) as part of this work — out of scope, spec: "Out of scope".
-- Do not touch Step 3's checklist assembly (BACKLOG item `b93c`/Phase 4) or the four duplicated epoch-subtraction blocks (BACKLOG item `a17f`/Phase 3) — out of scope, spec: "Out of scope".
+- Do not fix the `overlap()` dedupe asymmetry (BACKLOG item #40) as part of this work — out of scope, spec: "Out of scope".
+- Do not touch Step 3's checklist assembly (BACKLOG item #41/Phase 4) or the four duplicated epoch-subtraction blocks (BACKLOG item `a17f`/Phase 3) — out of scope, spec: "Out of scope".
 - New shipped reference file is `skills/session-continuity/HEURISTICS.md`, not `skills/session-continuity/REFERENCE.md` and not anything under `meta/` (spec: "Where the heuristics documentation goes").
 
 ---

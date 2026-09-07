@@ -21,6 +21,7 @@ _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 grep -q '^## Outstanding items' .session-continuity/SESSION_PRIMER.md 2>/dev/null && echo "PRIMER_HAS_INLINE_OUTSTANDING=1" || echo "PRIMER_HAS_INLINE_OUTSTANDING=0"
 [ -f .session-continuity/BACKLOG.md ] && echo "BACKLOG_EXISTS=1" || echo "BACKLOG_EXISTS=0"
 [ -f .session-continuity/ROADMAP.md ] && echo "ROADMAP_EXISTS=1" || echo "ROADMAP_EXISTS=0"
+git remote get-url origin 2>/dev/null || echo "NO_ORIGIN"
 git log --oneline -5
 git diff --cached --name-only
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
@@ -59,15 +60,18 @@ first — it still writes `OUTSTANDING_ITEMS.md` under the old name — then
 run Step 3c against that result. Step 3c is strictly the one-level-up
 file rename; it never inspects primer content.
 
+If `BACKLOG_EXISTS=1` (including after Step 3c) AND origin contains
+`github.com`, run Step 3d (markdown backlog → GitHub Issues) after 3c.
+
 ## Step 2 — Init mode
 
 1. Create `.session-continuity/` if it doesn't exist.
 2. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/SESSION_PRIMER.md` to `.session-continuity/SESSION_PRIMER.md`.
 3. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/LEARNINGS.md` to `.session-continuity/LEARNINGS.md`.
 4. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/PROJECT_CONTEXT.md` to `.session-continuity/PROJECT_CONTEXT.md`.
-5. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/BACKLOG.md` to `.session-continuity/BACKLOG.md`.
-6. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/ROADMAP.md` to `.session-continuity/ROADMAP.md`.
-7. Fill in placeholders Claude can derive automatically. Gather the raw
+5. Copy the template from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/ROADMAP.md` to `.session-continuity/ROADMAP.md`.
+   Do **not** create `.session-continuity/BACKLOG.md` — the backlog is GitHub Issues labeled `backlog`.
+6. Fill in placeholders Claude can derive automatically. Gather the raw
    data in **one Bash call**, timed:
 
    ```bash
@@ -109,24 +113,20 @@ file rename; it never inspects primer content.
    - `{{TEST_COMMAND_SUMMARY}}` — if `TEST_RUN_EXIT=0` and the captured output contains a recognizable count (`N pass`, `N passed`, `test result: ok. N passed`, etc.), seed this as "`<TEST_CMD>` — N pass / M fail" from that single run. If `TEST_CMD` was empty, the run timed out (`TEST_RUN_EXIT=124`), or the output has no parseable count, fall back to the bare `scripts.test` string (or `TBD`) — never invent a count.
    - `{{REPO_LAYOUT_SUMMARY}}` — from the `find` output above, plus a one-line description Claude infers from the file extensions present.
    - `{{MODULES_TABLE}}` — if the `@module` grep above found matches, build one table row per file: Component = file path, Purpose = the `@module` value (plus the docblock's one-line description if present), Notes = the adjacent `Exports:` line if present. If it found nothing, leave `TBD` as before — don't invent structure that isn't there.
-   - `{{WORKFLOW_CONVENTIONS}} (draft)` — if `CLAUDE.md` exists (cat output above), draft this field by quoting its relevant conventions (runtime choice, commit style, workflow/never-do rules) under a "Conventions inherited from CLAUDE.md" sub-heading, instead of leaving it blank for the user to retype. Present the draft in Step 8 for confirmation rather than asking cold.
-8. Ask the user for the blanks that can't be derived: `{{GROUND_RULES}}`, `{{WHERE_TO_LOOK_ROWS}}`, `{{STUCK_ESCALATION_STEPS}}`, `{{BACKLOG}}`, and `{{WORKFLOW_CONVENTIONS}}` only if no `CLAUDE.md` draft was produced above. If a draft was produced, show it and ask the user to confirm or amend it rather than asking a blank question. **Wait for their answer.** Do not proceed to Step 10 until the user responds.
+   - `{{WORKFLOW_CONVENTIONS}} (draft)` — if `CLAUDE.md` exists (cat output above), draft this field by quoting its relevant conventions (runtime choice, commit style, workflow/never-do rules) under a "Conventions inherited from CLAUDE.md" sub-heading, instead of leaving it blank for the user to retype. Present the draft in Step 7 for confirmation rather than asking cold.
+7. Ask the user for the blanks that can't be derived: `{{GROUND_RULES}}`, `{{WHERE_TO_LOOK_ROWS}}`, `{{STUCK_ESCALATION_STEPS}}`, and `{{WORKFLOW_CONVENTIONS}}` only if no `CLAUDE.md` draft was produced above. If a draft was produced, show it and ask the user to confirm or amend it rather than asking a blank question. **Wait for their answer.** Do not proceed to Step 9 until the user responds.
 
-   **Backlog conversion rule.** The user's answer for
-   `{{BACKLOG}}` is free-form prose — a list, a paragraph, however
-   they typed it. Convert it into one
-   `### <position>. [<tag>] [<date>]` entry per distinct item in
-   `.session-continuity/BACKLOG.md`, positions numbered sequentially
-   starting at 1, each minted a fresh unused 4-hex-character `<tag>`
-   and stamped with today's date, trimming each to a title plus 1-3
-   sentences (the same length cap every item in that file follows).
-   Never paste the raw answer in as a single unstructured blob. If the
-   user said "none" or skipped the question, leave the file's
-   `{{BACKLOG}}` placeholder area empty (substituted per the existing
-   placeholder-cleanup step below, same as any other skipped field).
-9. **Replace any remaining `{{PLACEHOLDER}}` tokens with `TBD` before staging.** If the user skipped a field, declined to answer, or asked you to stage/commit without filling everything in, substitute `TBD` (with an empty body line where the template had prose). Never leave `{{...}}` syntax in a file you are about to stage — `grep -n '{{' .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md .session-continuity/BACKLOG.md .session-continuity/ROADMAP.md` must return nothing after this step.
-10. Stage all five files: `git add .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md .session-continuity/BACKLOG.md .session-continuity/ROADMAP.md`.
-11. Tell the user: "Primer, PROJECT_CONTEXT, BACKLOG, ROADMAP, and LEARNINGS staged. Review and commit with `git commit -m 'docs: initialize session continuity'` when ready." Include a one-line note listing any fields that were set to `TBD` so the user knows what to fill in later.
+   **Backlog.** Do not write a markdown backlog file. If origin contains `github.com` and the user named follow-ups, file each as a GitHub Issue:
+
+   ```bash
+   gh label create backlog --description "Agent backlog (session-continuity)" --force
+   gh issue create --label backlog --title "<title>" --body "<1-3 sentences>"
+   ```
+
+   Title plus 1-3 sentences per issue. If they said "none" or skipped, file nothing.
+8. **Replace any remaining `{{PLACEHOLDER}}` tokens with `TBD` before staging.** If the user skipped a field, declined to answer, or asked you to stage/commit without filling everything in, substitute `TBD` (with an empty body line where the template had prose). Never leave `{{...}}` syntax in a file you are about to stage — `grep -n '{{' .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md .session-continuity/ROADMAP.md` must return nothing after this step.
+9. Stage four files: `git add .session-continuity/SESSION_PRIMER.md .session-continuity/PROJECT_CONTEXT.md .session-continuity/LEARNINGS.md .session-continuity/ROADMAP.md`.
+10. Tell the user: "Primer, PROJECT_CONTEXT, ROADMAP, and LEARNINGS staged. Review and commit with `git commit -m 'docs: initialize session continuity'` when ready." Include a one-line note listing any fields that were set to `TBD` so the user knows what to fill in later. If issues were filed, list their `#N` numbers.
 
 **Do not commit automatically.** The user commits when ready.
 
@@ -246,6 +246,27 @@ after it, per the sequencing note in Step 1).
 **Do not commit automatically.** Staging only — same rule as every other
 split/migration step in this command.
 
+## Step 3d — BACKLOG.md → GitHub Issues
+
+Runs whenever `BACKLOG_EXISTS=1` (including after Step 3c just created
+it) AND Step 1's origin URL contains `github.com`. If origin is missing
+or not github.com, leave the file in place as a fossil and tell the
+user `/session-continuity:doctor` will warn that the queue is inactive.
+Do not keep writing to the fossil.
+
+1. `gh label create backlog --description "Agent backlog (session-continuity)" --force`
+2. For each `### N. [tag] [YYYY-MM-DD] Title` heading whose title is
+   **not** a `— closed.` stub: `gh issue create --label backlog --title "<Title>" --body "<item body, 1-3 sentences>"`. Record the new `#N` next to the old hex tag.
+3. `git rm .session-continuity/BACKLOG.md`
+4. Rewrite any remaining hex-tag mentions in `.session-continuity/` and
+   specs/plans you can map. Historical CHANGELOG lines may keep old
+   names.
+5. Tell the user the issue numbers created and that the markdown file is
+   gone.
+
+If `gh` fails, stop, leave the file, report the error. Do not delete
+the file unless the issues exist.
+
 ## Step 4 — Refresh mode
 
 1. Read the current `.session-continuity/SESSION_PRIMER.md`.
@@ -288,34 +309,27 @@ split/migration step in this command.
    bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-activity-surface --duration="$_PERF_DURATION"
    ```
 
-   Read `.session-continuity/BACKLOG.md` for the current item
-   list (not the primer — the backlog lives in the dedicated file now).
-   Present the subject list from the `git log` output above to the
+   Run `bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/backlog-issues.sh" .` for
+   the current open-issue list. Present the subject list from the
+   `git log` output above to the
    user as candidate prompts:
    > "Since the last primer refresh, these commits landed:
    > - `<sha> <subject>`
    > - …
    >
-   > Any of these resolve outstanding items, or warrant a new LEARNINGS entry?"
-   This is a candidate list, not an auto-close. Do not modify outstanding items based on subject heuristics — wait for the user's answer.
-5. Ask the user: "Backlog — anything to remove (finished) or add (new follow-ups flagged)?"
-6. Apply the edits to `.session-continuity/BACKLOG.md` (not the
-   primer). **Before removing any item as DONE, verify it against the
-   actual code** — one grep or read per load-bearing claim, even if the
-   user confirms it from memory or a commit subject matched the item's
-   keywords. A subject-line match does not prove the change shipped, and
-   a fix landing inside an unrelated commit can leave an item reading
-   OPEN when it already shipped — verify both directions, not just the
-   one the candidate list surfaced. **Before deleting a closed item, grep
-   the whole repo for its tag** (e.g. `\[a3f9\]`) — a hit means fix the
-   referencing text first, per the identity convention in
-   `.session-continuity/BACKLOG.md`'s own intro block. A new item mints
-   a fresh unused hex tag and today's date; after any add/remove,
-   renumber every remaining item's `<position>` to 1..N with no gaps —
-   position is display order only, never a permanent reference.
-7. Stage the updated primer and, if outstanding items changed, the items
-   file too: `git add .session-continuity/SESSION_PRIMER.md` and (only
-   when Step 6 touched it) `git add .session-continuity/BACKLOG.md`.
+   > Any of these resolve open backlog issues, or warrant a new LEARNINGS entry?"
+   This is a candidate list, not an auto-close. Do not close issues based on subject heuristics — wait for the user's answer.
+5. Ask the user: "Backlog — anything to close (finished) or file (new follow-ups)?"
+6. Close with `gh issue close N --reason completed` only after checking
+   the claim against the actual code — one grep or read per load-bearing
+   claim, even if the user confirms it from memory or a commit subject
+   matched the issue title. A subject-line match does not mean the
+   change shipped, and a fix landing inside an unrelated commit can
+   leave an issue open when it already shipped — check both directions.
+   File new follow-ups with `gh issue create --label backlog --title
+   "..." --body "..."` (title plus 1-3 sentences). Never create or edit
+   `.session-continuity/BACKLOG.md`.
+7. Stage the updated primer: `git add .session-continuity/SESSION_PRIMER.md`.
 8. Tell the user: "Primer refreshed and staged. Include it in your next commit (same commit as the substantive change — do not primer-commit alone)."
 
 ## Step 5 — Check mode

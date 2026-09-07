@@ -1,5 +1,5 @@
 ---
-description: Diagnose whether session-continuity is actually wired up in this project — hooks registered, all five files present and not stale, plugin root resolves and isn't a stale cache, gate scripts executable. Zero args, read-only.
+description: Diagnose whether session-continuity is actually wired up in this project — hooks registered, four in-repo files present and not stale, GitHub backlog reachable, plugin root resolves and isn't a stale cache, gate scripts executable. Zero args, read-only.
 ---
 
 # /session-continuity:doctor
@@ -40,9 +40,19 @@ echo "--- vendored-mode check (only matters if ROOT_EXISTS=0 above) ---"
 [ -f .claude/settings.json ] && cat .claude/settings.json || echo "NO_PROJECT_SETTINGS"
 
 echo "--- .session-continuity/ files ---"
-for f in SESSION_PRIMER.md BACKLOG.md ROADMAP.md PROJECT_CONTEXT.md LEARNINGS.md; do
+for f in SESSION_PRIMER.md ROADMAP.md PROJECT_CONTEXT.md LEARNINGS.md; do
   [ -f ".session-continuity/$f" ] && echo "$f=EXISTS" || echo "$f=MISSING"
 done
+[ -f .session-continuity/BACKLOG.md ] && echo "BACKLOG.md=FOSSIL" || echo "BACKLOG.md=ABSENT"
+
+echo "--- github backlog ---"
+command -v gh >/dev/null && echo "GH=PRESENT" || echo "GH=MISSING"
+gh auth status >/dev/null 2>&1 && echo "GH_AUTH=OK" || echo "GH_AUTH=FAIL"
+git remote get-url origin 2>/dev/null || echo "NO_ORIGIN"
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "${CLAUDE_PLUGIN_ROOT}/hooks/lib/backlog-issues.sh" ]; then
+  echo -n "BACKLOG_COUNT="
+  bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/backlog-issues.sh" --count .
+fi
 
 echo "--- current git log (compare against primer's block) ---"
 git log --oneline -5
@@ -56,7 +66,7 @@ fi
 
 ## Step 2 — Interpret and report
 
-Work through the five rows below using the output above. Never invent a result for something the output above didn't actually show — if a probe was skipped (e.g. no cache-parent directory), report `?` for that row rather than guessing.
+Work through the six rows below using the output above. Never invent a result for something the output above didn't actually show — if a probe was skipped (e.g. no cache-parent directory), report `?` for that row rather than guessing.
 
 1. **Install mode.** `ROOT_EXISTS=1` → **plugin mode**: report the version parsed from `plugin.json` and the resolved path. `ROOT_EXISTS=0` → **vendored mode**: note that `CLAUDE_PLUGIN_ROOT` never resolved, which is expected for a manually-vendored install — proceed to row 2's vendored branch.
 
@@ -64,11 +74,13 @@ Work through the five rows below using the output above. Never invent a result f
    - Plugin mode: ✓ if `HOOKS_JSON_EXISTS=1` (Claude Code auto-wires this when the plugin is enabled — this is a sanity check that the install isn't partial/corrupted, not proof the user configured anything). ⚠️ if `HOOKS_JSON_EXISTS=0` — the plugin directory is missing `hooks/hooks.json`; reinstalling the plugin is the fix.
    - Vendored mode: grep the `.claude/settings.json` content captured above for the hook script names (`session-start.sh`, `learnings-surface.sh`, etc.). ✓ if at least `session-start.sh` and `learnings-surface.sh` appear (the two hooks a vendored install needs most — the primer reminder and the retrieval hook). ⚠️ listing which expected hook names are absent, with a pointer to `SKILL.md`'s hooks section for the entries to copy in.
 
-3. **Five `.session-continuity/` files exist; primer not stale.** ✓/⚠️ per file from the `EXISTS`/`MISSING` lines. For `SESSION_PRIMER.md` specifically, if it exists, also compare its own `git log --oneline -5` block (read the file) against the `git log --oneline -5` output captured above — mismatch means ⚠️ stale, "run `/session-continuity:primer` to refresh." This is the only file with an objective staleness signal in this repo; the other four don't get a staleness check here, only an existence check.
+3. **Four `.session-continuity/` files exist; primer not stale.** ✓/⚠️ per file from the `EXISTS`/`MISSING` lines (`SESSION_PRIMER.md`, `PROJECT_CONTEXT.md`, `ROADMAP.md`, `LEARNINGS.md`). `BACKLOG.md=FOSSIL` is a leftover markdown queue — ⚠️ "fossil BACKLOG.md; run `/session-continuity:primer` to migrate to GitHub Issues if origin is github.com." For `SESSION_PRIMER.md` specifically, if it exists, also compare its own `git log --oneline -5` block (read the file) against the `git log --oneline -5` output captured above — mismatch means ⚠️ stale, "run `/session-continuity:primer` to refresh." This is the only file with an objective staleness signal in this repo; the other three don't get a staleness check here, only an existence check.
 
 4. **`CLAUDE_PLUGIN_ROOT` resolves and isn't stale.** Skip this row entirely in vendored mode (nothing to check). In plugin mode: ✓ if `ROOT_EXISTS=1`. Then check staleness — from the `ls "$CACHE_PARENT"` output, if it lists sibling version directories, compare the resolved version (parsed from `plugin.json` above) against the highest version number listed. If a newer one exists: ⚠️ "resolved root is v`<old>`, but v`<new>` is already installed in the cache — this session started before the update landed; restart the session to pick it up." If they match, or the cache-parent listing wasn't available (different install layout), ✓ with a note that the check was skipped when applicable — don't fail the row over a probe that simply didn't apply.
 
 5. **Gate scripts executable.** Skip in vendored mode (no resolved root to check against). In plugin mode, one sub-row per `EXEC`/`NOEXEC:<path>` line captured above. ✓ if all are `EXEC`. For each `NOEXEC:<path>`, ⚠️ with the exact fix: `chmod +x <path>`.
+
+6. **GitHub backlog.** Warning-level, not a hard install break. ✓ if `GH=PRESENT`, `GH_AUTH=OK`, origin contains `github.com`, and `BACKLOG_COUNT` is an integer (including 0). ⚠️ listing which of those failed, and "run `/session-continuity:doctor` after `gh auth login`" or "queue inactive until origin is github.com." One sentence: backlog titles and bodies are sent to GitHub when filed; public repo means public issues.
 
 **List every missing file, every missing hook name, and every non-executable script — do not summarize, filter, or pick a "primary" one.** If two gate scripts are missing their exec bit, the row lists both `chmod +x` commands, not one.
 
@@ -78,9 +90,10 @@ Emit the report as a table, same convention as `/session-continuity:end-session`
 |---|---|---|
 | Install mode | ✓ | "Plugin vX.Y.Z at `<path>`" OR "Vendored (CLAUDE_PLUGIN_ROOT unresolved)" |
 | Hooks registered | ✓ / ⚠️ | plugin: "hooks.json present" OR "⚠️ hooks/hooks.json missing — reinstall the plugin" · vendored: "session-start.sh + learnings-surface.sh found in .claude/settings.json" OR "⚠️ missing: `<names>` — see SKILL.md's hooks section" |
-| .session-continuity/ files | ✓ / ⚠️ | "All five present, primer current" OR "⚠️ missing: `<names>`" OR "⚠️ primer stale — run /session-continuity:primer" |
+| .session-continuity/ files | ✓ / ⚠️ | "All four present, primer current" OR "⚠️ missing: `<names>`" OR "⚠️ primer stale — run /session-continuity:primer" OR "⚠️ fossil BACKLOG.md" |
 | CLAUDE_PLUGIN_ROOT | ✓ / ⚠️ / (skipped) | "vX.Y.Z, matches latest cached" OR "⚠️ resolved to vX.Y.Z, but vX.Y.Z+1 is cached — restart the session" OR "skipped (vendored mode)" |
 | Gate scripts executable | ✓ / ⚠️ / (skipped) | "All N gate scripts executable" OR "⚠️ not executable: `chmod +x <path>`, `chmod +x <path>`" OR "skipped (vendored mode)" |
+| GitHub backlog | ✓ / ⚠️ | "N open issues labeled backlog" OR "⚠️ gh/auth/origin/helper — queue inactive. Filing an issue sends title+body to GitHub (public repo → public issues)." |
 
 ## Notes
 

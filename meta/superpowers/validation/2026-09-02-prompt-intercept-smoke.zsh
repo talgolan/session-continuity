@@ -23,6 +23,16 @@ bad() { print -P "%F{red}✗%f $1"; (( fail++ )); return 0; }
 
 work="$(mktemp -d)"
 
+# Mock gh so "backlog" intercepts never hit the live GitHub API.
+mock="$work/fake-gh"
+cat > "$mock" <<'EOF'
+#!/usr/bin/env bash
+printf '#12\tAlpha\n#15\tBeta\n'
+exit 0
+EOF
+chmod +x "$mock"
+export GH_BIN="$mock"
+
 # --- helpers -----------------------------------------------------------
 
 # build_payload <prompt> [cwd] -> a UserPromptSubmit-shaped JSON payload,

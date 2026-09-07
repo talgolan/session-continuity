@@ -3,10 +3,9 @@
 **Status:** approved scope. Phases 0 and 1 have plans, Phase 2 has a design
 and needs a plan, phases 3-7 have neither.
 
-Each phase is filed as its own item in `.session-continuity/BACKLOG.md`, tagged
-below so the reference works from either direction. Phase *ordering* lives in
-`.session-continuity/ROADMAP.md`, not in those items — backlog positions are
-recomputed 1..N on every render and carry no permanent meaning.
+Each phase is filed as its own GitHub Issue labeled `backlog`, identified
+below by `#N`. Phase *ordering* lives in
+`.session-continuity/ROADMAP.md`, not in those issues.
 
 **Problem:** this plugin spends model turns computing values that are pure
 functions of files, git state, and transcript data. It ships 94,350 bytes of
@@ -177,18 +176,18 @@ needs a plan.
 **Phase 3 `[a17f]` — shared mechanics library.** `perf-log.sh mark`/`since`,
 plus `primer-status.sh` shared by `session-start.sh` and `primer.md`'s
 check mode. Unblocks phases 4 and 6 and closes `52dc` as a side effect.
-`doctor.md`'s drift verdict was scoped out — deferred to `9d17`, once `4a9d`
+`doctor.md`'s drift verdict was scoped out — deferred to #45, once `4a9d`
 is decided. Plan:
 `meta/superpowers/plans/2026-09-03-shared-mechanics-library.md`.
 
-**Phase 4 `[b93c]` — `end-session` Step 3 checklist assembly.** One script consuming the
+**Phase 4 `#41` — `end-session` Step 3 checklist assembly.** One script consuming the
 six git outputs and a `tag<TAB>verdict<TAB>citation` file, emitting the eight
 finished rows, the four backlog tallies, the per-row markers, and the sign-off
 boolean (612-675, 759-773), retiring the example block at 687-701. Depends on
 Phase 3's `since`. Removes the file-inventory summarization failure that
 line 646 exists to prevent.
 
-**Phase 5 `[c60e]` — backlog mechanics.** Two scripts used by both `primer.md` and
+**Phase 5 `#42` — backlog mechanics.** Two scripts used by both `primer.md` and
 `end-session.md`: item bookkeeping (mint a 4-hex tag with a uniqueness grep,
 stamp the date, renumber positions 1..N, grep the repo for a tag before
 deletion) and the overlap gate (tokenize, drop short tokens and stopwords,
@@ -198,7 +197,7 @@ currently exists as two prose copies that can drift, and
 implementation to lift. Set-intersection cardinality is a task models get
 wrong silently.
 
-**Phase 6 `[d24b]` — `primer` detect, migrate, init, drift.** Mode detection plus
+**Phase 6 `#43` — `primer` detect, migrate, init, drift.** Mode detection plus
 migration triggers (11-60, pure boolean logic over file existence); the
 backlog rename migration (209-248, forty lines of prompt with no judgment in
 any of its seven items, performing a destructive `git mv`); init-mode template
@@ -208,7 +207,7 @@ plus test-count rerun with modal pinning (172-210, 249-250, 264-278). Largest
 phase, lowest per-invocation frequency, highest blast radius — it runs a
 `git mv` and rewrites five files.
 
-**Phase 7 `[f58a]` — the gate that keeps it true.** A commit-time content gate on
+**Phase 7 `#44` — the gate that keeps it true.** A commit-time content gate on
 staged `commands/*.md` that blocks prompt text instructing a model to count,
 tally, renumber, compute a duration, compare a claimed value against an
 actual one, or print fixed text verbatim, with the usual

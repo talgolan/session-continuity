@@ -6,7 +6,8 @@
 # this script directly, returning stdout to the user without a model call.
 #
 # Usage:
-#   render.sh backlog <project-dir>    Renders <project-dir>/.session-continuity/BACKLOG.md
+#   render.sh backlog <project-dir>    Lists open GitHub Issues labeled
+#                                      `backlog` for <project-dir>
 #   render.sh learnings <project-dir>  Renders <project-dir>/.session-continuity/LEARNINGS.md
 #   render.sh help                     Renders commands/help.md's fixed reference text
 #   render.sh update                   Renders commands/update.md's fixed reference text
@@ -14,12 +15,12 @@
 # Prints plain text to stdout and exits 0 on every path except a broken
 # install. Two failure classes, deliberately distinct (same split as
 # hooks/lib/learnings-index.sh):
-#   Bad input (missing BACKLOG.md/LEARNINGS.md, or a file with no items) —
-#   one line on stdout naming the file and pointing at
-#   `/session-continuity:primer`, exit 0. Task 3 branches on exit status;
-#   this is not a broken-install signal.
-#   Broken install (an awk sibling missing or from another plugin version,
-#   or an awk pass exiting non-zero) — one line on stderr, exit 2.
+#   Bad input (GitHub queue unavailable / empty, or missing LEARNINGS.md) —
+#   one line on stdout, exit 0. Task 3 branches on exit status; this is
+#   not a broken-install signal.
+#   Broken install (a sibling missing or from another plugin version,
+#   or a sibling exiting non-zero in a way the sibling itself does not
+#   already handle) — one line on stderr, exit 2.
 
 set -uo pipefail
 
@@ -41,23 +42,13 @@ check_sibling() {
 }
 
 render_backlog() {
-  local dir="$1" file out
-  file="$dir/.session-continuity/BACKLOG.md"
-  check_sibling "render-backlog.awk"
+  local dir="$1" out
+  check_sibling "backlog-issues.sh"
 
-  if [[ ! -r "$file" ]]; then
-    echo "No BACKLOG.md found at $file — run /session-continuity:primer to set up session continuity."
-    return 0
-  fi
+  out="$(bash "$SCRIPT_DIR/backlog-issues.sh" "$dir")" \
+    || die_install "the backlog render pass failed (backlog-issues.sh exited non-zero)."
 
-  out="$(awk -f "$SCRIPT_DIR/render-backlog.awk" "$file")" \
-    || die_install "the backlog render pass failed (awk exited non-zero)."
-
-  if [[ -z "$out" ]]; then
-    echo "BACKLOG.md has no items."
-  else
-    printf '%s\n' "$out"
-  fi
+  printf '%s\n' "$out"
 }
 
 render_learnings() {
@@ -98,27 +89,27 @@ render_help() {
 ${header}
 
 WHAT THIS IS
-Cross-session memory for Claude Code projects, via five in-repo Markdown
-docs. A fresh Claude session (or a fresh terminal, or tomorrow) starts
-cold — these files are how it gets caught up without you re-explaining
-the project.
+Cross-session memory for Claude Code projects, via four in-repo Markdown
+docs plus GitHub Issues for the work queue. A fresh Claude session (or a
+fresh terminal, or tomorrow) starts cold — these are how it gets caught
+up without you re-explaining the project.
 
 WHY
 Claude doesn't remember yesterday's debugging, last week's refactor, or
-the bug you spent three hours cornering. These files are a low-tech fix:
-plain Markdown, committed to git alongside the code, readable by humans
-and Claude alike. Every change is an auditable commit; no vendor-specific
-storage, no opaque memory layer.
+the bug you spent three hours cornering. The in-repo files are a low-tech
+fix: plain Markdown, committed to git alongside the code, readable by
+humans and Claude alike. The backlog is GitHub Issues labeled "backlog"
+— stable IDs, close semantics, comments and PR links.
 
-THE FIVE FILES
+THE FOUR FILES, PLUS THE QUEUE
 - SESSION_PRIMER.md    — volatile. Current state, latest commits. Refresh
                           alongside every substantive commit.
 - PROJECT_CONTEXT.md   — stable. Repo layout, conventions, module table.
                           Changes rarely — only when the project's shape
                           changes.
-- BACKLOG.md           — tactical. Explicitly deferred follow-ups and
-                          decisions. Permanently numbered; closed items
-                          are deleted, never renumbered.
+- GitHub Issues        — tactical queue. Open issues labeled "backlog".
+                          Identity is #N. Close once the code shows it
+                          shipped.
 - ROADMAP.md           — strategic. Now/Next/Later direction. Freeform,
                           no numbering, rewritten wholesale as direction
                           changes.

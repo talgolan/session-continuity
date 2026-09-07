@@ -17,18 +17,17 @@ what's outstanding, see `.session-continuity/SESSION_PRIMER.md` instead.
 Claude Code plugin. Key paths:
 
 - `.claude-plugin/plugin.json` — plugin manifest (name, version, homepage, repository)
-- `.claude-plugin/marketplace.json` — single-plugin marketplace catalog (what `/plugin marketplace add` reads)
+- No `.claude-plugin/marketplace.json` in this repo — the marketplace catalog moved to the separate `talgolan/claude-plugins` repo (see README's "Install" section)
 - `skills/session-continuity/SKILL.md` — main skill description shown in marketplace
-- `skills/session-continuity/templates/` — `SESSION_PRIMER.md`, `PROJECT_CONTEXT.md`, and `LEARNINGS.md` starter templates
+- `skills/session-continuity/templates/` — `SESSION_PRIMER.md`, `PROJECT_CONTEXT.md`, `ROADMAP.md`, and `LEARNINGS.md` starter templates
 - `commands/` — slash command skill files (`primer.md`, `learning.md`, `end-session.md`)
 - `hooks/` — `SessionStart` and `PreToolUse` hook scripts
-- `.session-continuity/` — this file, the primer, and LEARNINGS (the canonical location as of v0.5.0; was `docs/` in v0.4 and earlier)
+- `.session-continuity/` — this file, the primer, ROADMAP, and LEARNINGS. The work queue is GitHub Issues labeled `backlog`.
 
 No build step. Everything is Markdown and shell scripts. Install via (from inside Claude Code):
 ```
-/plugin marketplace add talgolan/session-continuity
-/plugin install session-continuity@session-continuity
-/reload-plugins
+/plugin marketplace add talgolan/claude-plugins
+/plugin install session-continuity@talgolan
 ```
 
 ## Working directory

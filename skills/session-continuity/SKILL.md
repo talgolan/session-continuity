@@ -1,21 +1,21 @@
 ---
 name: session-continuity
-description: Establish and maintain cross-session memory for a project via five in-repo docs — .session-continuity/SESSION_PRIMER.md (current state, refreshed alongside substantive commits), .session-continuity/BACKLOG.md (explicitly deferred work), .session-continuity/ROADMAP.md (strategic direction), .session-continuity/PROJECT_CONTEXT.md (stable repo context, changes rarely), and .session-continuity/LEARNINGS.md (append-only wisdom for 15+ min bugs). Use when starting, before commits, or after hard-won bugs.
+description: Establish and maintain cross-session memory for a project via four in-repo docs — .session-continuity/SESSION_PRIMER.md (current state, refreshed alongside substantive commits), .session-continuity/ROADMAP.md (strategic direction), .session-continuity/PROJECT_CONTEXT.md (stable repo context, changes rarely), and .session-continuity/LEARNINGS.md (append-only wisdom for 15+ min bugs) — plus GitHub Issues labeled backlog for the work queue. Use when starting, before commits, or after hard-won bugs.
 ---
 
 # Session Continuity
 
-Five in-repo files act as a handoff between Claude sessions on the same project:
+Four in-repo files plus GitHub Issues act as a handoff between Claude sessions on the same project:
 
 - **`.session-continuity/SESSION_PRIMER.md`** — current-state snapshot (latest commits, working state). **Refresh alongside substantive commits** (stage the update in the same commit as the real change). Always reflects "what's true right now."
-- **`.session-continuity/BACKLOG.md`** — explicitly deferred follow-ups and decisions (not bugs, not current state). Permanent numbering (delete-on-close, never renumber, never reuse a number), title + 1-3 sentence length cap per item — anything longer moves to a linked file under `meta/superpowers/`.
+- **GitHub Issues labeled `backlog`** — explicitly deferred follow-ups and decisions (not current state). Identity is `#N`. Title + 1-3 sentence length cap per issue — anything longer moves to a linked file under `meta/superpowers/`. Close with `gh issue close N --reason completed` once the code shows it shipped.
 - **`.session-continuity/ROADMAP.md`** — strategic direction: Now/Next/Later. Freeform — no numbering, no permanence rules, no length cap. Rewritten wholesale as direction changes.
 - **`.session-continuity/PROJECT_CONTEXT.md`** — stable repo context (layout, module table, workflow conventions, test expectations, "where to look for what"). Changes rarely — only when the project's shape itself changes.
 - **`.session-continuity/LEARNINGS.md`** — accumulated wisdom (numbered entries, grouped by layer). Append-only log of bugs that were painful enough to not want to rediscover. **Update when a bug takes 15+ minutes to diagnose.**
 
-The five files are complementary: primer is volatile current-state, BACKLOG captures explicitly deferred work, ROADMAP captures strategic direction, PROJECT_CONTEXT is stable reference, LEARNINGS is durable wisdom. A fresh session reads the primer first to get oriented, skims PROJECT_CONTEXT once per session for the shape of the repo, consults BACKLOG for the decision backlog, then consults LEARNINGS when something surprising happens.
+These are complementary: primer is volatile current-state, GitHub Issues capture explicitly deferred work, ROADMAP captures strategic direction, PROJECT_CONTEXT is stable reference, LEARNINGS is durable wisdom. A fresh session reads the primer first to get oriented, skims PROJECT_CONTEXT once per session for the shape of the repo, consults `/session-continuity:backlog` for the decision queue, then consults LEARNINGS when something surprising happens.
 
-If installed as a plugin, nine commands are available: `/session-continuity:primer` (init/split/refresh/check the primer), `/session-continuity:learning` (append a new LEARNINGS entry interactively), `/session-continuity:end-session` (close-out ritual — refresh the primer, capture any new learnings from this session, and report a ✓/⚠️ checklist before you close the laptop), `/session-continuity:spike-check` (force a spike to be designed against the real load-bearing path before it's built), `/session-continuity:doctor` (read-only diagnostic — is the install actually wired up: hooks registered, all five files present and not stale, plugin root resolved and not a stale cache, gate scripts executable), `/session-continuity:backlog` (render BACKLOG.md's open items — zero-turn when the hook fires, one model call as fallback), `/session-continuity:learnings` (render LEARNINGS.md's entries — zero-turn when the hook fires, one model call as fallback), `/session-continuity:update` (print the commands to pull and activate the plugin's latest published version), and `/session-continuity:help` (explain what the plugin does and what each file is for).
+If installed as a plugin, nine commands are available: `/session-continuity:primer` (init/split/refresh/check the primer), `/session-continuity:learning` (append a new LEARNINGS entry interactively), `/session-continuity:end-session` (close-out ritual — refresh the primer, capture any new learnings from this session, and report a ✓/⚠️ checklist before you close the laptop), `/session-continuity:spike-check` (force a spike to be designed against the real load-bearing path before it's built), `/session-continuity:doctor` (read-only diagnostic — is the install actually wired up: hooks registered, four files present and not stale, GitHub backlog reachable, plugin root resolved and not a stale cache, gate scripts executable), `/session-continuity:backlog` (render open GitHub Issues labeled `backlog` — zero-turn when the hook fires, one model call as fallback), `/session-continuity:learnings` (render LEARNINGS.md's entries — zero-turn when the hook fires, one model call as fallback), `/session-continuity:update` (print the commands to pull and activate the plugin's latest published version), and `/session-continuity:help` (explain what the plugin does and what each file is for).
 
 `hooks/hooks.json` also wires up several non-blocking and blocking hooks
 — a SessionStart reminder that injects the outstanding-items shortlist,
@@ -49,18 +49,18 @@ first time a chained add+commit gets denied.
 Invoke when:
 
 - Starting work on a project that does not yet have `.session-continuity/SESSION_PRIMER.md`, `.session-continuity/PROJECT_CONTEXT.md`, and `.session-continuity/LEARNINGS.md` — initialize from the templates.
-- About to commit code changes — refresh the primer's "Current state" section and `.session-continuity/BACKLOG.md` so the next session sees the truth.
+- About to commit code changes — refresh the primer's "Current state" section and close or file GitHub Issues labeled `backlog` so the next session sees the truth.
 - A bug has just been resolved after significant effort (15+ min, or required reading unfamiliar code, or surprised you) — add a LEARNINGS entry.
 - The user says something like "help me preserve session memory," "how do I hand this off to the next session," "create a primer," or "add this to learnings."
 - Picking up work on a project that already has these files — read them as the first step, before touching anything else.
 
 ## Quick start (new project)
 
-Run `/session-continuity:primer`. The command detects that no primer exists, copies all five templates from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/` into the project's `.session-continuity/`, fills in every placeholder it can derive automatically (project name, latest commits, working directory, test command), prompts the user for anything left blank, and stages all five files. It does not commit.
+Run `/session-continuity:primer`. The command detects that no primer exists, copies four templates from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/` into the project's `.session-continuity/`, fills in every placeholder it can derive automatically (project name, latest commits, working directory, test command), prompts the user for anything left blank, files any named follow-ups as GitHub Issues labeled `backlog` when origin is github.com, and stages all four files. It does not commit.
 
 After the user commits, remind them of the two maintenance rules: refresh the primer alongside substantive commits (stage the refresh in the same commit as the real change — do not commit the primer by itself), and add a LEARNINGS entry for every bug that took 15+ minutes to diagnose.
 
-If the `/session-continuity:primer` command is not installed (e.g. this skill was vendored manually, not installed as a plugin), fall back to copying the templates by hand from [`templates/SESSION_PRIMER.md`](templates/SESSION_PRIMER.md), [`templates/BACKLOG.md`](templates/BACKLOG.md), [`templates/ROADMAP.md`](templates/ROADMAP.md), [`templates/PROJECT_CONTEXT.md`](templates/PROJECT_CONTEXT.md), and [`templates/LEARNINGS.md`](templates/LEARNINGS.md) into the project's `.session-continuity/`, filling placeholders, and committing the set.
+If the `/session-continuity:primer` command is not installed (e.g. this skill was vendored manually, not installed as a plugin), fall back to copying the templates by hand from [`templates/SESSION_PRIMER.md`](templates/SESSION_PRIMER.md), [`templates/ROADMAP.md`](templates/ROADMAP.md), [`templates/PROJECT_CONTEXT.md`](templates/PROJECT_CONTEXT.md), and [`templates/LEARNINGS.md`](templates/LEARNINGS.md) into the project's `.session-continuity/`, filling placeholders, and committing the set. File the backlog as GitHub Issues labeled `backlog`.
 
 ## Quick start (existing project with these files)
 
@@ -93,26 +93,21 @@ Sections of the primer most likely to be stale:
 
 Other sections (layout, packages, conventions) drift more slowly but are fair game if the repo shifted.
 
-Alongside the primer, also update the separate file
-`.session-continuity/BACKLOG.md`: remove things you just
-finished, add newly-flagged follow-ups from code review or user
-feedback. **Before marking any item DONE, verify it against the actual
+Alongside the primer, also update the GitHub backlog: close issues you just
+finished (`gh issue close N --reason completed`), file newly-flagged
+follow-ups (`gh issue create --label backlog --title "..." --body "..."`).
+**Before closing any issue, check it against the actual
 code** — one grep or read per load-bearing claim, not against memory
 and not against a commit subject line alone. A commit whose subject
-mentions an item's keywords does not prove the item shipped; a fix
-landing inside an unrelated commit can leave an item reading OPEN when
+mentions an issue's keywords does not mean the item shipped; a fix
+landing inside an unrelated commit can leave an issue open when
 it already shipped. Both directions are real drift.
 
-**Identity convention for BACKLOG.md — differs from LEARNINGS.**
-Each item's heading is `### <position>. [<tag>] [<date>] <Title>`.
-`<position>` is ephemeral display order — always 1..N, no gaps,
-recomputed every render, never cross-referenced. `<tag>` is a permanent
-4-hex-character ID minted once at filing and never reused; cross-references
-("see item `a3f9`") use the tag. Before deleting a closed item, grep the
-repo for its tag; a hit means fix the reference or leave a one-line
-"closed" stub instead. When naming an item to the user, show both, e.g.
-`1 [a3f9]`. (LEARNINGS.md keeps its own separate, permanent, gapless
-numbering — unaffected by this.)
+**Identity convention for the backlog — differs from LEARNINGS.**
+Each item is GitHub issue `#N`. Cross-references ("see #12") use that
+number. When naming an item to the user, show `#N` plus the title, e.g.
+`#12 Submit to the Anthropic marketplace`. (LEARNINGS.md keeps its own
+separate, permanent, gapless numbering — unaffected by this.)
 
 ### Do NOT commit the primer by itself
 

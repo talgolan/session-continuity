@@ -24,6 +24,16 @@ pass=0; fail=0
 ok()  { print -P "%F{green}✓%f $1"; (( pass++ )); return 0; }
 bad() { print -P "%F{red}✗%f $1"; (( fail++ )); return 0; }
 
+# Mock gh so the backlog intercept never hits the live GitHub API.
+_gh_mock="$(mktemp -d)/fake-gh"
+cat > "$_gh_mock" <<'EOF'
+#!/usr/bin/env bash
+printf '#12\tAlpha\n#15\tBeta\n'
+exit 0
+EOF
+chmod +x "$_gh_mock"
+export GH_BIN="$_gh_mock"
+
 # commit_parses <desc> <hook-basename> <relpath> <content>
 # Stages <content> at <relpath> in a fresh hermetic repo, drives <hook>
 # through a real `git commit` payload, and requires BOTH that the hook
@@ -97,7 +107,7 @@ prompt_parses() {  # <desc> <prompt>
   fi
 }
 
-prompt_parses "prompt-intercept: backlog block (multi-line reason from this repo's real BACKLOG.md) parses" "backlog"
+prompt_parses "prompt-intercept: backlog block (multi-line reason from mocked gh) parses" "backlog"
 prompt_parses "prompt-intercept: learnings block (multi-line reason from this repo's real LEARNINGS.md) parses" "learnings"
 prompt_parses "prompt-intercept: /session-continuity:help block parses" "/session-continuity:help"
 

@@ -2,14 +2,14 @@
 
 Detail split out of `SKILL.md` to keep the skill itself a short operational
 quick-ref. Read this when you need gate internals, customization guidance,
-the full decision tree, or the philosophy behind the five-file pattern —
+the full decision tree, or the philosophy behind the four-file pattern plus GitHub Issues —
 not on every session.
 
 ## Hooks and content gates
 
 `hooks/hooks.json` wires up several non-blocking and blocking hooks:
 
-- **`session-start.sh`** (SessionStart) — reminds Claude to read the primer, and injects the backlog shortlist. **Standing rule: whenever you discuss or echo backlog to the user — in this reminder, in `/session-continuity:end-session`'s prompts, or in free-form chat when directly asked — render them as a numbered list, always starting at 1, never 0, with each item's permanent `[hex tag]` and its `[YYYY-MM-DD]` filing date shown alongside its number, e.g. `1 [a3f9] [2026-08-30]`.** Paraphrasing the list into unnumbered prose (e.g. "same question stand: X or Y") drops the numbering the user relies on to reply with a bare number. This applies even to a one-line summary reply — number it, tag it, date it, don't collapse it, and don't zero-index it. `hooks/lib/render.sh backlog` is now the canonical renderer for this shape — when rendering free-form, match its output (numbering starts at 1, `[hex tag] [date]` alongside each number) rather than inventing a different layout.
+- **`session-start.sh`** (SessionStart) — reminds Claude to read the primer, and injects the backlog shortlist. **Standing rule: whenever you discuss or echo backlog to the user — in this reminder, in `/session-continuity:end-session`'s prompts, or in free-form chat when directly asked — render them as a numbered list, always starting at 1, never 0, with each item shown as `#N Title`.** Paraphrasing the list into unnumbered prose drops the numbering the user relies on to reply with a bare number. `hooks/lib/render.sh backlog` is the canonical renderer for this shape.
 - **`pre-commit-check.sh`** (PreToolUse, before `git commit`) — non-blocking nudge when code is staged without a primer refresh.
 - **`learnings-surface.sh`** (PreToolUse, before Bash/Write/Edit) — the retrieval hook: surfaces any LEARNINGS entry carrying a `Trigger: <tool> /<regex>/` line when the imminent action matches, so the lesson lands *before* the mistake instead of after.
 - **`prompt-intercept.sh`** (UserPromptSubmit) — intercepts a fixed table of read-only prompts (backlog/learnings natural language plus the fully plugin-scoped slash forms of `/session-continuity:backlog`, `/session-continuity:learnings`, `/session-continuity:help`, `/session-continuity:update`) and answers them directly via `hooks/lib/render.sh`, at zero model calls. It fails open on every ambiguity — no `jq` on PATH, empty or unparseable stdin, a missing/non-string `prompt` field, a normalized prompt that isn't an exact match against the fixed table (never substring/regex), or `render.sh` missing, exiting non-zero, or printing nothing — falling through to let the prompt reach the model untouched rather than risk silently erasing real user work.
@@ -52,7 +52,7 @@ say so instead of asserting it.
 | Observation | Where it goes |
 |---|---|
 | "The latest commit is X" | `.session-continuity/SESSION_PRIMER.md` → Current state |
-| "We should follow up on X" | `.session-continuity/BACKLOG.md` → new numbered entry |
+| "We should follow up on X" | GitHub Issue labeled `backlog` |
 | "How is this repo laid out" | `.session-continuity/PROJECT_CONTEXT.md` → Repo layout |
 | "What are our workflow conventions" | `.session-continuity/PROJECT_CONTEXT.md` → Workflow conventions |
 | "Bun replaces the CA trust store" | `.session-continuity/LEARNINGS.md` → new numbered entry |
@@ -80,7 +80,7 @@ Different projects have different shapes, but the core file pattern adapts well:
 
 If multiple people are working on the same project and should all benefit from this:
 
-1. All five files are **checked-in** artifacts, not gitignored. Commit them in the project repo under `.session-continuity/`.
+1. The four in-repo files are **checked-in** artifacts, not gitignored. Commit them in the project repo under `.session-continuity/`. The backlog is GitHub Issues labeled `backlog` on that repo.
 2. Copy [`templates/CLAUDE_MD_SNIPPET.md`](templates/CLAUDE_MD_SNIPPET.md) into the project's `CLAUDE.md` verbatim. It covers the read-first pointer, the primer-refresh-alongside-commits rule, the backlog-item verify-before-close rule, and the gate-chain-commit trap — the things a project otherwise has to rediscover and hand-write for itself (as architect-workbench did before this snippet existed).
 3. Document the maintenance rules in the primer itself (last section). Templates include this.
 4. Human teammates benefit too — LEARNINGS.md doubles as a living post-mortem log, and the primer is a great onboarding handoff.
@@ -99,12 +99,12 @@ If multiple people are working on the same project and should all benefit from t
 
 ## Philosophy
 
-The five files answer five different questions:
+The four files plus GitHub Issues answer five different questions:
 
 - Primer: "What is true about this project **right now**?"
-- BACKLOG: "What has been **explicitly deferred** (decisions, follow-ups, follow-ons) that we should not forget?"
+- GitHub Issues (`backlog`): "What has been **explicitly deferred** (decisions, follow-ups, follow-ons) that we should not forget?"
 - ROADMAP: "Where is this headed, independent of what's in the tactical queue?"
 - PROJECT_CONTEXT: "What is true about this project **generally**, and rarely changes?"
 - LEARNINGS: "What should I know to avoid rediscovering something painful?"
 
-Together they compress the cost of session handoff from "re-explain everything" to "read a couple of files." The primer stays short (a shortlist, not a snapshot); BACKLOG accumulates deferred work; ROADMAP holds direction independent of the tactical queue; PROJECT_CONTEXT and LEARNINGS both grow organically but at different rates — one when the project's shape changes, the other with every hard-won bug. All five outlive any single session.
+Together they compress the cost of session handoff from "re-explain everything" to "read a couple of files and list open issues." The primer stays short (a shortlist, not a snapshot); GitHub Issues hold deferred work; ROADMAP holds direction independent of the tactical queue; PROJECT_CONTEXT and LEARNINGS both grow organically but at different rates — one when the project's shape changes, the other with every hard-won bug.

@@ -4,8 +4,8 @@ You are picking up work on {{PROJECT_NAME}} from a previous session. This
 file is the shortest path to what changed recently. For stable repo
 context (layout, conventions, modules), read
 `.session-continuity/PROJECT_CONTEXT.md` once per session — it changes
-rarely. For the backlog of deferred decisions and follow-ups, read
-`.session-continuity/BACKLOG.md`; for strategic direction, read
+rarely. For the backlog of deferred decisions and follow-ups, list GitHub
+Issues labeled `backlog` (`/session-continuity:backlog`); for strategic direction, read
 `.session-continuity/ROADMAP.md`.
 
 ## First things first (read these before touching anything)
