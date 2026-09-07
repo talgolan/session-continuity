@@ -124,6 +124,68 @@ else
   bad "gitignore-ensured: marker file shows as untracked (breaks fast path)"
 fi
 
+# 11. mark: writes a duration_s:0.000 record under the given step.
+( cd "$work" && bash "$perflog" mark --source=command --name=markable --step=step-a-shown )
+line="$(tail -1 "$work/.session-continuity/performance.log" 2>/dev/null)"
+if print -r -- "$line" | python3 -c 'import sys, json; d=json.load(sys.stdin); assert d["name"]=="markable"; assert d["step"]=="step-a-shown"; assert d["duration_s"]==0.0' 2>/dev/null; then
+  ok "mark: writes a step-tagged zero-duration record"
+else
+  bad "mark: malformed line: $line"
+fi
+
+# 12. mark: missing --step is rejected, exit 0, no line written.
+before="$(wc -l < "$work/.session-continuity/performance.log")"
+( cd "$work" && bash "$perflog" mark --source=command --name=markable ) 2>/dev/null
+rc=$?
+after="$(wc -l < "$work/.session-continuity/performance.log")"
+if [[ "$rc" == "0" && "$before" == "$after" ]]; then
+  ok "mark: missing --step rejected, exit 0, no line appended"
+else
+  bad "mark: expected exit0+no-append, got rc=$rc before=$before after=$after"
+fi
+
+# 13. since: resolves the prior mark and records elapsed time under --emit-step.
+( cd "$work" && bash "$perflog" mark --source=command --name=sincetest --step=step-shown )
+sleep 1
+( cd "$work" && bash "$perflog" since --source=command --name=sincetest --mark-step=step-shown --emit-step=step-wait )
+line="$(tail -1 "$work/.session-continuity/performance.log" 2>/dev/null)"
+if print -r -- "$line" | python3 -c 'import sys, json; d=json.load(sys.stdin); assert d["name"]=="sincetest"; assert d["step"]=="step-wait"; assert d["duration_s"] >= 1.0' 2>/dev/null; then
+  ok "since: records elapsed duration under emit-step"
+else
+  bad "since: malformed/wrong line: $line"
+fi
+
+# 14. since: no matching mark found -> silent no-op, exit 0, no line written.
+before="$(wc -l < "$work/.session-continuity/performance.log")"
+( cd "$work" && bash "$perflog" since --source=command --name=sincetest --mark-step=step-never-marked --emit-step=step-wait ) 2>/dev/null
+rc=$?
+after="$(wc -l < "$work/.session-continuity/performance.log")"
+if [[ "$rc" == "0" && "$before" == "$after" ]]; then
+  ok "since: no matching mark -> exit 0, no line appended"
+else
+  bad "since: expected exit0+no-append, got rc=$rc before=$before after=$after"
+fi
+
+# 15. since --print-epoch: prints the mark's epoch, writes nothing to the log.
+( cd "$work" && bash "$perflog" mark --source=command --name=epochtest --step=step-shown )
+before="$(wc -l < "$work/.session-continuity/performance.log")"
+epoch_out="$(cd "$work" && bash "$perflog" since --print-epoch --name=epochtest --mark-step=step-shown)"
+after="$(wc -l < "$work/.session-continuity/performance.log")"
+if [[ "$epoch_out" =~ ^[0-9]+$ && "$before" == "$after" ]]; then
+  ok "since --print-epoch: prints a bare epoch, appends nothing"
+else
+  bad "since --print-epoch: expected numeric epoch + no-append, got epoch='$epoch_out' before=$before after=$after"
+fi
+
+# 16. since --print-epoch: no matching mark -> prints nothing, exit 0.
+out="$(cd "$work" && bash "$perflog" since --print-epoch --name=epochtest --mark-step=step-never-marked)"
+rc=$?
+if [[ "$rc" == "0" && -z "$out" ]]; then
+  ok "since --print-epoch: no matching mark -> prints nothing, exit 0"
+else
+  bad "since --print-epoch: expected empty+exit0, got out='$out' rc=$rc"
+fi
+
 print ""
 print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"
 (( fail == 0 ))
