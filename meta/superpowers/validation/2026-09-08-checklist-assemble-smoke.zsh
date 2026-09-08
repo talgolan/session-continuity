@@ -72,6 +72,13 @@ out="$(run "$fastpath")"
   && ok "fast-path backlog mode renders the standing-count line" \
   || bad "got:\n$out"
 
+# --- backlog: fast-path mode requires backlog_fastpath_count ----------------
+fastpath_null='{"staged":[],"unstaged":[],"untracked":[],"branch":"main","detached":false,"short_sha":"abc1234","upstream":"origin/main","ahead":0,"primer":"current","learnings":[],"backlog_mode":"fast-path","backlog_fastpath_count":null,"commit_subject":null}'
+out="$(run "$fastpath_null")"
+[[ "$out" == SC-FALLBACK:* ]] \
+  && ok "fast-path mode with null backlog_fastpath_count -> SC-FALLBACK" \
+  || bad "got:\n$out"
+
 # --- backlog: unavailable / not-migrated modes -------------------------------
 unavail='{"staged":[],"unstaged":[],"untracked":[],"branch":"main","detached":false,"short_sha":"abc1234","upstream":"origin/main","ahead":0,"primer":"current","learnings":[],"backlog_mode":"unavailable","backlog_fastpath_count":null,"commit_subject":null}'
 out="$(run "$unavail")"

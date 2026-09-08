@@ -45,6 +45,13 @@ case "$BACKLOG_MODE" in
   *) fallback "unrecognized backlog_mode '$BACKLOG_MODE'." ;;
 esac
 
+# --- fast-path mode requires backlog_fastpath_count (integer) ----------------
+if [[ "$BACKLOG_MODE" == "fast-path" ]]; then
+  if ! printf '%s' "$INPUT" | jq -e '.backlog_fastpath_count | type == "number"' >/dev/null 2>&1; then
+    fallback "checklist JSON missing required key 'backlog_fastpath_count' for backlog_mode fast-path."
+  fi
+fi
+
 BACKLOG_ITEMS_JSON='[]'
 if [[ "$BACKLOG_MODE" == "normal" && -n "$TSV_PATH" && -r "$TSV_PATH" ]]; then
   # jq's own JSON string encoding handles quotes, backslashes, and control
