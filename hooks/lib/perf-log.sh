@@ -54,7 +54,7 @@ write_record() {
     local GITIGNORE="$REPO_ROOT/.gitignore"
     touch "$GITIGNORE" 2>/dev/null
     local LINE
-    for LINE in ".session-continuity/performance.log" ".session-continuity/.gitignore-ensured"; do
+    for LINE in ".session-continuity/performance.log" ".session-continuity/.gitignore-ensured" ".session-continuity/.end-session-checklist.tsv"; do
       if ! grep -qxF "$LINE" "$GITIGNORE" 2>/dev/null; then
         printf '%s\n' "$LINE" >> "$GITIGNORE" 2>/dev/null
       fi

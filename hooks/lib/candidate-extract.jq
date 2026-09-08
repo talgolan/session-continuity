@@ -99,8 +99,8 @@ def title_words:
   | map(select(length > 0));
 
 def overlap($ta; $tb):
-  ($ta | title_words) as $wa
-  | ($tb | title_words) as $wb
+  ($ta | title_words | unique) as $wa
+  | ($tb | title_words | unique) as $wb
   | ($wa + $wb | unique) as $u
   | if ($u | length) == 0 then 0
     else (($wa - ($wa - $wb)) | length) / ($u | length)

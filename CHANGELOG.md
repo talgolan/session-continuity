@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.30.0] — 2026-09-08
+
+### Changed
+- **`end-session`'s Step 3 checklist is now scripted.** New `hooks/lib/checklist-assemble.sh` consumes the seven git-status outputs and a `tag/verdict/citation` backlog-verdict file, and prints all eight finished checklist rows, the backlog tallies, every ✓/⚠️ marker, the suggested-commit block, and the terminal sign-off line as one deterministic block. The model's job shrinks to deciding backlog verdicts (unchanged from before) and picking a commit-message theme when code is staged — everything else (file-list rendering, tallying, marker selection, sign-off wording) is no longer hand-formatted per invocation. Step 4 no longer prints anything; the sign-off line is now part of Step 3's script output.
+
 ## [0.29.1] — 2026-09-07
 
 ### Fixed

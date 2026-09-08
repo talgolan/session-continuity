@@ -40,10 +40,13 @@ _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 git status --porcelain
 git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md   # <last-primer-commit>
 git rev-parse HEAD
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/backlog-issues.sh" --count .   # <fast-path-backlog-count>, "?" on failure
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-fast-path --duration="$_PERF_DURATION"
 ```
+
+`<fast-path-backlog-count>` feeds Step 3's `backlog_fastpath_count`. If it printed `?` (GitHub unavailable), use `backlog_mode="unavailable"` in Step 3 instead of `"fast-path"` — same GitHub-unavailable handling as the non-fast-path skip condition below.
 
 If `git status --porcelain` is empty AND `<last-primer-commit>` equals
 `HEAD` (no commits have landed since the primer was last touched), skip the
@@ -157,6 +160,30 @@ auto-removed**.
 
 Removal of any item always requires explicit user confirmation. A verdict never
 mutates the primer on its own.
+
+**Record every verdict for Step 3.** Once every open item has a verdict
+(from the overlap gate, the batched classify/verify pass, or the
+non-code default), write them all in **one Bash call**. There is no
+in-shell list to loop over — the verdicts exist only in what you just
+decided — so write one literal `printf` line per item by hand (not a
+shell `for`/`while` loop):
+
+```bash
+mkdir -p .session-continuity
+: > .session-continuity/.end-session-checklist.tsv
+printf '%s\t%s\t%s\n' "#4" "appears-DONE" "found test/end_to_end.bats -> 0 hits before, now present" >> .session-continuity/.end-session-checklist.tsv
+printf '%s\t%s\t%s\n' "#3" "still-open" "no *.bats and no test/ dir -> item still open" >> .session-continuity/.end-session-checklist.tsv
+# ... one such literal printf line per remaining open item, tag first (the
+# #N identity, never the ephemeral 1..N list position), verdict second
+# (still-open|appears-DONE|manual), citation third (the same evidence string
+# already decided above — "not auto-verifiable" for non-code items, "no
+# related commits since last refresh — not re-checked this session" for
+# overlap-gated ones) ...
+```
+
+Skip this entirely when there were zero open items to classify (the file is
+absent; Step 3 treats a missing path under `backlog_mode="normal"` as zero
+tracked items — see `hooks/lib/checklist-assemble.sh`'s contract).
 
 ### Drift check (silent — no user prompt)
 
@@ -408,98 +435,98 @@ Do not loop one-prompt-per-candidate. The batch is the unit.
 
 ## Step 3 — Final checklist
 
-Run real git commands and emit a structured checklist. Every item must reflect actual repo state, not an assertion.
+One script call. Every row reflects actual repo state or a value you
+decided in Step 1/Step 2 and pass through — never format or re-derive a row
+by hand.
 
-### Gather the facts
+### Gather the facts and render
 
-Run all six in **one Bash call** (one round trip, not six), timed:
+Run in **one Bash call**, timed. First, copy the Step 1 scratch TSV to a
+location outside the repo and delete the in-repo copy — *before* any
+git-status command runs, so the git commands below never see it (its path
+can't be deleted-then-read, since `checklist-assemble.sh` needs to read it
+after the git commands run; copying it out first is what makes both true
+at once). Task 2's gitignore entry is the separate belt-and-suspenders case:
+a ritual that crashes *before* this block ever runs leaves the file
+in-repo, and only the gitignore entry (not this ordering) keeps it out of
+a later `git ls-files --others`. Then run the seven git commands, then
+build the JSON `checklist-assemble.sh` expects and pipe it through:
 
 ```bash
 _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
-git diff --cached --name-only          # staged files
-git diff --name-only                    # unstaged modifications
-git ls-files --others --exclude-standard   # untracked (ignoring .gitignore'd)
-git rev-parse --abbrev-ref HEAD         # current branch (or "HEAD" if detached)
-git rev-parse --abbrev-ref @{u} 2>/dev/null  # upstream branch, or empty if none
-git rev-list --count @{u}..HEAD 2>/dev/null  # unpushed commits, empty if no upstream
+TSV_INREPO=".session-continuity/.end-session-checklist.tsv"
+TSV=""
+if [[ -r "$TSV_INREPO" ]]; then
+  TSV="$(mktemp)"
+  cp "$TSV_INREPO" "$TSV"
+  rm -f "$TSV_INREPO"
+fi
+BACKLOG_MODE="normal"   # set to none|unavailable|not-migrated|fast-path per Step 1's skip conditions/fast path instead, when applicable
+BACKLOG_FASTPATH_COUNT="null"   # the fast path's <fast-path-backlog-count>, only when BACKLOG_MODE=fast-path
+
+STAGED_JSON="$(git diff --cached --name-only | jq -R -s 'split("\n") | map(select(length>0))')"
+UNSTAGED_JSON="$(git diff --name-only | jq -R -s 'split("\n") | map(select(length>0))')"
+UNTRACKED_JSON="$(git ls-files --others --exclude-standard | jq -R -s 'split("\n") | map(select(length>0))')"
+BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)"
+if [[ "$BRANCH" == "HEAD" ]]; then DETACHED=true; else DETACHED=false; fi
+SHORT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
+UPSTREAM="$(git rev-parse --abbrev-ref @{u} 2>/dev/null || true)"
+if [[ -z "$UPSTREAM" ]]; then UPSTREAM_JSON="null"; AHEAD_JSON="null"; else
+  UPSTREAM_JSON="$(printf '%s' "$UPSTREAM" | jq -R .)"
+  AHEAD="$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)"
+  AHEAD_JSON="$AHEAD"
+fi
+
+# PRIMER, LEARNINGS_JSON, COMMIT_SUBJECT_JSON: set these three from what
+# Step 1/Step 2 actually did this invocation — see the field notes below.
+PRIMER="current"            # "refreshed" | "closed" | "current"
+LEARNINGS_JSON="[]"         # e.g. '[{"number":7,"title":"..."}]' from Step 2's captures
+COMMIT_SUBJECT_JSON="null"  # a quoted JSON string, or "null", per the field note below
+
+JSON_TMP="$(mktemp)"
+jq -n \
+  --argjson staged "$STAGED_JSON" --argjson unstaged "$UNSTAGED_JSON" \
+  --argjson untracked "$UNTRACKED_JSON" --arg branch "$BRANCH" \
+  --argjson detached "$DETACHED" --arg short_sha "$SHORT_SHA" \
+  --argjson upstream "$UPSTREAM_JSON" --argjson ahead "$AHEAD_JSON" \
+  --arg primer "$PRIMER" --argjson learnings "$LEARNINGS_JSON" \
+  --arg backlog_mode "$BACKLOG_MODE" --argjson backlog_fastpath_count "$BACKLOG_FASTPATH_COUNT" \
+  --argjson commit_subject "$COMMIT_SUBJECT_JSON" \
+  '{staged:$staged, unstaged:$unstaged, untracked:$untracked, branch:$branch,
+    detached:$detached, short_sha:$short_sha, upstream:$upstream, ahead:$ahead,
+    primer:$primer, learnings:$learnings, backlog_mode:$backlog_mode,
+    backlog_fastpath_count:$backlog_fastpath_count, commit_subject:$commit_subject}' \
+  > "$JSON_TMP"
+
+source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/checklist-assemble.sh" 1; then
+  CHECKLIST="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/checklist-assemble.sh" "$TSV" < "$JSON_TMP")"
+else
+  CHECKLIST="⚠️ $SC_REQUIRE_SCRIPT_MSG"
+fi
+rm -f "$TSV" "$JSON_TMP"
+
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-3-gather-facts --duration="$_PERF_DURATION"
+echo "$CHECKLIST"
 ```
 
-- **Backlog verdicts** — reuse the per-item verdicts from Step 1's
-  verification sub-block; re-run
-  `bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/backlog-issues.sh" .`
-  to get the post-close issue set. No new git command — the evidence was already
-  gathered in Step 1.
+**Field notes — the values only you know, filled in before running the block above:**
 
-Handle these edge cases explicitly:
+- `BACKLOG_MODE` / `BACKLOG_FASTPATH_COUNT`: `"fast-path"` + the fast path's `<fast-path-backlog-count>` when Step 1's fast path fired; otherwise whichever of `none`/`unavailable`/`not-migrated`/`normal` Step 1's Backlog verification section landed on (its own skip conditions already tell you which).
+- `TSV`: leave as computed above (empty string unless the in-repo scratch file existed and was copied out before deletion) — never override it by hand.
+- `PRIMER`: `"refreshed"` if the refresh flow ran and staged the primer, `"closed"` if only the drift-clean close-candidate prompt ran and closed item(s), `"current"` if Step 1 was a no-op (fast path or drift-clean-zero-candidates).
+- `LEARNINGS_JSON`: the accepted drafts from Step 2's capture flow, as `[{"number":N,"title":"..."}]`; `[]` if Step 2 captured nothing.
+- `COMMIT_SUBJECT_JSON`: `"null"` (the bare word, unquoted) unless staged files exist AND at least one is outside `.session-continuity/` — in that case, a quoted JSON string with your conventional-commit subject (`<type>(<scope>): <subject>`, ≤72 chars), e.g. `'"fix(ci): extract CHANGELOG section with proper awk range"'`. Pick the theme from the most prominent captured learning's title, or the primary code-change theme — same judgment call as before this phase, just handed to the script instead of formatted by hand.
 
-- **Not a git repo.** If `git rev-parse` fails, the precondition in Step 0 should have caught this, but belt-and-suspenders: report "⚠️ not inside a git repo" once and skip git-dependent rows.
-- **Detached HEAD.** `git rev-parse --abbrev-ref HEAD` returns `HEAD`. Note "⚠️ detached HEAD at `<short-sha>`" in the unpushed-commits row.
-- **No upstream.** `git rev-parse --abbrev-ref @{u}` fails. Note "⚠️ branch `<name>` has no upstream — set one with `git push -u origin <name>`" in the unpushed-commits row.
+**Output.** If `$CHECKLIST` starts with `⚠️` (the `require_script` failure) or `SC-FALLBACK:` (the script's own malformed-input escape), print it as a single warning line and assemble the checklist by hand this one time, following the row table that existed before this phase (Primer refresh / New learnings / Backlog / Staged files / Unstaged modifications / Untracked files / Unpushed commits / Suggested commit, each ✓/⚠️/→, backlog citing evidence for `appears-DONE` only) — then still emit the terminal sign-off line yourself: `✅ Session complete. Safe to close.` if every row you assembled was ✓, or `✅ Session complete. Safe to close. (Warnings above are advisory — review before closing if relevant.)` if any row carries ⚠️. Otherwise, relay the block's printed checklist unchanged — it already ends with the terminal sign-off line; do not print anything after it except whatever Step 4's timing calls require.
 
-### Emit the checklist
+## Step 4 — Ritual timing (always)
 
-**List every file enumerated by the git commands — do not summarize, filter, or pick a "primary" one.** If `git diff --cached --name-only` returns three files, the "Staged files" row lists all three. Same rule for the Unstaged and Untracked rows. The suggested-commit message may emphasize one theme, but the checklist rows are inventories, not summaries.
-
-Output using this structure. Use ✓ (green), ⚠️ (yellow), or → (suggestion):
-
-| Row | Marker | Content |
-|---|---|---|
-| Primer refresh | ✓ | "Primer refreshed and staged" OR "Primer updated (outstanding item(s) closed)" OR "Primer already current (no-op)" |
-| New learnings | ✓ | "N LEARNINGS entry/entries captured (#X, \"<title>\" …)" OR "No new learnings" |
-| Backlog | checkmark if none stale, else warning | "N tracked — <k> appears-DONE (#N, evidence), <m> still-open (#N…), <j> manual (#N…)" OR "none tracked" |
-| Staged files | ✓ | "Staged: <file1>, <file2>, …" OR "Nothing staged" |
-| Unstaged modifications | ✓ if none, else ⚠️ | "No unstaged modifications" OR "⚠️ Unstaged: <file1>, <file2>, …" |
-| Untracked files | ✓ if none, else ⚠️ | "No untracked files" OR "⚠️ N untracked: <file1>, <file2>, … — ignore, add, or delete?" |
-| Unpushed commits | ✓ / ⚠️ | "Up to date with origin/<branch>" OR "⚠️ Branch <name> is N commits ahead of origin — push before closing?" OR the detached-HEAD / no-upstream variants |
-| Suggested commit | → | Derived from staged files + captured learnings. Omit row entirely if nothing is staged. |
-
-**Backlog row — re-derive, do not cache.** Step 3 re-runs the helper AFTER any Step 1 closures the
-user confirmed. The *set* of issues and the counts are recomputed against the
-post-close GitHub list; only the per-item
-verdicts (`still-open` / `appears-DONE` / `manual`) computed in Step 1 are
-reused. If the user closed an issue at the Step 1 prompt, it is gone from the
-list and absent from this row. Marker: ✓ if
-every remaining item is `still-open` or `manual` (nothing stale lingering);
-⚠️ if any remaining item is `appears-DONE` (a resolved item still listed).
-Cite the evidence for each `appears-DONE` item inline. A `manual` item's
-citation is either `"not auto-verifiable"` (genuinely non-code) or `"no
-related commits since last refresh — not re-checked this session"` (skipped
-by the overlap gate) — keep whichever citation Step 1 assigned, don't
-collapse them to one phrase. When the fast path fired, skip re-deriving this
-row altogether and use its own citation as specified there.
-
-### Suggested commit message
-
-If files are staged, derive a commit message from the pattern:
-
-- Only `.session-continuity/` staged → `docs: update session continuity`.
-- `.session-continuity/LEARNINGS.md` is staged with code → pick the most prominent captured learning's title (or the primary code-change theme) and use conventional-commit style: `<type>(<scope>): <subject>`. Keep subject line ≤ 72 chars.
-- Only code staged (no docs) → should not happen if Step 1 ran; if it does, suggest based on the file paths.
-
-Prefix with `→ Suggested:` and wrap in a fenced code block so the user can copy-paste.
-
-### Example output
-
-```
-✓ Primer refreshed and staged
-✓ 1 LEARNINGS entry captured (#7, "awk range collapse on single-version CHANGELOG")
-⚠️ Backlog: 5 tracked — 1 appears-DONE (4 [c7d1], "add bats test harness": found test/end_to_end.bats → 0 hits before, now present), 1 still-open (3 [b092]), 3 manual (1 [a3f9], 2 [7f3e], 5 [e8a4])
-✓ Staged: .session-continuity/SESSION_PRIMER.md, .session-continuity/LEARNINGS.md, .github/workflows/release.yml
-✓ No unstaged modifications
-⚠️ 2 untracked files: scratch.md, tmp/debug.log — ignore, add, or delete?
-⚠️ Branch "main" is 3 commits ahead of origin — push before closing?
-→ Suggested:
-    git commit -m "fix(ci): extract CHANGELOG section with proper awk range"
-```
-
-*(Illustrative only — the real Backlog row reflects the current primer's actual item set and verdicts.)*
-
-## Step 4 — Terminal sign-off (always)
-
-After the checklist (and suggested-commit block, if any), emit a final closing line so the user knows the ritual completed and they are not blocked waiting for further prompts.
+Step 3's `$CHECKLIST` already ended with the terminal sign-off line — this
+step prints nothing of its own. It only logs how long the ritual took, so
+the log carries one real end-to-end number per invocation.
 
 **Before that line, record total ritual time.** Each step above only timed
 its own Bash block, not the gaps between them — this reads back this
@@ -552,21 +579,7 @@ block is skipped entirely — no `step-4-agent-active` line is logged for
 this invocation, same "skip rather than log a wrong number" rule that
 already governs the rest of this design.
 
-**Always emit one of these two lines, exactly:**
-
-- If every checklist row was ✓ (no ⚠️ anywhere):
-
-  ```
-  ✅ Session complete. Safe to close.
-  ```
-
-- If any checklist row had ⚠️:
-
-  ```
-  ✅ Session complete. Safe to close. (Warnings above are advisory — review before closing if relevant.)
-  ```
-
-**Required.** Print this line on its own, after the checklist and any suggested-commit block. Never omit it. Never replace it with paraphrased prose. Never ask follow-up questions after this line — the line marks the end of the ritual. If the user wants to act on a warning, they will reply on their own.
+**Never ask follow-up questions after Step 3's sign-off line printed.** It marks the end of the ritual. If the user wants to act on a warning, they will reply on their own.
 
 ## Notes
 
