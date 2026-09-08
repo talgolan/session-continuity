@@ -85,34 +85,50 @@ All facts (`PRIMER_EXISTS` through `CODE_STAGED`) are always computed and
 emitted regardless of which branch below fires — no fact is conditionally
 skipped, so the full `KEY=value` contract holds even for `STEPS=init`.
 
-1. `PRIMER_EXISTS=0` → `STEPS=init`. No other trigger can fire (nothing
-   to migrate or refresh yet).
-2. Else, build the migration-trigger list in this fixed order:
-   - `PROJECT_CONTEXT_EXISTS=0` → append `split`.
-   - `PRIMER_HAS_INLINE_OUTSTANDING=1 AND OUTSTANDING_ITEMS_EXISTS=0` →
-     append `outstanding_split` (runs after `split` if both fired, since
-     3b needs the now-split primer).
-   - `OUTSTANDING_ITEMS_EXISTS=1 AND BACKLOG_EXISTS=0` → append
-     `backlog_rename` (runs after `outstanding_split` if both fired,
-     since 3b may have just created the file under its old name).
-   - `(BACKLOG_EXISTS=1 OR (OUTSTANDING_ITEMS_EXISTS=1 AND
-     BACKLOG_EXISTS=0)) AND GITHUB_ORIGIN=1` → append `backlog_to_issues`
-     (runs after `backlog_rename` if both fired). The disjunction matters
-     because `STEPS` is computed once from a single fact snapshot — no
-     step has actually run yet when the decision is made, so "true now"
-     (`BACKLOG_EXISTS=1`) and "about to become true once `backlog_rename`
-     runs" (`OUTSTANDING_ITEMS_EXISTS=1 AND BACKLOG_EXISTS=0`, `
-     backlog_rename` already queued) both have to qualify. A condition of
-     `BACKLOG_EXISTS=1` alone would silently drop `backlog_to_issues`
-     whenever it's chained after `backlog_rename` in the same run.
-   - Non-github origin never appends `backlog_to_issues`, in either case
-     above — the fossil-file behavior stays: leave `BACKLOG.md` in place,
-     `doctor` warns separately.
-3. After the trigger list, decide the primary mode from the facts as
-   read (migrations haven't executed yet at decision time; splitting and
-   renaming don't touch the git-log block or the staged-file set, so this
-   is safe): `LOG_DRIFT=1 OR CODE_STAGED=1` → append `refresh`. Otherwise
-   nothing more is appended (check mode).
+`PRIMER_EXISTS=0` → `STEPS=init`, unconditionally — nothing else to
+migrate or refresh yet. Otherwise, evaluate migration triggers in
+dependency order, **threading each trigger's effect forward** into the
+fact the next trigger reads — not by re-deriving increasingly complex
+disjunctions per trigger, which doesn't compose past one link (see the
+"Why threading, not disjunctions" note below):
+
+```
+DO_SPLIT      = (PROJECT_CONTEXT_EXISTS == 0)
+DO_OSPLIT     = (PRIMER_HAS_INLINE_OUTSTANDING == 1) AND (OUTSTANDING_ITEMS_EXISTS == 0)
+PROJ_OI       = DO_OSPLIT ? 1 : OUTSTANDING_ITEMS_EXISTS
+DO_BRENAME    = (PROJ_OI == 1) AND (BACKLOG_EXISTS == 0)
+PROJ_BL       = DO_BRENAME ? 1 : BACKLOG_EXISTS
+DO_B2I        = (PROJ_BL == 1) AND (GITHUB_ORIGIN == 1)
+DO_REFRESH    = (LOG_DRIFT == 1) OR (CODE_STAGED == 1)
+
+STEPS = [split if DO_SPLIT] + [outstanding_split if DO_OSPLIT]
+      + [backlog_rename if DO_BRENAME] + [backlog_to_issues if DO_B2I]
+      + [refresh if DO_REFRESH]
+```
+
+`DO_REFRESH` reads the *raw* `LOG_DRIFT`/`CODE_STAGED` facts, not
+projected ones — splitting and renaming don't touch the git-log block or
+the staged-file set, so no threading is needed on this last link.
+
+**Why threading, not disjunctions.** An earlier draft of this spec wrote
+`backlog_to_issues`'s condition as `BACKLOG_EXISTS=1 OR (OUTSTANDING_ITEMS_EXISTS=1
+AND BACKLOG_EXISTS=0)` — true now, or about to become true because
+`backlog_rename` is queued. That was a real bug fix (caught by
+caveman-review) but an incomplete one: `backlog_rename`'s *own* condition
+(`OUTSTANDING_ITEMS_EXISTS=1 AND BACKLOG_EXISTS=0`) has the identical
+problem one link further up the chain — `outstanding_split`, if also
+queued, is what's about to make `OUTSTANDING_ITEMS_EXISTS` true, so a
+bare `OUTSTANDING_ITEMS_EXISTS=1` snapshot check silently drops
+`backlog_rename` whenever it's chained after `outstanding_split`.
+Writing out the "OR about to become true" disjunction a second time
+would have worked but doesn't generalize — a fifth chained trigger would
+need a three-way disjunction, a sixth a four-way one. Threading a single
+projected fact (`PROJ_OI`, `PROJ_BL`) forward through the pipeline scales
+to any chain length and is easy to verify by construction: each trigger's
+condition reads exactly the fact-state that will actually exist at its
+own execution time, given everything queued before it. Verified against
+all eleven fixtures below directly in `jq` before this spec was
+finalized — see the Testing section.
 
 ## Error handling
 
