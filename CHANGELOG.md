@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.31.0] — 2026-09-08
+
+### Changed
+- **`end-session`'s commit-subject/backlog-title overlap gate is now scripted.** New `hooks/lib/token-overlap.sh` / `token-overlap.jq` replace two hand-computed prose copies of the same tokenize-and-threshold algorithm (the "Overlap gate" in Backlog verification and the refresh flow's "backlog overlay"), computed once per `end-session` run and reused by both. The hardcoded stopword list moved out of prose into the `.jq` filter. This is unrelated to `candidate-extract.jq`'s `overlap()` (a Jaccard-ratio function used for LEARNINGS-candidate dedup, already fixed and closed as issue #40 in the prior session) — the two "overlap" concepts were previously conflated in Phase 5's original scoping.
+
 ## [0.30.0] — 2026-09-08
 
 ### Changed
