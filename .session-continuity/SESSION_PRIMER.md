@@ -20,6 +20,24 @@ rarely.
 
 ## Current state
 
+- **Backlog #38 (docguard generalization) — this repo's side merged, the
+  actual mechanism not yet activated.** PR
+  https://github.com/talgolan/session-continuity/pull/49 (merged
+  2026-09-08) updates this repo's design doc
+  (`meta/superpowers/recommendations/docguard-design-sketch.md`) to record
+  the mechanism as built. The actual code — a hand-rolled `.docguard.yml`
+  parser and `~/.githooks/post-merge` wiring — lives on branch
+  `docguard-generalization` in `~/.githooks`, a *separate* git repo
+  (discovered mid-session: `~/.githooks` is not its own repo, it's a
+  subdirectory of a personal dotfiles repo rooted at `$HOME` with a
+  blanket exclude + per-file force-add; `post-merge` had never been
+  tracked there before this work). That branch is intentionally kept
+  unmerged: merging would make git try to check out a newly-tracked
+  `post-merge` over the path where the live, still-untracked hook sits,
+  which needs a deliberate reconciliation step first. Issue #38 stays open
+  until that lands. Plan:
+  `meta/superpowers/plans/2026-09-08-docguard-generalization.md` (this
+  repo, untracked by design — a working record, not shipped content).
 - **v0.29.0 released** — GitHub Issues labeled `backlog` replace `.session-continuity/BACKLOG.md`. Merged to `main` via PR #47 (`999e1f2`), tag `v0.29.0`, release https://github.com/talgolan/session-continuity/releases/tag/v0.29.0. Identity is `#N`; LEARNINGS stays a local file. This repo's live items are issues #35–#45.
 - **v0.27.1 — gate-escape self-condemnation hazard fixed, merged to `main`
   via PR #33 (`dd84ee7`) and released (tag `v0.27.1`, bumped in `c00cf17`).**
@@ -621,10 +639,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-999e1f2 Merge pull request #47 from talgolan/feat/github-issues-backlog
-dc9c788 feat: replace BACKLOG.md with GitHub Issues labeled backlog (v0.29.0)
-f79eb10 chore: bump to 0.28.0 — shared mechanics library (perf-log mark/since, primer-status.sh)
-6b70556 Merge pull request #34 from talgolan/feat/shared-mechanics-library
+c9ecacc Merge pull request #49 from talgolan/worktree-docguard-generalization
+d36d472 docs: don't claim GitHub issue #38 is closed until it actually is
+8b11c46 docs: mark docguard generalization implemented, correct hard-block assumption
+db8ec26 Merge pull request #48 from talgolan/fix/ghe-backlog-origin-check
+16f8d06 fix: recognize GitHub Enterprise Server origins for the backlog queue
 ff6b8c8 test: bump stale count-entries-smoke pins to real BACKLOG/LEARNINGS counts (16/18)
 ```
 

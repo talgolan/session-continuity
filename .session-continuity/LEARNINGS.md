@@ -16,6 +16,7 @@ within each group.
   each time it appends a new entry.
 -->
 
+- A subagent reported commit `9b2f504` in repo A; `git rev-parse --verify` in… — #18
 - After GitHub squash-merged PR #20, `git merge --ff-only — #15
 - Clean-machine acceptance test for v0.4.0. `/session-continuity:primer` ran init mode cleanly, asked for… — #4
 - Denied again, on the same file, despite the escape hatch already being… — #13
@@ -27,6 +28,7 @@ within each group.
 - Real invocation of `/session-continuity:primer` after installing the change failed every one of… — #11
 - The Bash call is refused outright: "This session is isolated in the… — #8
 - The first v0.2.0 release fired the workflow, created the GitHub Release, but… — #2
+- The same "too complex to verify that it stays inside the worktree"… — #17
 - The self-gate check returned rc=0 (allowed) — but via the escape hatch… — #7
 - The `/session-continuity:end-session` smoke test had two staged files (primer + `src/foo.js`). The… — #3
 - The smoke test written for exactly this case (`Smoke: N/A deferred, this… — #16
@@ -36,6 +38,28 @@ within each group.
 ---
 
 ## Claude Code plugin mechanics
+
+### 17. Worktree-isolation guard blocks any "too complex" command, not just `git -C` or compound git chains
+Slug: worktree-guard-blocks-non-git-commands
+Trigger: Bash /<\(|<<['"]?[A-Za-z]/
+Occurrence count: 3 of 3
+Invariant: Inside a worktree-isolated session, every Bash call is one
+plain single-statement command targeting the current directory — no
+`&&`/`;`/multi-line chains, no `<(...)` process substitution, no
+heredocs, and no `git -C` — regardless of whether git is involved at
+all. When multiple statements are genuinely needed in sequence, write
+them to a script file (`Write` + `bash /tmp/script.sh`) instead of
+one compound Bash call.
+
+**The trap.** [[worktree-compound-commands-blocked]] already covers `git -C` and `&&`/`;` chains. It's easy to assume the guard is git-specific and keep using `diff <(...) <(...)`, multi-line heredocs, or a `source`+function-call block for pure-bash work with zero git involvement.
+
+**Symptom.** The same "too complex to verify that it stays inside the worktree" refusal fires on plain `diff`/`sed`/`source` commands using process substitution or heredocs — no `git` anywhere in the command. Recurred 8 times over 36 minutes in one session.
+
+**Fix.** Split into plain single-statement commands (one command per Bash call, no `<(...)`, no heredoc, no `&&`/`;`), or when the logic genuinely needs several statements in sequence, write it to a script file with `Write` and run `bash /tmp/script.sh` as a single plain command.
+
+**Diagnostic signal** *(optional)*. Bash error text containing "too complex to verify that it stays inside the worktree" on a command with no `git` in it at all.
+
+---
 
 ### 11. `$CLAUDE_PLUGIN_ROOT` inside a bash fence in a skill/command file is never resolved — only the braced `${CLAUDE_PLUGIN_ROOT}` form is
 Slug: plugin-root-brace-required
@@ -317,6 +341,20 @@ parsed structure, never on a substring of serialized output.
 ---
 
 ## Git / release mechanics
+
+### 18. A subagent's "DONE, commit `<hash>`" can be a real commit — in the wrong repo
+Slug: verify-subagent-commit-independently
+Trigger: *
+
+**The trap.** When orchestrating subagents across two related git repos/worktrees in one session, it's tempting to trust a resumed subagent's self-report of a commit hash once it "looks real" (right format, plausible message) — especially after a first check already caught it lying once, making a second check feel redundant.
+
+**Symptom.** A subagent reported commit `9b2f504` in repo A; `git rev-parse --verify` in repo A correctly said it didn't exist, so the report was flagged as fabricated. Two tasks later, the *exact same hash* turned up as the real, current `HEAD` of a completely different repo (repo B) — the subagent's `git commit` had actually succeeded, just against the wrong repo, most likely due to a cwd reset across a resumed-agent tool call. The "fabricated" commit was real; it just wasn't where anyone was looking.
+
+**Fix.** Independently verify every subagent-claimed commit with `git rev-parse --show-toplevel` (confirm the repo) plus `git rev-parse --verify <hash>` and `git log --oneline`/`git status --porcelain` (confirm the commit and a clean tree) — in every worktree that could plausibly have received it, not just the one it was supposed to go to. A "not found here" result answers only "not here," never "doesn't exist."
+
+**Diagnostic signal** *(optional)*. A claimed hash that fails `git rev-parse --verify` in the expected repo — before concluding "fabricated," check whether it exists as real `HEAD` in any other repo/worktree this session touched.
+
+---
 
 ### 15. Squash-merging a branch descended from an unpushed local commit orphans that commit — and any tag pointing at it
 Trigger: Bash /gh pr merge.*--squash/
