@@ -40,10 +40,13 @@ _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 git status --porcelain
 git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md   # <last-primer-commit>
 git rev-parse HEAD
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/backlog-issues.sh" --count .   # <fast-path-backlog-count>, "?" on failure
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-fast-path --duration="$_PERF_DURATION"
 ```
+
+`<fast-path-backlog-count>` feeds Step 3's `backlog_fastpath_count`. If it printed `?` (GitHub unavailable), use `backlog_mode="unavailable"` in Step 3 instead of `"fast-path"` — same GitHub-unavailable handling as the non-fast-path skip condition below.
 
 If `git status --porcelain` is empty AND `<last-primer-commit>` equals
 `HEAD` (no commits have landed since the primer was last touched), skip the
@@ -157,6 +160,30 @@ auto-removed**.
 
 Removal of any item always requires explicit user confirmation. A verdict never
 mutates the primer on its own.
+
+**Record every verdict for Step 3.** Once every open item has a verdict
+(from the overlap gate, the batched classify/verify pass, or the
+non-code default), write them all in **one Bash call**. There is no
+in-shell list to loop over — the verdicts exist only in what you just
+decided — so write one literal `printf` line per item by hand (not a
+shell `for`/`while` loop):
+
+```bash
+mkdir -p .session-continuity
+: > .session-continuity/.end-session-checklist.tsv
+printf '%s\t%s\t%s\n' "#4" "appears-DONE" "found test/end_to_end.bats -> 0 hits before, now present" >> .session-continuity/.end-session-checklist.tsv
+printf '%s\t%s\t%s\n' "#3" "still-open" "no *.bats and no test/ dir -> item still open" >> .session-continuity/.end-session-checklist.tsv
+# ... one such literal printf line per remaining open item, tag first (the
+# #N identity, never the ephemeral 1..N list position), verdict second
+# (still-open|appears-DONE|manual), citation third (the same evidence string
+# already decided above — "not auto-verifiable" for non-code items, "no
+# related commits since last refresh — not re-checked this session" for
+# overlap-gated ones) ...
+```
+
+Skip this entirely when there were zero open items to classify (the file is
+absent; Step 3 treats a missing path under `backlog_mode="normal"` as zero
+tracked items — see `hooks/lib/checklist-assemble.sh`'s contract).
 
 ### Drift check (silent — no user prompt)
 
