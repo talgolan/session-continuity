@@ -48,4 +48,5 @@ sits).
 - Escape hatch unchanged: `DOCGUARD_SKIP_COUNT=1` skips the check, config-
   driven or legacy.
 - Plan: `meta/superpowers/plans/2026-09-08-docguard-generalization.md`.
-- Closes GitHub issue #38.
+- Implements GitHub issue #38 (closing it is a separate follow-up step, not
+  yet done as of this commit).
