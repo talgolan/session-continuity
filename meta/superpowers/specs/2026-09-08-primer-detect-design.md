@@ -81,6 +81,10 @@ current and no migration triggers fired.
 
 **State machine** (ports the existing prose exactly, no behavior change):
 
+All facts (`PRIMER_EXISTS` through `CODE_STAGED`) are always computed and
+emitted regardless of which branch below fires — no fact is conditionally
+skipped, so the full `KEY=value` contract holds even for `STEPS=init`.
+
 1. `PRIMER_EXISTS=0` → `STEPS=init`. No other trigger can fire (nothing
    to migrate or refresh yet).
 2. Else, build the migration-trigger list in this fixed order:
@@ -91,17 +95,24 @@ current and no migration triggers fired.
    - `OUTSTANDING_ITEMS_EXISTS=1 AND BACKLOG_EXISTS=0` → append
      `backlog_rename` (runs after `outstanding_split` if both fired,
      since 3b may have just created the file under its old name).
-   - `BACKLOG_EXISTS=1 AND GITHUB_ORIGIN=1` → append `backlog_to_issues`
-     (runs after `backlog_rename` if both fired). `BACKLOG_EXISTS` here
-     reflects the *post-rename* state — if `backlog_rename` is also
-     queued, `backlog_to_issues` still qualifies, matching today's prose
-     ("including after Step 3c").
-   - Non-github origin with `BACKLOG_EXISTS=1` never appends
-     `backlog_to_issues` — the fossil-file behavior stays: leave
-     `BACKLOG.md` in place, `doctor` warns separately.
-3. After the trigger list, decide the primary mode against the
-   (post-trigger) primer: `LOG_DRIFT=1 OR CODE_STAGED=1` → append
-   `refresh`. Otherwise nothing more is appended (check mode).
+   - `(BACKLOG_EXISTS=1 OR (OUTSTANDING_ITEMS_EXISTS=1 AND
+     BACKLOG_EXISTS=0)) AND GITHUB_ORIGIN=1` → append `backlog_to_issues`
+     (runs after `backlog_rename` if both fired). The disjunction matters
+     because `STEPS` is computed once from a single fact snapshot — no
+     step has actually run yet when the decision is made, so "true now"
+     (`BACKLOG_EXISTS=1`) and "about to become true once `backlog_rename`
+     runs" (`OUTSTANDING_ITEMS_EXISTS=1 AND BACKLOG_EXISTS=0`, `
+     backlog_rename` already queued) both have to qualify. A condition of
+     `BACKLOG_EXISTS=1` alone would silently drop `backlog_to_issues`
+     whenever it's chained after `backlog_rename` in the same run.
+   - Non-github origin never appends `backlog_to_issues`, in either case
+     above — the fossil-file behavior stays: leave `BACKLOG.md` in place,
+     `doctor` warns separately.
+3. After the trigger list, decide the primary mode from the facts as
+   read (migrations haven't executed yet at decision time; splitting and
+   renaming don't touch the git-log block or the staged-file set, so this
+   is safe): `LOG_DRIFT=1 OR CODE_STAGED=1` → append `refresh`. Otherwise
+   nothing more is appended (check mode).
 
 ## Error handling
 
