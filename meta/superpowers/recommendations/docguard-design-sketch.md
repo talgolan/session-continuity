@@ -20,18 +20,33 @@ claim in a repo's shipped docs must match the actual repo state at commit
 time — enforced at the gate that runs on every commit, not left to
 whoever's authoring the next PR to remember.
 
-## Design sketch (not built — lives outside any git repo)
+## Implemented (2026-09-08)
 
-Generalize the existing `"NN pass"` special case into a declarative
-per-repo config (e.g. `.docguard.yml`): a list of `{doc: <glob>,
-claim_pattern: <regex w/ capture>, actual_command: <shell>}` entries. On
-each staged doc file matching an entry, extract the claimed value, run
-the command, hard-block on mismatch — reusing the same code path and
-escape-hatch pattern (`DOCGUARD_SKIP_COUNT=1`, generalized) the pass-count
-check already has, rather than inventing a second mechanism.
+Built in `~/.githooks` — machine-wide scope, per the "own session, explicit
+go-ahead" note below, obtained 2026-09-08. Note: `~/.githooks` turned out
+NOT to be its own git repo during implementation — it's a subdirectory of a
+personal dotfiles repo rooted at the user's home directory (blanket
+`.git/info/exclude` plus per-file `git add -f`). `post-merge` itself had
+never been tracked by git before this work force-added it for the first
+time. This doesn't change what shipped, but it does mean the branch this
+work landed on can't simply be merged to that repo's `main` without an
+explicit reconciliation step (git will try to check out a newly-tracked
+`post-merge` over the path where the real live hook — untracked — already
+sits).
 
-## Why not build it now
-
-Touches `~/.githooks` and `~/.claude/hooks`, not this repo — changes
-behavior for every git commit on the machine, not just this project.
-Bigger blast radius, deserves its own session and explicit go-ahead.
+- `~/.githooks/lib/docguard-yaml.sh` — hand-rolled parser (no `yq`
+  dependency) for a fixed, flat `.docguard.yml` schema: a list of
+  `{doc, claim_pattern, actual_command}` triples.
+- `~/.githooks/post-merge` — if a repo's root has a `.docguard.yml`, its
+  entries fully replace the old hard-coded primer-pass-count check; repos
+  without one see no behavior change.
+- Correction to this sketch's original assumption: the check is
+  **advisory-only, not a hard block**. Enforcement already lives in
+  `post-merge` (moved there from `pre-commit` because PRs merge
+  server-side), and git ignores a post-merge hook's exit code — it cannot
+  block or undo a merge that already landed.
+- Escape hatch unchanged: `DOCGUARD_SKIP_COUNT=1` skips the check, config-
+  driven or legacy.
+- Plan: `meta/superpowers/plans/2026-09-08-docguard-generalization.md`.
+- Implements GitHub issue #38 (closing it is a separate follow-up step, not
+  yet done as of this commit).
