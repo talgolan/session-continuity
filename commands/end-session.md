@@ -72,13 +72,19 @@ overlap gate below and the Refresh flow's overlay further down — compute it
 here, don't recompute it there.
 
 **Data source.** Run
-`bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/backlog-issues.sh" .`
+
+```bash
+mkdir -p .session-continuity
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/backlog-issues.sh" . > .session-continuity/.end-session-issues.txt
+cat .session-continuity/.end-session-issues.txt
+```
+
 and identify each item by `#N`. Do not read `.session-continuity/BACKLOG.md`.
 
 **Skip conditions.**
-- If the helper prints `No open backlog issues.`: skip verification.
+- If the file's content is `No open backlog issues.`: skip verification.
   Step 3's row reads `Backlog: none tracked`.
-- If the helper prints the GitHub-unavailable warning: skip verification.
+- If the file's content is the GitHub-unavailable warning: skip verification.
   Step 3's row reads `Backlog: GitHub queue unavailable — run /session-continuity:doctor`.
 - If the primer still has an inline `## Outstanding items` heading or
   `.session-continuity/OUTSTANDING_ITEMS.md` exists: tell the user once
@@ -86,22 +92,42 @@ and identify each item by `#N`. Do not read `.session-continuity/BACKLOG.md`.
   `/session-continuity:end-session`. Step 3's row reads
   `Backlog: not migrated — run /session-continuity:primer`.
 
-**For each open issue** (`N. #NUMBER Title` from the helper). Identify
+**For each open issue** (`N. #NUMBER Title` from the file). Identify
 the item by `#NUMBER`, never by the ephemeral 1..N list position.
 
-**Overlap gate (cost control) — run this before classifying.** Tokenize the
-issue title (same rule as the overlay below: lowercase, split on non-alphanumeric,
-drop tokens <3 chars, drop the overlay's stopword list) and compare against
-each commit subject in the list computed above, tokenized the same way. If
-the intersection with EVERY commit subject has cardinality <3 — nothing that
-landed since the last refresh implicates this item — skip the
-classify/verify steps below for this item. Assign verdict **`manual`**, cited
-as `"no related commits since last refresh — not re-checked this session"`.
-This is the deliberate accuracy tradeoff of the gate: an item resolved
-through means that leave no matching commit subject (a manual/external fix)
-won't be caught until a touching commit lands or the user mentions it
-directly. Items with cardinality ≥3 against at least one commit subject
-proceed to full classify/verify below.
+**Token overlap (cost control) — compute once, reuse here and in the refresh
+flow further down.** Write the commit list (from "Compute the commit list
+once" above) to a file, then run the shared gate script once against the
+issues file already written above:
+
+```bash
+git log <last-primer-commit>..HEAD --oneline > .session-continuity/.end-session-commits.txt
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/token-overlap.sh" \
+  .session-continuity/.end-session-issues.txt \
+  .session-continuity/.end-session-commits.txt \
+  > .session-continuity/.end-session-overlap.tsv
+```
+
+The result is a TSV of every `#N<TAB>commit subject` pair whose tokenized
+titles share ≥3 tokens (short tokens and stopwords dropped first) — the
+single source of truth for this section's skip decision and the refresh
+flow's backlog overlay. **Read every row — do not summarize, filter, or
+sample the output; a missing row for a real match is a silent skip.** Empty
+output is a normal outcome (zero matches), not a failure signal. If the
+script itself fails (nonzero exit), treat its output as empty and continue
+— every item then proceeds to full classify/verify below instead of being
+gated, which is the conservative direction.
+
+**Overlap gate.** For each item, check whether `#N` appears anywhere in
+`.session-continuity/.end-session-overlap.tsv`. If it does not — no commit since the last
+refresh reached the ≥3-token-overlap threshold for this item — skip the
+classify/verify steps below for this item. Assign verdict **`manual`**,
+cited as `"no related commits since last refresh — not re-checked this
+session"`. This is the deliberate accuracy tradeoff of the gate: an item
+resolved through means that leave no matching commit subject (a
+manual/external fix) won't be caught until a touching commit lands or the
+user mentions it directly. If `#N` appears against at least one commit
+subject, proceed to full classify/verify below.
 
 1. **Classify — code-verifiable or not.** An item is code-verifiable if a
    `grep`/`glob`/file-exists check *could* speak to it (it names a file, a
@@ -255,36 +281,30 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 2. If the primer has a test-counts section and the counts changed (after the 3× retry), update them to match current output.
 3. **Surface commits since the last primer refresh, with backlog overlay.** Reuse the commit list already computed in the Backlog verification section above (`git log <last-primer-commit>..HEAD --oneline`) — do not recompute it. Present the subject list as candidate prompts.
 
-   Then compute a **backlog overlay** for each subject:
-
-   - Tokenize the subject: lowercase, split on non-alphanumeric, drop tokens of length <3, drop the stopword list below.
-   - For each open backlog issue from the helper: tokenize the title the same way.
-   - Match if the intersection of subject tokens and item tokens has cardinality ≥ 3.
-
-   **Stopwords** (extend per project as needed):
-
-   ```
-   the and for fix add update from with into feat chore docs primer learnings session continuity tag version release
-   ```
+   Then look up the **backlog overlay** for each subject: filter
+   `.session-continuity/.end-session-overlap.tsv` (computed once in the
+   Backlog verification section above — do not recompute) for rows whose
+   commit-subject column equals this subject. The `#N` values on those rows
+   are the matching issues. **List every matching row for the subject — do
+   not summarize or pick one.**
 
    **Presentation.** Render the "May close outstanding items" block when EITHER
    token-overlap matches from commit subjects OR `appears-DONE` items from the
    Backlog verification sub-block above exist. **Render candidates as
-   a markdown ordered list, one item per line, using the item's current
-   `<position>` as the list ordinal** (e.g. `4. [a3f9] <cited code evidence> — <sha>`)
-   so the numbering the user sees matches the numbering in the primer — never a
-   bare bullet list or an inline comma-separated citation. Cite each
-   candidate by tag: commit-subject matches as `<sha> → item [a3f9]`, verification
-   candidates as `item [a3f9] (<cited code evidence>)`. Dedupe by tag (never by
-   position — it's recomputed per render and not a stable key): an item that is
-   both a commit-subject match and an `appears-DONE` candidate appears once, on
-   a single numbered line carrying both the `<sha>` and the code-evidence
+   a markdown ordered list, one item per line, identified by `#N`** (e.g.
+   `4. #40 <cited code evidence> — <sha>`) — never a bare bullet list or an
+   inline comma-separated citation. Cite each candidate by tag: commit-subject
+   matches as `<sha> → item #40`, verification candidates as `item #40 (<cited
+   code evidence>)`. Dedupe by `#N` (the stable issue identity — never by list
+   position, which is recomputed per render): an item that is both a
+   commit-subject match and an `appears-DONE` candidate appears once, on a
+   single numbered line carrying both the `<sha>` and the code-evidence
    citation. Omit the block only when BOTH sources are empty (do not print an
    empty section).
 
    **Refusal.** Never close an outstanding item without explicit user confirmation. The overlay is a candidate list, not an auto-close.
 
-   **Skip conditions.** If the helper printed a warning or `No open backlog issues.`, skip the overlay silently — the raw subject list still appears.
+   **Skip conditions.** If `.session-continuity/.end-session-issues.txt` is `No open backlog issues.` or the GitHub-unavailable warning, skip the overlay silently — the raw subject list still appears.
 4. **Single combined prompt.** After printing the subject list (and overlay block if any), log a prompt-shown marker (same mechanism as the drift-clean prompt above — isolates human-response wait from ritual compute time, see Step 4):
 
    ```bash

@@ -20,6 +20,22 @@ rarely.
 
 ## Current state
 
+- **Determinism Phase 5 re-scoped and shipped (issue #42, branch
+  `determinism-phase-5-token-overlap`).** Original scoping conflated two
+  unrelated things: `candidate-extract.jq`'s `overlap()` (a Jaccard ratio
+  for LEARNINGS-candidate dedup — already fixed and closed as #40, see
+  the bullet below, unrelated to this work) and the commit-subject /
+  backlog-issue-title cardinality-threshold gate duplicated as two prose
+  copies inside `commands/end-session.md` (the "Overlap gate" in Backlog
+  verification and the refresh flow's "backlog overlay" — primer.md's own
+  copy had already vanished with the GitHub Issues migration, so it was
+  never really "shared with primer.md" as originally framed). Shipped
+  `hooks/lib/token-overlap.sh`/`.jq`: tokenize, drop stopwords, intersect,
+  threshold ≥3, computed once per `end-session` run and reused by both
+  call sites; stopword list moved out of prose into the `.jq` filter.
+  6 fixture cases verified (real match, near-miss, stopword-only overlap,
+  empty issues/commits, multiplicity dedup, missing-file failure) — see
+  `meta/superpowers/validation/2026-09-08-token-overlap.md`. v0.31.0.
 - **Closes backlog #40: `overlap()`'s asymmetric Jaccard in
   `hooks/lib/candidate-extract.jq` over-merged distinct retry-bursts.**
   The numerator (`$wa - ($wa - $wb)`) counted `$wa`'s own word
@@ -656,12 +672,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-c9ecacc Merge pull request #49 from talgolan/worktree-docguard-generalization
-d36d472 docs: don't claim GitHub issue #38 is closed until it actually is
-8b11c46 docs: mark docguard generalization implemented, correct hard-block assumption
-db8ec26 Merge pull request #48 from talgolan/fix/ghe-backlog-origin-check
-16f8d06 fix: recognize GitHub Enterprise Server origins for the backlog queue
-ff6b8c8 test: bump stale count-entries-smoke pins to real BACKLOG/LEARNINGS counts (16/18)
+66468ee refactor: end-session's overlap gate is now hooks/lib/token-overlap.sh/.jq
+ddaccca Merge pull request #50 from talgolan/determinism-phase-4-step3-checklist
+40f5496 fix(docs): inline sign-off strings in end-session fallback path
+b7b82f3 docs: Phase 4 doc pointers, changelog, and version bump for the checklist script
+17d866d refactor: end-session Step 4 becomes a pure timing step, sign-off now owned by checklist-assemble.sh
 ```
 
 Regenerate this block whenever you commit — see

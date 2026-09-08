@@ -190,15 +190,19 @@ instruction and the illustrative example entirely; the script's own output
 is the contract. Plan:
 `meta/superpowers/plans/2026-09-08-determinism-phase-4-checklist-assembly.md`.
 
-**Phase 5 `#42` — backlog mechanics.** Two scripts used by both `primer.md` and
-`end-session.md`: item bookkeeping (mint a 4-hex tag with a uniqueness grep,
-stamp the date, renumber positions 1..N, grep the repo for a tag before
-deletion) and the overlap gate (tokenize, drop short tokens and stopwords,
-intersect with commit subjects, threshold at 3). The overlap algorithm
-currently exists as two prose copies that can drift, and
-`candidate-extract.jq:96-107` already has a working token-overlap
-implementation to lift. Set-intersection cardinality is a task models get
-wrong silently.
+**Phase 5 `#42` — token-overlap gate (re-scoped 2026-09-08).** Original framing
+above was stale on two counts: item bookkeeping (hex-tag mint/renumber/
+grep-delete) is gone with the GitHub Issues migration, and `primer.md` no
+longer carries its own copy of the gate — only `end-session.md` does, in
+two spots (the "Overlap gate" in Backlog verification and the refresh
+flow's "backlog overlay"). `candidate-extract.jq`'s `overlap()` is a
+Jaccard *ratio* for LEARNINGS-candidate dedup, not the same algorithm as
+this cardinality-threshold gate; lifting it here would have been wrong
+(already fixed and closed as #40 in the prior session, unrelated to this
+change). Shipped as `hooks/lib/token-overlap.sh`/`.jq`:
+tokenize, drop short tokens and stopwords, intersect, threshold at 3 —
+computed once per `end-session` run, reused by both call sites. Set-
+intersection cardinality is a task models get wrong silently.
 
 **Phase 6 `#43` — `primer` detect, migrate, init, drift.** Mode detection plus
 migration triggers (11-60, pure boolean logic over file existence); the
