@@ -522,9 +522,11 @@ echo "$CHECKLIST"
 
 **Output.** If `$CHECKLIST` starts with `⚠️` (the `require_script` failure) or `SC-FALLBACK:` (the script's own malformed-input escape), print it as a single warning line and assemble the checklist by hand this one time, following the row table that existed before this phase (Primer refresh / New learnings / Backlog / Staged files / Unstaged modifications / Untracked files / Unpushed commits / Suggested commit, each ✓/⚠️/→, backlog citing evidence for `appears-DONE` only) — then still emit Step 4's sign-off line yourself, choosing the warning-suffixed variant if any row you assembled carries ⚠️. Otherwise, print `$CHECKLIST` verbatim — it already ends with the terminal sign-off line; do not print anything after it except whatever Step 4's timing calls require.
 
-## Step 4 — Terminal sign-off (always)
+## Step 4 — Ritual timing (always)
 
-After the checklist (and suggested-commit block, if any), emit a final closing line so the user knows the ritual completed and they are not blocked waiting for further prompts.
+Step 3's `$CHECKLIST` already ended with the terminal sign-off line — this
+step prints nothing of its own. It only logs how long the ritual took, so
+the log carries one real end-to-end number per invocation.
 
 **Before that line, record total ritual time.** Each step above only timed
 its own Bash block, not the gaps between them — this reads back this
@@ -577,21 +579,7 @@ block is skipped entirely — no `step-4-agent-active` line is logged for
 this invocation, same "skip rather than log a wrong number" rule that
 already governs the rest of this design.
 
-**Always emit one of these two lines, exactly:**
-
-- If every checklist row was ✓ (no ⚠️ anywhere):
-
-  ```
-  ✅ Session complete. Safe to close.
-  ```
-
-- If any checklist row had ⚠️:
-
-  ```
-  ✅ Session complete. Safe to close. (Warnings above are advisory — review before closing if relevant.)
-  ```
-
-**Required.** Print this line on its own, after the checklist and any suggested-commit block. Never omit it. Never replace it with paraphrased prose. Never ask follow-up questions after this line — the line marks the end of the ritual. If the user wants to act on a warning, they will reply on their own.
+**Never ask follow-up questions after Step 3's sign-off line printed.** It marks the end of the ritual. If the user wants to act on a warning, they will reply on their own.
 
 ## Notes
 
