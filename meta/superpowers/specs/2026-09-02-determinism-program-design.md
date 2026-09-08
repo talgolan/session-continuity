@@ -180,12 +180,15 @@ check mode. Unblocks phases 4 and 6 and closes `52dc` as a side effect.
 is decided. Plan:
 `meta/superpowers/plans/2026-09-03-shared-mechanics-library.md`.
 
-**Phase 4 `#41` — `end-session` Step 3 checklist assembly.** One script consuming the
-six git outputs and a `tag<TAB>verdict<TAB>citation` file, emitting the eight
-finished rows, the four backlog tallies, the per-row markers, and the sign-off
-boolean (612-675, 759-773), retiring the example block at 687-701. Depends on
-Phase 3's `since`. Removes the file-inventory summarization failure that
-line 646 exists to prevent.
+**Phase 4 `#41` — `end-session` Step 3 checklist assembly.** `checklist-assemble.sh`
+consumes the (now seven — a `git rev-parse --short HEAD` was added for the
+detached-HEAD row) git outputs plus a `tag<TAB>verdict<TAB>citation` scratch
+file, emitting all eight finished rows, the backlog tallies, every marker,
+and the terminal sign-off line as one block — Step 4 no longer prints
+anything of its own. Removes the "list every file, do not summarize"
+instruction and the illustrative example entirely; the script's own output
+is the contract. Plan:
+`meta/superpowers/plans/2026-09-08-determinism-phase-4-checklist-assembly.md`.
 
 **Phase 5 `#42` — backlog mechanics.** Two scripts used by both `primer.md` and
 `end-session.md`: item bookkeeping (mint a 4-hex tag with a uniqueness grep,
