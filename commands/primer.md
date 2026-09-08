@@ -10,58 +10,46 @@ You are responding to the `/session-continuity:primer` slash command.
 
 ## Step 1 — Detect state
 
-Gather the raw data for every check below in **one Bash call**, timed:
+Run the shared dispatch script once, timed:
 
 ```bash
 _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
-[ -f .session-continuity/SESSION_PRIMER.md ] && echo "PRIMER_EXISTS=1" || echo "PRIMER_EXISTS=0"
-[ -f .session-continuity/LEARNINGS.md ] && echo "LEARNINGS_EXISTS=1" || echo "LEARNINGS_EXISTS=0"
-[ -f .session-continuity/PROJECT_CONTEXT.md ] && echo "PROJECT_CONTEXT_EXISTS=1" || echo "PROJECT_CONTEXT_EXISTS=0"
-[ -f .session-continuity/OUTSTANDING_ITEMS.md ] && echo "OUTSTANDING_ITEMS_EXISTS=1" || echo "OUTSTANDING_ITEMS_EXISTS=0"
-grep -q '^## Outstanding items' .session-continuity/SESSION_PRIMER.md 2>/dev/null && echo "PRIMER_HAS_INLINE_OUTSTANDING=1" || echo "PRIMER_HAS_INLINE_OUTSTANDING=0"
-[ -f .session-continuity/BACKLOG.md ] && echo "BACKLOG_EXISTS=1" || echo "BACKLOG_EXISTS=0"
-[ -f .session-continuity/ROADMAP.md ] && echo "ROADMAP_EXISTS=1" || echo "ROADMAP_EXISTS=0"
-git remote get-url origin 2>/dev/null || echo "NO_ORIGIN"
-git log --oneline -5
-git diff --cached --name-only
+source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-detect.sh" 1; then
+  DETECT_OUTPUT="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-detect.sh" . 2>&1)"
+  DETECT_STATUS=$?
+else
+  DETECT_OUTPUT="$SC_REQUIRE_SCRIPT_MSG"
+  DETECT_STATUS=1
+fi
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-1-detect-state --duration="$_PERF_DURATION"
+echo "$DETECT_OUTPUT"
+echo "DETECT_STATUS=$DETECT_STATUS"
 ```
 
-Interpret the output:
+**If `DETECT_STATUS` is nonzero, or `$DETECT_OUTPUT` has no `STEPS=` line:
+stop.** Report `$DETECT_OUTPUT` to the user (it carries the diagnostic
+either way — `require_script`'s message, or `primer-detect.sh`'s own
+stderr, merged into stdout above) and do not execute any step below —
+there is no safe default dispatch, since some steps run destructive
+migrations (`git mv` in Step 3c, `git rm` in Step 3d).
 
-1. Do `.session-continuity/SESSION_PRIMER.md` and `.session-continuity/LEARNINGS.md` exist? (`PRIMER_EXISTS` / `LEARNINGS_EXISTS` above.)
-2. If a primer exists, does the `git log --oneline -5` block inside it match the `git log --oneline -5` output above? (mtime is intentionally not checked — formatters, save-on-blur, and `cat | tee` all bump mtime without changing content. The log-block diff is the authoritative drift signal.)
-3. Does the `git diff --cached --name-only` output above contain any file outside `docs/`, `.session-continuity/`, `README*`, `CHANGELOG*`, `LICENSE*`? (Code is staged and a commit is imminent — the primer will be stale the moment that commit lands.)
-4. If a primer exists, does `.session-continuity/PROJECT_CONTEXT.md` also exist? (`PROJECT_CONTEXT_EXISTS` above.)
+**Otherwise**, read `STEPS=` from `$DETECT_OUTPUT` and **execute every
+name it lists, in the order given, then stop.** Do not re-derive which
+steps should run from the individual `KEY=value` facts printed above
+`STEPS=` — those are for transparency/debugging only, not a second
+source of dispatch truth. An empty `STEPS=` means check mode: run Step 5.
 
-Four states result:
-
-- **No primer** → init mode (Step 2)
-- **Primer exists but unsplit** (no `PROJECT_CONTEXT.md` yet) → split mode (Step 3)
-- **Primer exists but stale** (log block drifted or code staged for commit) → refresh mode (Step 4)
-- **Primer exists and current** (nothing staged) → check mode (Step 5)
-
-If `PRIMER_HAS_INLINE_OUTSTANDING=1` AND `OUTSTANDING_ITEMS_EXISTS=0`,
-outstanding-items migration is needed — run it (Step 3b below) in addition
-to whichever of the four states above applies. **Sequencing:** if the
-primer is also unsplit (no `PROJECT_CONTEXT.md`), run the existing Split
-mode (Step 3) to completion first, then run Step 3b against the resulting
-primer, as two sequential edits — not simultaneous partitioning. The two
-splits touch disjoint sections of the primer (stable-context headings vs.
-the Outstanding items heading), so sequencing avoids any edit conflict.
-
-If `OUTSTANDING_ITEMS_EXISTS=1` AND `BACKLOG_EXISTS=0`, a file-rename
-migration is needed — run it (Step 3c below) in addition to whichever of
-the four states above applies. **Sequencing:** if Step 3b also fired this
-run (inline heading present, no file yet), run Step 3b to completion
-first — it still writes `OUTSTANDING_ITEMS.md` under the old name — then
-run Step 3c against that result. Step 3c is strictly the one-level-up
-file rename; it never inspects primer content.
-
-If `BACKLOG_EXISTS=1` (including after Step 3c) AND origin contains
-`github.com`, run Step 3d (markdown backlog → GitHub Issues) after 3c.
+| Name in `STEPS` | Run |
+|---|---|
+| `init` | Step 2 (the only value `STEPS` can ever carry alone) |
+| `split` | Step 3 |
+| `outstanding_split` | Step 3b |
+| `backlog_rename` | Step 3c |
+| `backlog_to_issues` | Step 3d |
+| `refresh` | Step 4 |
 
 ## Step 2 — Init mode
 
@@ -173,11 +161,11 @@ contains).
 
 ## Step 3b — Outstanding-items split
 
-Runs whenever `PRIMER_HAS_INLINE_OUTSTANDING=1` and
-`OUTSTANDING_ITEMS_EXISTS=0` (see Step 1). Extract the primer's inline
-`## Outstanding items` section into the new file; this is a one-time
-content move, no numbering changes — the items keep whatever numbers
-they currently have, and those become the first permanent IDs.
+Runs when `outstanding_split` appears in Step 1's `STEPS`. Extract the
+primer's inline `## Outstanding items` section into the new file; this
+is a one-time content move, no numbering changes — the items keep
+whatever numbers they currently have, and those become the first
+permanent IDs.
 
 1. Read the existing `.session-continuity/SESSION_PRIMER.md` in full.
 2. Copy every top-level numbered item under `## Outstanding items`
@@ -207,11 +195,11 @@ they currently have, and those become the first permanent IDs.
 
 ## Step 3c — Backlog rename migration
 
-Runs whenever `BACKLOG_EXISTS=0` AND `OUTSTANDING_ITEMS_EXISTS=1` (see
-Step 1). This is strictly the `OUTSTANDING_ITEMS.md` → `BACKLOG.md`
-rename, one level up from Step 3b (which may have just created
-`OUTSTANDING_ITEMS.md` under its old name this same run — Step 3c runs
-after it, per the sequencing note in Step 1).
+Runs when `backlog_rename` appears in Step 1's `STEPS`. This is strictly
+the `OUTSTANDING_ITEMS.md` → `BACKLOG.md` rename, one level up from Step
+3b (which may have just created `OUTSTANDING_ITEMS.md` under its old
+name this same run — `STEPS` already places `backlog_rename` after
+`outstanding_split` when both fire).
 
 1. `git mv .session-continuity/OUTSTANDING_ITEMS.md .session-continuity/BACKLOG.md`.
 2. Rewrite the moved file's first heading line from `# Outstanding Items
@@ -248,11 +236,11 @@ split/migration step in this command.
 
 ## Step 3d — BACKLOG.md → GitHub Issues
 
-Runs whenever `BACKLOG_EXISTS=1` (including after Step 3c just created
-it) AND Step 1's origin URL contains `github.com`. If origin is missing
-or not github.com, leave the file in place as a fossil and tell the
-user `/session-continuity:doctor` will warn that the queue is inactive.
-Do not keep writing to the fossil.
+Runs when `backlog_to_issues` appears in Step 1's `STEPS`. If it doesn't
+(non-github origin, or no backlog to migrate), leave any existing
+`BACKLOG.md` in place as a fossil and tell the user
+`/session-continuity:doctor` will warn that the queue is inactive. Do
+not keep writing to the fossil.
 
 1. `gh label create backlog --description "Agent backlog (session-continuity)" --force`
 2. For each `### N. [tag] [YYYY-MM-DD] Title` heading whose title is
