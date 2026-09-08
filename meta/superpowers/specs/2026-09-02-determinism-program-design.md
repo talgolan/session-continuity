@@ -204,15 +204,20 @@ tokenize, drop short tokens and stopwords, intersect, threshold at 3 —
 computed once per `end-session` run, reused by both call sites. Set-
 intersection cardinality is a task models get wrong silently.
 
-**Phase 6 `#43` — `primer` detect, migrate, init, drift.** Mode detection plus
-migration triggers (11-60, pure boolean logic over file existence); the
-backlog rename migration (209-248, forty lines of prompt with no judgment in
-any of its seven items, performing a destructive `git mv`); init-mode template
-copy and mechanical placeholder substitution, collapsing the ten
-`{{LATEST_COMMIT_*}}` slots into one `{{GIT_LOG_BLOCK}}`; and the drift check
-plus test-count rerun with modal pinning (172-210, 249-250, 264-278). Largest
-phase, lowest per-invocation frequency, highest blast radius — it runs a
-`git mv` and rewrites five files.
+**Phase 6 `#43` — `primer` detect, migrate, init, drift.** Decomposed into
+five sub-projects (see `meta/superpowers/specs/2026-09-08-primer-detect-design.md`'s
+Context section for the full breakdown and why): **sub-project A shipped**
+— Step 1's mode detection plus all three migration triggers, previously
+hand-evaluated nested conditionals with an easy-to-miss sequencing rule,
+now `hooks/lib/primer-detect.sh`/`.jq`. Plan:
+`meta/superpowers/plans/2026-09-08-primer-detect.md`. Still pending:
+sub-project B (Step 4's test-count majority-vote rerun — the same
+compare-a-claimed-value-against-an-actual-one class Phase 7 is being
+built to gate against), C (Step 3c/3d's `git mv`/`git rm` migration
+mechanics themselves — sub-project A only scripted *whether* they run,
+not *what* they do), D (Step 2's placeholder-derivation gather-and-regex),
+E (Step 3/3b's section-bucketing judgment, lowest priority — near-zero
+remaining audience, most judgment-heavy of the five).
 
 **Phase 7 `#44` — the gate that keeps it true.** A commit-time content gate on
 staged `commands/*.md` that blocks prompt text instructing a model to count,
