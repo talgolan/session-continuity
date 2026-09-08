@@ -20,6 +20,23 @@ rarely.
 
 ## Current state
 
+- **Closes backlog #40: `overlap()`'s asymmetric Jaccard in
+  `hooks/lib/candidate-extract.jq` over-merged distinct retry-bursts.**
+  The numerator (`$wa - ($wa - $wb)`) counted `$wa`'s own word
+  *multiplicity*, while the denominator (`$u`) was deduped — a repeated
+  word inside one candidate's title (e.g. a command whose args happen to
+  contain "file", which also sits in the "— re-run N times with M file
+  edits in between." boilerplate) inflated that title's similarity score
+  against an unrelated candidate enough to cross the 0.7 dedup threshold
+  and get it wrongly dropped. Fixed by deduping `$wa`/`$wb` before
+  intersecting (`unique` added at both `title_words` call sites), making
+  the ratio a real Jaccard index and direction-symmetric. New regression
+  case in `meta/superpowers/validation/2026-09-01-candidate-extract-smoke.zsh`
+  (two genuinely distinct retry-bursts — one command's args repeat "file"
+  — must both survive dedup); verified end-to-end pre-fix collapse (1
+  candidate) vs. post-fix (2) via a real transcript fixture through
+  `candidate-extract.sh`, not just the isolated `overlap()` filter. Full
+  suite 31/31 green.
 - **Backlog #38 (docguard generalization) — this repo's side merged, the
   actual mechanism not yet activated.** PR
   https://github.com/talgolan/session-continuity/pull/49 (merged

@@ -117,6 +117,28 @@ n="$(print -r -- "$out" | jq '[.candidates[] | select(.heuristic=="retry-burst")
   || bad "expected 1 merged retry-burst, got $n: $out"
 rm -f "$fam_f"
 
+# Regression: overlap() must dedupe words before intersecting, not just before
+# unioning. A command whose own text repeats a word that also happens to sit
+# in the "— re-run N times with M file edits in between." boilerplate (here,
+# "file") must not inflate that title's similarity score against an unrelated
+# burst enough to get it wrongly dropped as a duplicate.
+jaccard_f="$(mktemp)"
+{
+  mk_bash_call "2026-09-08T00:00:00.000Z" "j1" "pytest tests/file_file_file_file_test.py"
+  mk_edit      "2026-09-08T00:00:30.000Z" "je1"
+  mk_bash_call "2026-09-08T00:01:00.000Z" "j2" "pytest tests/file_file_file_file_test.py"
+  mk_bash_call "2026-09-08T00:02:00.000Z" "j3" "pytest tests/file_file_file_file_test.py"
+  mk_bash_call "2026-09-08T00:03:00.000Z" "j4" "curl -s https://example.com/api"
+  mk_edit      "2026-09-08T00:03:30.000Z" "je2"
+  mk_bash_call "2026-09-08T00:04:00.000Z" "j5" "curl -s https://example.com/api"
+  mk_bash_call "2026-09-08T00:05:00.000Z" "j6" "curl -s https://example.com/api"
+} > "$jaccard_f"
+out="$(bash "$lib/candidate-extract.sh" "$jaccard_f")"
+n="$(print -r -- "$out" | jq '[.candidates[] | select(.heuristic=="retry-burst")] | length')"
+[[ "$n" -eq 2 ]] && ok "overlap(): a repeated word inside one title does not over-merge distinct retry-bursts" \
+  || bad "expected 2 distinct retry-bursts, overlap() collapsed them to $n: $out"
+rm -f "$jaccard_f"
+
 # --- Heuristic B: revert / reset (needs a real tracked file) ---------------
 
 repo_dir="$(gt_make_repo)"
