@@ -40,7 +40,13 @@ migrations (`git mv` in Step 3c, `git rm` in Step 3d).
 name it lists, in the order given, then stop.** Do not re-derive which
 steps should run from the individual `KEY=value` facts printed above
 `STEPS=` — those are for transparency/debugging only, not a second
-source of dispatch truth. An empty `STEPS=` means check mode: run Step 5.
+source of dispatch truth. If `STEPS` does not contain `refresh`, run Step 5 (check mode) as the
+final step, after everything else `STEPS` named — this covers both the
+fully-empty case (primer is current, nothing else to do) and a
+migrations-only case (migrations ran, but the primer itself isn't
+otherwise stale; Step 5's status report is still owed). If `STEPS`
+contains `refresh`, Step 4 is the terminal step — its own reporting
+already covers what Step 5 would say, so do not run Step 5 afterward.
 
 | Name in `STEPS` | Run |
 |---|---|
@@ -50,6 +56,13 @@ source of dispatch truth. An empty `STEPS=` means check mode: run Step 5.
 | `backlog_rename` | Step 3c |
 | `backlog_to_issues` | Step 3d |
 | `refresh` | Step 4 |
+
+Steps 3, 3b, 3c, and 3d's own bodies still say to "fall through" to
+refresh or check mode after they finish — that phrasing predates this
+dispatch. Treat it as already satisfied by the rule above: continue to
+the next name in `STEPS` (if any), then apply the refresh/Step-5 rule
+once, at the very end. Do not let a step's own fall-through sentence
+trigger Step 4 or Step 5 a second time.
 
 ## Step 2 — Init mode
 

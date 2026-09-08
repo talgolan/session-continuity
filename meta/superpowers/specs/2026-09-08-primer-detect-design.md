@@ -146,7 +146,11 @@ diagnostic, do not execute any step.
 
 Fixture-driven jq tests against synthetic JSON facts (no real git
 required), mirroring `meta/superpowers/validation/2026-09-08-token-overlap.md`'s
-format:
+format. The eleven state-machine cases below (plus a docs-allowlist
+variant of case 5, and four operational-failure cases instead of the
+single combined item 12 describes conceptually) make up the shipped
+smoke test's 16 assertions total — see
+`meta/superpowers/validation/2026-09-08-primer-detect-smoke.zsh`.
 
 1. Fresh install (all existence flags 0) → `STEPS=init`.
 2. Existing unsplit primer, otherwise current → `STEPS=split`.
@@ -158,7 +162,7 @@ format:
 8. `OUTSTANDING_ITEMS.md` exists, no `BACKLOG.md` → `STEPS=backlog_rename`.
 9. `BACKLOG.md` exists, github origin → `STEPS=backlog_to_issues`.
 10. `BACKLOG.md` exists, non-github origin → `STEPS=` (empty) — proves the fossil-file case never fires the GitHub migration.
-11. Full worst-case stack (unsplit + inline-outstanding + old outstanding file + backlog exists + github origin) → `STEPS=split,outstanding_split,backlog_rename,backlog_to_issues` in that exact order.
+11. Full worst-case stack (unsplit + inline-outstanding + no outstanding-items file + no backlog file + github origin) → `STEPS=split,outstanding_split,backlog_rename,backlog_to_issues` in that exact order — neither `OUTSTANDING_ITEMS.md` nor `BACKLOG.md` exists yet; both migrations still fire because they're queued via threading (`PROJ_OI`/`PROJ_BL`), which is the whole point of this case.
 12. Missing/wrong-version filter, or jq absent → nonzero exit, no `STEPS=` line.
 
 ## Rollout
