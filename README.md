@@ -46,6 +46,8 @@ From inside Claude Code, add the `talgolan` catalog as a plugin marketplace, the
 
 Run `/reload-plugins` once the install finishes. Once the plugin is live on the official Anthropic marketplace (`claude-plugins-official`), you'll also be able to discover it via `/plugin` → **Discover**; until then, the two-step sequence above works on any recent Claude Code install.
 
+Required peers for a green `/session-continuity:doctor`: local `engrim` on PATH, and a committed non-empty `graphify-out/graph.json` (install order: primer → graphify commit → engrim → re-doctor).
+
 ## The four files, plus the queue
 
 Everything else is machinery around these documents. Each has a different update contract.

@@ -2,11 +2,11 @@
 
 **Plugin:** `session-continuity`
 **Maintainer:** Tal Golan ([github.com/talgolan](https://github.com/talgolan))
-**Last updated:** 2026-09-07
+**Last updated:** 2026-09-09
 
 ## Short version
 
-This plugin does not collect analytics or send data to the maintainer. Durable memory stays in your git repository. The work queue is GitHub Issues labeled `backlog` on that same repository: filing an issue sends its title and body to GitHub; SessionStart and `/session-continuity:backlog` read them back with authenticated `gh`. There is also one weekly unauthenticated version-check GET. Public repository means public issues.
+This plugin does not collect analytics or send data to the maintainer. Durable memory stays in your git repository. Session boot also expects local engrim memory and a committed `graphify-out/graph.json` as required peers (neither leaves your machine via this plugin). The work queue is GitHub Issues labeled `backlog` on that same repository: filing an issue sends its title and body to GitHub; SessionStart and `/session-continuity:backlog` read them back with authenticated `gh`. There is also one weekly unauthenticated version-check GET. Public repository means public issues.
 
 ## What data the plugin handles
 

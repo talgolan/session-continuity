@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.0] — 2026-09-09
+
+### Changed
+- **Thin hard-template `SESSION_PRIMER`.** Boot order / Mid-flight / Confirm /
+  Peers only; validator + peer probes; SessionStart/doctor hard-incomplete
+  without local engrim and a committed `graphify-out/graph.json`. Fat primers
+  slim-migrate via `/session-continuity:primer`. Banlist drops embedded
+  `git log --oneline` regen blocks. Dogfood primer + PRIVACY/README peer
+  disclosure shipped with this release.
+
 ## [0.35.0] — 2026-09-09
 
 ### Added
