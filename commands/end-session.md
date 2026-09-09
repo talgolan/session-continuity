@@ -23,11 +23,11 @@ If either is missing, tell the user:
 
 Exit. Do not proceed.
 
-## Step 1 — Refresh the primer (drift-gated)
+## Step 1 — Refresh the primer (freshness-gated)
 
 Before prompting the user for anything, check the fast path below. If it
 doesn't fire, verify the primer's outstanding items against code, then run a
-drift check. The goal: if the primer is already in sync with the repo, do
+freshness check. The goal: if the primer is already in sync with the repo, do
 nothing and record a no-op. Only enter the refresh flow when something
 actually changed.
 
@@ -50,7 +50,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --nam
 
 If `git status --porcelain` is empty AND `<last-primer-commit>` equals
 `HEAD` (no commits have landed since the primer was last touched), skip the
-rest of Step 1 entirely — no drift check, no backlog verification,
+rest of Step 1 entirely — no freshness check, no backlog verification,
 no git-log recomputation. Nothing in the repo has changed since the last
 close-out, so no per-item re-check could turn up anything new. Step 3's
 Primer refresh row reads ✓ "Primer already current (no-op)"; the
@@ -174,14 +174,14 @@ gate the plugin enforces on "proven" claims elsewhere.
 **Routing `appears-DONE` candidates.** These are close-candidates — **never
 auto-removed**.
 
-- **When the drift check below enters the refresh flow** (drift detected):
+- **When the freshness check below enters the refresh flow** (`STALE=1` or `STALE=?`):
   append every `appears-DONE` item to the existing backlog overlay
   candidate list, so it surfaces at Step 1's single combined prompt. One reply
   closes it. Cite the evidence beside the candidate.
-- **When the primer is drift-clean** (refresh flow skipped): if at least one
-  `appears-DONE` item was found, run the **drift-clean close-candidate prompt**
+- **When the primer is freshness-clean** (`STALE=0`, refresh flow skipped): if at least one
+  `appears-DONE` item was found, run the **freshness-clean close-candidate prompt**
   below instead of the refresh flow. If zero `appears-DONE` items were found,
-  no prompt fires at all — the "drift-clean + zero candidates = zero prompts"
+  no prompt fires at all — the "freshness-clean + zero candidates = zero prompts"
   guarantee holds.
 
 Removal of any item always requires explicit user confirmation. A verdict never
@@ -211,73 +211,48 @@ Skip this entirely when there were zero open items to classify (the file is
 absent; Step 3 treats a missing path under `backlog_mode="normal"` as zero
 tracked items — see `hooks/lib/checklist-assemble.sh`'s contract).
 
-### Drift check (silent — no user prompt)
+### Freshness check (silent — no user prompt)
 
-Read `.session-continuity/SESSION_PRIMER.md` and compare its `git log --oneline -5` block to the actual output of `git log --oneline -5` against the primary branch. Two outcomes:
-
-- **Block matches.** Treat the primer as current — no git-log regeneration, no test-count re-check, no refresh flow. Then check the Backlog verification results computed above:
-  - **Zero `appears-DONE` items.** Skip the rest of Step 1. In Step 3's checklist, record the Primer refresh row as ✓ "Primer already current (no-op)".
-  - **≥1 `appears-DONE` item.** Run the drift-clean close-candidate prompt below instead of skipping Step 1.
-- **Block differs** (any line differs — subjects, hashes, or ordering). Enter the refresh flow below.
-
-Run the shared test-count rerun script — the same one `commands/primer.md`
-Step 4 item 3 calls, so both commands stay in lockstep — timed:
+Gate Step 1's primer rewrite with `primer-freshness.sh` (not an embedded
+git-log block — those are banlisted). Timed, via `require_script`:
 
 ```bash
 _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
-LAST_PRIMER_COMMIT=$(git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md)
 source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
-if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/test-count-rerun.sh" 1; then
-  RERUN_OUTPUT="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/test-count-rerun.sh" . "$LAST_PRIMER_COMMIT" 2>&1)"
-  RERUN_STATUS=$?
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-freshness.sh" 1; then
+  FRESH_OUTPUT="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-freshness.sh" . 2>&1)"
+  FRESH_STATUS=0
 else
-  RERUN_OUTPUT="$SC_REQUIRE_SCRIPT_MSG"
-  RERUN_STATUS=1
+  FRESH_OUTPUT="$SC_REQUIRE_SCRIPT_MSG"
+  FRESH_STATUS=1
 fi
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
-RETRIES=$(printf '%s' "$RERUN_OUTPUT" | awk -F= '/^RETRIES=/{print $2}')
-echo "$RERUN_OUTPUT"
-echo "RERUN_STATUS=$RERUN_STATUS"
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-freshness --duration="$_PERF_DURATION"
+echo "$FRESH_OUTPUT"
+echo "FRESH_STATUS=$FRESH_STATUS"
 ```
 
-Run this as the **same Bash tool call** as the pre-existing perf-log block a
-few lines below ("At the end of this Bash call (whichever branch above
-ran):", unmodified by this task) — that block reads `$_PERF_DURATION` and
-`$RETRIES` from this one. A separate tool invocation would see both empty
-and silently log a wrong duration/retries.
+Interpret `STALE=` from `$FRESH_OUTPUT` (treat require failure / missing
+`STALE=` as `STALE=?`):
 
-**If `RERUN_STATUS` is nonzero, or `$RERUN_OUTPUT` has no `MODE=` line:**
-report `$RERUN_OUTPUT` to the user and fall back to `TBD` for this axis —
-never fabricate a drift verdict from a failed script.
+- **`STALE=0`.** Treat the primer as current — no Mid-flight/Confirm
+  rewrite, no refresh flow. Then check the Backlog verification results
+  computed above:
+  - **Zero `appears-DONE` items.** Skip the rest of Step 1. In Step 3's
+    checklist, record the Primer refresh row as ✓ "Primer already current
+    (no-op)".
+  - **≥1 `appears-DONE` item.** Run the freshness-clean close-candidate
+    prompt below instead of skipping Step 1.
+- **`STALE=1`.** Enter the refresh flow below.
+- **`STALE=?`.** Report the freshness probe as inconclusive, then enter
+  the refresh flow (conservative — better to refresh than silently skip).
 
-**Otherwise**, report per `MODE`:
-- `skip` — no relevant file changed; say nothing (matches today's silent
-  skip).
-- `no-command` — no test command recorded; nothing to check.
-- `no-count`, `RETRIES=0`, `DRIFT=0` always — nothing recorded yet to
-  compare against; no report needed on this axis.
-- `run` with `DRIFT=0` — the count held (whether on the first try or after
-  majority-vote confirmation); no report needed.
-- `run` with `DRIFT=1` — report drift using `PINNED_COUNT` (`"Test count
-  drifted: recorded <RECORDED_COUNT>, now <PINNED_COUNT> (confirmed over
-  <RETRIES>+1 runs)."`).
-- `run` with `SPREAD=1` — report instability using the comma-joined
-  `OBSERVED` values (`"Test suite is unstable: saw <OBSERVED, /-joined>
-  across 3 runs."`), not a drift verdict.
-- `run` with `UNPARSEABLE=1` and no `PINNED_COUNT` — report `"Test command
-  produced no parseable count after <RETRIES>+1 attempts."`
+### Freshness-clean close-candidate prompt (runs only when `STALE=0` AND ≥1 `appears-DONE` item)
 
-At the end of this Bash call (whichever branch above ran):
-```bash
-bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=end-session --step=step-1-drift-test-rerun --duration="$_PERF_DURATION" --retries="$RETRIES"
-```
-using the same `_PERF_START`/`_PERF_END`/`_PERF_DURATION` pattern used
-elsewhere in this file, captured around this whole check.
-
-### Drift-clean close-candidate prompt (runs only when drift is clean AND ≥1 `appears-DONE` item)
-
-A lighter-weight alternative to the refresh flow below — no git-log regeneration, no test-count re-check, no commit-subject overlay matching (there is no "commits since last refresh" list to match against when nothing drifted).
+A lighter-weight alternative to the refresh flow below — no Mid-flight/Confirm
+rewrite, no Confirm re-run, no commit-subject overlay matching (there is no
+"commits since last refresh" list to match against when freshness is clean).
 
 1. Render the `appears-DONE` items as the same markdown ordered list format used by the refresh flow's overlay (`#N` as identity, citing the code evidence).
 2. Before rendering the question below, log a prompt-shown marker (isolates the human-response wait from ritual compute time — see Step 4):
@@ -286,7 +261,7 @@ A lighter-weight alternative to the refresh flow below — no git-log regenerati
    bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" mark --source=command --name=end-session --step=step-1-prompt-shown
    ```
 
-   Then ask a close-only question, scoped narrower than the refresh flow's combined prompt since there are no commit subjects or free-form drift to fold in:
+   Then ask a close-only question, scoped narrower than the refresh flow's combined prompt since there are no commit subjects or free-form Mid-flight edits to fold in:
 
    > "Backlog — N appears-DONE (see list). Close any, or leave as-is?"
 3. **Wait for the answer before continuing.** Same refusal rule as the refresh flow: never close an item without explicit confirmation. Once the answer arrives, log the wait duration:
@@ -297,14 +272,31 @@ A lighter-weight alternative to the refresh flow below — no git-log regenerati
 4. If the user closes any items, `gh issue close N --reason completed` for each confirmed `#N`. Do not edit a markdown backlog file. Step 3's Primer refresh row reads ✓ "Primer updated (outstanding item(s) closed)".
 5. If the user declines, skip the rest of Step 1. Step 3's Primer refresh row reads ✓ "Primer already current (no-op)", and the still-open `appears-DONE` item(s) surface again as a ⚠️ in the Backlog row (same standing-reminder behavior as before — it'll be offered again next session).
 
-### Refresh flow (runs only when drift was detected)
+### Refresh flow (runs when `STALE=1` or `STALE=?`)
 
-Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
+Thin Mid-flight/Confirm refresh — follow **Step 4 of `commands/primer.md`**
+(refresh mode), then re-run Confirm and validate. Do **not** regenerate
+git-log blocks, test-count tables, or treat the primer as a changelog.
 
-1. Regenerate the `git log --oneline -5` block with current output.
-2. If `MODE=run` and `DRIFT=1` (per the test-count rerun script's output
-   above), update the test-counts section to `PINNED_COUNT`.
-3. **Surface commits since the last primer refresh, with backlog overlay.** Reuse the commit list already computed in the Backlog verification section above (`git log <last-primer-commit>..HEAD --oneline`) — do not recompute it. Present the subject list as candidate prompts.
+1. Rewrite Mid-flight (≤5 bullets) and Confirm (≤5 counted commands). Update Peers status lines if needed (agent-maintained on refresh — not SessionStart).
+2. **Re-run the Confirm commands** from the primer's Confirm fence (same shell, timed). Report pass/fail per command. Failed Confirm commands do not auto-edit Mid-flight — surface them to the user in the combined prompt below.
+3. **Validate before staging:**
+
+   ```bash
+   source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
+   if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-validate.sh" 1; then
+     bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-validate.sh" .session-continuity/SESSION_PRIMER.md
+   else
+     echo "$SC_REQUIRE_SCRIPT_MSG" >&2
+     false
+   fi
+   ```
+
+   **On failure: stop.** Show stderr. Do not stage a failing primer. If
+   failure is fat-class or Outstanding/BACKLOG fossils remain, tell the
+   user to run `/session-continuity:primer` (slim-migrate) before finishing
+   end-session.
+4. **Surface commits since the last primer refresh, with backlog overlay.** Reuse the commit list already computed in the Backlog verification section above (`git log <last-primer-commit>..HEAD --oneline`) — do not recompute it. Present the subject list as candidate prompts.
 
    Then look up the **backlog overlay** for each subject: filter
    `.session-continuity/.end-session-overlap.tsv` (computed once in the
@@ -330,7 +322,7 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
    **Refusal.** Never close an outstanding item without explicit user confirmation. The overlay is a candidate list, not an auto-close.
 
    **Skip conditions.** If `.session-continuity/.end-session-issues.txt` is `No open backlog issues.` or the GitHub-unavailable warning, skip the overlay silently — the raw subject list still appears.
-4. **Single combined prompt.** After printing the subject list (and overlay block if any), log a prompt-shown marker (same mechanism as the drift-clean prompt above — isolates human-response wait from ritual compute time, see Step 4):
+5. **Single combined prompt.** After printing the subject list (and overlay block if any), log a prompt-shown marker (same mechanism as the freshness-clean prompt above — isolates human-response wait from ritual compute time, see Step 4):
 
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" mark --source=command --name=end-session --step=step-1-prompt-shown
@@ -345,8 +337,8 @@ Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" since --source=command --name=end-session --mark-step=step-1-prompt-shown --emit-step=step-1-prompt-wait
    ```
-5. Apply the edits the user specified. If they asked to close issues, `gh issue close N --reason completed` for each confirmed `#N` after checking the claim against the code. If they asked to file new follow-ups, `gh issue create --label backlog --title "..." --body "..."`. If the user replied "no changes" (or similar), skip this step.
-6. Stage the updated primer, and `PROJECT_CONTEXT.md` too if it has
+6. Apply the edits the user specified. If they asked to close issues, `gh issue close N --reason completed` for each confirmed `#N` after checking the claim against the code. If they asked to file new follow-ups, `gh issue create --label backlog --title "..." --body "..."`. If the user replied "no changes" (or similar), skip this step. Re-validate with `primer-validate.sh` if Mid-flight/Confirm changed again after the prompt.
+7. Stage the updated primer, and `PROJECT_CONTEXT.md` too if it has
    unstaged changes (e.g. the session edited repo layout / conventions):
 
    ```bash
@@ -561,7 +553,7 @@ echo "$CHECKLIST"
 
 - `BACKLOG_MODE` / `BACKLOG_FASTPATH_COUNT`: `"fast-path"` + the fast path's `<fast-path-backlog-count>` when Step 1's fast path fired; otherwise whichever of `none`/`unavailable`/`not-migrated`/`normal` Step 1's Backlog verification section landed on (its own skip conditions already tell you which).
 - `TSV`: leave as computed above (empty string unless the in-repo scratch file existed and was copied out before deletion) — never override it by hand.
-- `PRIMER`: `"refreshed"` if the refresh flow ran and staged the primer, `"closed"` if only the drift-clean close-candidate prompt ran and closed item(s), `"current"` if Step 1 was a no-op (fast path or drift-clean-zero-candidates).
+- `PRIMER`: `"refreshed"` if the refresh flow ran and staged the primer, `"closed"` if only the freshness-clean close-candidate prompt ran and closed item(s), `"current"` if Step 1 was a no-op (fast path or freshness-clean-zero-candidates).
 - `LEARNINGS_JSON`: the accepted drafts from Step 2's capture flow, as `[{"number":N,"title":"..."}]`; `[]` if Step 2 captured nothing.
 - `COMMIT_SUBJECT_JSON`: `"null"` (the bare word, unquoted) unless staged files exist AND at least one is outside `.session-continuity/` — in that case, a quoted JSON string with your conventional-commit subject (`<type>(<scope>): <subject>`, ≤72 chars), e.g. `'"fix(ci): extract CHANGELOG section with proper awk range"'`. Pick the theme from the most prominent captured learning's title, or the primary code-change theme — same judgment call as before this phase, just handed to the script instead of formatted by hand.
 
@@ -635,10 +627,10 @@ already governs the rest of this design.
 - **`step-4-ritual-complete` includes human response time, by design.** It is real wall clock from this invocation's first log line to its last, and that necessarily spans however long the user took to answer the Step 1 and Step 2 prompts. `step-4-agent-active` (same block) derives the agent's own active time directly from the transcript, isolating the agent's own processing time. When investigating a slow ritual, compare both numbers before assuming a script regression — a large `step-4-ritual-complete` with a small `step-4-agent-active` means the user was away from the keyboard, not that anything got slower.
 - **Respect the primer-only-commit rule.** If the user, after seeing the checklist, commits only the primer, the `PreToolUse` hook's nudge still applies — nothing to do here.
 - **Zero arguments.** If the user passed text after `/session-continuity:end-session`, ignore it — session reflection provides all context needed.
-- **Bound the prompt count.** The whole ritual must fit ≤2 user prompts in the common case: one Step 1 prompt (the full combined prompt when drift exists, or the lighter drift-clean close-candidate prompt when drift is clean but `appears-DONE` items exist), one batch confirm in Step 2 (only when candidates surface). Drift-clean + zero candidates = zero prompts; drift-clean + ≥1 candidate = exactly one (lightweight) prompt. Never split Step 1's prompt into two sequential asks. Never loop one-prompt-per-candidate in Step 2.
+- **Bound the prompt count.** The whole ritual must fit ≤2 user prompts in the common case: one Step 1 prompt (the full combined prompt when freshness says stale, or the lighter freshness-clean close-candidate prompt when freshness is clean but `appears-DONE` items exist), one batch confirm in Step 2 (only when candidates surface). Freshness-clean + zero candidates = zero prompts; freshness-clean + ≥1 candidate = exactly one (lightweight) prompt. Never split Step 1's prompt into two sequential asks. Never loop one-prompt-per-candidate in Step 2.
 - **Always sign off.** Step 4's terminal line is non-negotiable — the user invoked an explicit close-out and must not be left ambiguous about whether the ritual is done.
 - **Backlog verdicts never mutate the primer.** The verification in
   Step 1 only classifies and reports; an `appears-DONE` item is removed only if
   the user confirms it at a Step 1 prompt (full combined prompt or the
-  drift-clean close-candidate prompt). Declining either prompt leaves the item
+  freshness-clean close-candidate prompt). Declining either prompt leaves the item
   as a standing ⚠️ in the checklist, never a silent deletion.

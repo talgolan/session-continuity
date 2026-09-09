@@ -67,7 +67,7 @@ If the `/session-continuity:primer` command is not installed (e.g. this skill wa
 1. Read `.session-continuity/SESSION_PRIMER.md` end-to-end. It is designed for this exact moment.
 2. Read `.session-continuity/PROJECT_CONTEXT.md` once per session — it changes rarely, so a stale read is unlikely, but skim it if anything about the repo's shape surprises you.
 3. Follow the primer's "First things first" list.
-4. Before doing ANY work, verify claimed state is still current (the primer can be stale — run its test commands, check `git log`, etc.).
+4. Before doing ANY work, verify claimed state is still current (the primer can be stale — run Confirm commands, check `primer-freshness.sh` / peers, etc.).
 5. When you commit, update the primer.
 
 ## Quick start (existing primer, not yet split)
@@ -86,12 +86,15 @@ boundaries before committing.
 commit even if the primer didn't exist. For every such commit, stage
 the primer refresh alongside the real diff so they land together.
 
-Sections of the primer most likely to be stale:
+Refresh **Mid-flight** and **Confirm** only (thin hard-template). Do
+**not** embed or regenerate a `git log` dump — that shape is banlisted;
+freshness is `primer-freshness.sh`, peers are `peer-probes.sh`. Keep
+Mid-flight ≤5 bullets and Confirm ≤5 counted commands, then run
+`primer-validate.sh` before staging.
 
-- **Current state / latest commits.** Regenerate the `git log --oneline -5` block to include the commit you are about to make.
-- **Test expectations.** If you added, removed, or skipped tests, bump the count so it matches `<test command>` output.
-
-Other sections (layout, packages, conventions) drift more slowly but are fair game if the repo shifted.
+Stable material (layout, packages, conventions) lives in
+`PROJECT_CONTEXT.md` and drifts slowly — touch it only when the repo
+shape actually changed.
 
 Alongside the primer, also update the GitHub backlog: close issues you just
 finished (`gh issue close N --reason completed`), file newly-flagged

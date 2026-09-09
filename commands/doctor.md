@@ -10,7 +10,7 @@ You are responding to the `/session-continuity:doctor` slash command.
 
 ## Step 1 — Gather
 
-Run everything in **one Bash call**, timed:
+Run everything in **one Bash call**, timed. Gate each new helper through `require_script` at `CONTRACT_VERSION=1` before relying on its output (same pattern as `primer-status.sh` in `/session-continuity:primer`):
 
 ```bash
 _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
@@ -54,8 +54,42 @@ if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "${CLAUDE_PLUGIN_ROOT}/hooks/lib/bac
   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/backlog-issues.sh" --count .
 fi
 
-echo "--- current git log (compare against primer's block) ---"
-git log --oneline -5
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  # shellcheck disable=SC1091
+  source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
+fi
+
+echo "--- primer validate ---"
+if [ -f .session-continuity/SESSION_PRIMER.md ] && [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-validate.sh" 1; then
+    bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-validate.sh" .session-continuity/SESSION_PRIMER.md \
+      && echo "PRIMER_VALIDATE=ok" || echo "PRIMER_VALIDATE=fail"
+  else
+    echo "⚠️ $SC_REQUIRE_SCRIPT_MSG"
+    echo "PRIMER_VALIDATE=fail"
+  fi
+fi
+
+echo "--- peer probes ---"
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/peer-probes.sh" 1; then
+    bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/peer-probes.sh" .
+  else
+    echo "⚠️ $SC_REQUIRE_SCRIPT_MSG"
+    echo "ENGRIM=?"
+    echo "GRAPHIFY=?"
+  fi
+fi
+
+echo "--- primer freshness ---"
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-freshness.sh" 1; then
+    bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-freshness.sh" .
+  else
+    echo "⚠️ $SC_REQUIRE_SCRIPT_MSG"
+    echo "STALE=?"
+  fi
+fi
 
 _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
 _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
@@ -74,7 +108,12 @@ Work through the six rows below using the output above. Never invent a result fo
    - Plugin mode: ✓ if `HOOKS_JSON_EXISTS=1` (Claude Code auto-wires this when the plugin is enabled — this is a sanity check that the install isn't partial/corrupted, not proof the user configured anything). ⚠️ if `HOOKS_JSON_EXISTS=0` — the plugin directory is missing `hooks/hooks.json`; reinstalling the plugin is the fix.
    - Vendored mode: grep the `.claude/settings.json` content captured above for the hook script names (`session-start.sh`, `learnings-surface.sh`, etc.). ✓ if at least `session-start.sh` and `learnings-surface.sh` appear (the two hooks a vendored install needs most — the primer reminder and the retrieval hook). ⚠️ listing which expected hook names are absent, with a pointer to `SKILL.md`'s hooks section for the entries to copy in.
 
-3. **Four `.session-continuity/` files exist; primer not stale.** ✓/⚠️ per file from the `EXISTS`/`MISSING` lines (`SESSION_PRIMER.md`, `PROJECT_CONTEXT.md`, `ROADMAP.md`, `LEARNINGS.md`). `BACKLOG.md=FOSSIL` is a leftover markdown queue — ⚠️ "fossil BACKLOG.md; run `/session-continuity:primer` to migrate to GitHub Issues if `gh` is authenticated for the origin's host." For `SESSION_PRIMER.md` specifically, if it exists, also compare its own `git log --oneline -5` block (read the file) against the `git log --oneline -5` output captured above — mismatch means ⚠️ stale, "run `/session-continuity:primer` to refresh." This is the only file with an objective staleness signal in this repo; the other three don't get a staleness check here, only an existence check.
+3. **Four `.session-continuity/` files; primer shape, peers, freshness.** ✓/⚠️/✗ from the gather lines — never invent a signal that wasn't printed.
+   - Existence: ✓/⚠️ per file from the `EXISTS`/`MISSING` lines (`SESSION_PRIMER.md`, `PROJECT_CONTEXT.md`, `ROADMAP.md`, `LEARNINGS.md`). `BACKLOG.md=FOSSIL` is a leftover markdown queue — ⚠️ "fossil BACKLOG.md; run `/session-continuity:primer` to migrate to GitHub Issues if `gh` is authenticated for the origin's host."
+   - Shape: if `SESSION_PRIMER.md` exists and `PRIMER_VALIDATE=fail` → ✗ hard fail (shape). Cite any `INVALID:` lines from the validate helper stderr that appeared in the gather output. Fix: rewrite Mid-flight/Confirm to the thin hard-template and re-run `/session-continuity:primer`, then re-doctor.
+   - Peers: if `ENGRIM` or `GRAPHIFY` is present and ≠ `ok` → ✗ hard fail (peers). Notes must include the install order: primer → graphify (commit `graphify-out/graph.json`) → engrim → re-doctor. Also note: commit/rebuild `graphify-out/graph.json`, ensure `engrim` is on PATH. Do not treat missing `ENGRIM=`/`GRAPHIFY=` lines (probe skipped) as a peer failure — report `?` for that sub-check.
+   - Freshness: `STALE=1` → ⚠️ only ("primer stale vs substantive commits — run `/session-continuity:primer` to refresh"). `STALE=0` is fine. `STALE=?` → report `?`, do not invent stale. Do **not** compare any embedded git-log block; freshness comes only from `primer-freshness.sh`.
+   - Marker precedence for this row: any ✗ (shape or peers) wins over ⚠️; list every distinct problem (missing files, shape, peers, fossil, stale) — do not summarize to a single cause.
 
 4. **`CLAUDE_PLUGIN_ROOT` resolves and isn't stale.** Skip this row entirely in vendored mode (nothing to check). In plugin mode: ✓ if `ROOT_EXISTS=1`. Then check staleness — from the `ls "$CACHE_PARENT"` output, if it lists sibling version directories, compare the resolved version (parsed from `plugin.json` above) against the highest version number listed. If a newer one exists: ⚠️ "resolved root is v`<old>`, but v`<new>` is already installed in the cache — this session started before the update landed; restart the session to pick it up." If they match, or the cache-parent listing wasn't available (different install layout), ✓ with a note that the check was skipped when applicable — don't fail the row over a probe that simply didn't apply.
 
@@ -90,7 +129,7 @@ Emit the report as a table, same convention as `/session-continuity:end-session`
 |---|---|---|
 | Install mode | ✓ | "Plugin vX.Y.Z at `<path>`" OR "Vendored (CLAUDE_PLUGIN_ROOT unresolved)" |
 | Hooks registered | ✓ / ⚠️ | plugin: "hooks.json present" OR "⚠️ hooks/hooks.json missing — reinstall the plugin" · vendored: "session-start.sh + learnings-surface.sh found in .claude/settings.json" OR "⚠️ missing: `<names>` — see SKILL.md's hooks section" |
-| .session-continuity/ files | ✓ / ⚠️ | "All four present, primer current" OR "⚠️ missing: `<names>`" OR "⚠️ primer stale — run /session-continuity:primer" OR "⚠️ fossil BACKLOG.md" |
+| .session-continuity/ files | ✓ / ⚠️ / ✗ | "All four present; primer shape ok; peers ok; freshness current" OR "✗ primer shape — `PRIMER_VALIDATE=fail`" OR "✗ peers — `ENGRIM`/`GRAPHIFY` not ok; install order: primer → graphify (commit `graphify-out/graph.json`) → engrim → re-doctor" OR "⚠️ missing: `<names>`" OR "⚠️ primer stale (`STALE=1`) — run /session-continuity:primer" OR "⚠️ fossil BACKLOG.md" |
 | CLAUDE_PLUGIN_ROOT | ✓ / ⚠️ / (skipped) | "vX.Y.Z, matches latest cached" OR "⚠️ resolved to vX.Y.Z, but vX.Y.Z+1 is cached — restart the session" OR "skipped (vendored mode)" |
 | Gate scripts executable | ✓ / ⚠️ / (skipped) | "All N gate scripts executable" OR "⚠️ not executable: `chmod +x <path>`, `chmod +x <path>`" OR "skipped (vendored mode)" |
 | GitHub backlog | ✓ / ⚠️ | "N open issues labeled backlog" OR "⚠️ gh/auth/origin/helper — queue inactive. Filing an issue sends title+body to GitHub (public repo → public issues)." |
@@ -98,5 +137,7 @@ Emit the report as a table, same convention as `/session-continuity:end-session`
 ## Notes
 
 - **Never mutates anything.** No file writes, no `git add`, no `chmod` run on the user's behalf — every fix is a command printed for the user to run themselves.
-- **Fail soft on probes that don't apply**, not on the row as a whole. A probe that was skipped because it doesn't apply to this install mode is not the same as a probe that ran and found a problem — don't conflate a `?`/skip with a ⚠️.
+- **Fail soft on probes that don't apply**, not on the row as a whole. A probe that was skipped because it doesn't apply to this install mode is not the same as a probe that ran and found a problem — don't conflate a `?`/skip with a ⚠️ or ✗.
 - **Never invent a version number, path, or file list.** Every value in the report must trace back to a literal line in Step 1's output.
+- **Peer hard-fail install order.** When `ENGRIM` or `GRAPHIFY` ≠ ok: primer → graphify (commit `graphify-out/graph.json`) → engrim → re-doctor. Rebuild/commit the graph if missing; put `engrim` on PATH.
+- **Freshness is `STALE=` only.** Do not treat an embedded git log in the primer as a staleness signal — that compare is retired.
