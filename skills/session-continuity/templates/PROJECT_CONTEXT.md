@@ -79,9 +79,9 @@ In order of cost:
 ## Maintenance (your responsibility)
 
 This file changes rarely — only when the project's shape changes (new
-module, new convention, moved directory). For the file that changes with
-every substantive commit, see `.session-continuity/SESSION_PRIMER.md` and
-its own "Primer maintenance" section.
+module, new convention, moved directory). On substantive commits, refresh
+Mid-flight + Confirm in `.session-continuity/SESSION_PRIMER.md` and stage
+it with the commit.
 
 When you do edit this file, stage it alongside the change that made the
 edit necessary — same non-standalone-commit discipline as the primer.

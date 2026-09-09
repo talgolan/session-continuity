@@ -7,18 +7,20 @@ Delete this comment block before committing.
 
 ## Session continuity
 
-Before touching anything, read `.session-continuity/SESSION_PRIMER.md`
-(current state) and `.session-continuity/LEARNINGS.md` (bugs that were
-expensive to diagnose — grep it when something surprises you). Read
-`.session-continuity/PROJECT_CONTEXT.md` once per session for stable repo
-shape, GitHub Issues labeled `backlog` for deferred decisions and
-follow-ups, and `.session-continuity/ROADMAP.md` for strategic direction;
-primer and ROADMAP change at different rates.
+**Boot order (before touching anything):**
+1. `.session-continuity/PROJECT_CONTEXT.md` — stable repo shape
+2. `.session-continuity/LEARNINGS.md` — grep when something surprises you
+3. engrim context / recall (required)
+4. graphify query when the question is about code structure (`graphify-out/graph.json` is committed)
+5. `.session-continuity/SESSION_PRIMER.md` — Mid-flight + Confirm
+6. `/session-continuity:backlog` for deferred decisions and follow-ups
+7. `.session-continuity/ROADMAP.md` for strategic direction
 
-**Refresh the primer alongside substantive commits.** Stage the update in
-the same commit as the real change — never a primer-only commit (exceptions:
-a one-shot catch-up, correcting a factual error, or recording a just-shipped
-release). When a bug takes 15+ minutes to diagnose, append a LEARNINGS entry.
+**Refresh the primer alongside substantive commits.** Stage Mid-flight +
+Confirm updates in the same commit as the real change — never a primer-only
+commit (exceptions: a one-shot catch-up, correcting a factual error, or
+recording a just-shipped release). When a bug takes 15+ minutes to diagnose,
+append a LEARNINGS entry.
 
 **Before closing any backlog issue, check it against the actual
 code** — one grep or read per load-bearing claim, not memory and not a
