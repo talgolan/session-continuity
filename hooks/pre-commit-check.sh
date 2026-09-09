@@ -90,7 +90,7 @@ fi
 # non-blocking; additionalContext is what Claude will actually see.
 # Docs: https://code.claude.com/docs/en/hooks.md#decision-control-with-json-output
 cat <<EOF
-{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","additionalContext":"⚠️ $primer_rel is not staged for this commit, but code files are. Consider \`git add $primer_rel\` if outstanding items or landed commits need an update. Skip if the primer is genuinely unaffected by this change."}}
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","additionalContext":"⚠️ $primer_rel is not staged for this commit, but code files are. Consider \`git add $primer_rel\` after refreshing Mid-flight and Confirm only — do not grow the file. Skip if Mid-flight/Confirm are genuinely unaffected by this change."}}
 EOF
 
 exit 0
