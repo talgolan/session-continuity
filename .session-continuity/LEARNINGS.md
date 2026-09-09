@@ -35,6 +35,7 @@ within each group.
 - The `/session-continuity:end-session` smoke test had two staged files (primer + `src/foo.js`). The… — #3
 - The smoke test written for exactly this case (`Smoke: N/A deferred, this… — #16
 - This repo moved everything to `meta/superpowers/` in v0.3 (per CHANGELOG: "Repo layout:… — #5
+- Three consecutive real `git commit` attempts with that nested — #21
 - Three hermetic smoke suites under `meta/superpowers/validation/` had fixtures hardcoded to the exact… — #9
 
 ---
@@ -233,6 +234,47 @@ Applies generally: any time command prose tells Claude to produce an inventory f
 ---
 
 ## Hook scripting (SessionStart / PreToolUse)
+
+### 21. `git commit -m "$(cat <<'EOF' ... EOF)"` triggers spurious content-gate denials that a direct script re-test can't reproduce
+Slug: nested-heredoc-commit-msg-gate-misfire
+Trigger: Bash /git commit -m "\$\(cat/
+
+**The trap.** Committing a file with valid, correctly-formatted escape-hatch
+lines (`Proven-gate: N/A — ...`, `Evidence-gate: N/A — ...`,
+`Backend-parity: N/A — ...`) via `git commit -m "$(cat <<'EOF' ... EOF)"` —
+natural for a multi-line, well-formatted commit message — looks like it
+should pass the exact same commit-time content gates that a plain `git
+commit -m "one line"` would.
+
+**Symptom.** Three consecutive real `git commit` attempts with that nested
+heredoc form each denied, quoting a *different* gate's message each time
+(`Evidence-gate` once, `Backend-parity-gate` twice) — same staged content,
+same escape hatches present throughout. Re-running each denying gate script
+directly against the identical staged blob (`git show ":path" | bash
+hooks/<gate>.sh`, or via a payload file redirected on stdin, `bash
+hooks/<gate>.sh < payload.json`) always returned a clean allow — the gate
+logic itself was never the problem. Switching to `git commit -F-` with a
+plain (non-command-substitution) heredoc succeeded immediately, first try,
+no other change.
+
+**Fix.** When a `git commit -m "$(cat <<...)"` denial's cited line/match
+can't be reproduced by feeding the same staged content directly to the
+named gate script, don't iterate on the gate's regex or escape-hatch
+wording — the mismatch is downstream of the gate. Use `git commit -F-`
+with a plain heredoc (`git commit -F- <<'EOF' ... EOF`) instead; it passes
+the message on stdin rather than as a shell-substituted `-m` argument, and
+side-steps whatever in the nested `$(...)` form's re-encoding is producing
+an inconsistent view of the staged content across separate hook
+invocations. The exact mechanism (payload JSON construction for a complex
+multi-line `-m` argument, most likely) was not confirmed — only the trigger
+condition and the workaround.
+
+**Diagnostic signal.** A commit denial that cites a *different* gate on
+each retry against unchanged staged content — not the same gate every
+time — is the tell that the gates aren't the problem; the commit
+invocation's own argument-passing shape is.
+
+---
 
 ### 16. Masking a gate's own escape hatch must cover every raw-`$content` check in that gate, not just the one the bug report named
 Slug: gate-mask-partial-migration

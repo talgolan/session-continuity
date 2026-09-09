@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.35.0] — 2026-09-09
+
+### Added
+- **A seventh commit-time content gate, `hooks/derived-value-gate.sh`.**
+  Blocks new `commands/*.md` prompt text that instructs a model to compute a
+  duration by hand, tally/vote on a count by eye, eyeball-compare a claimed
+  value against an actual one, or print fixed reference text as if it were
+  an instruction — the reconciler-level enforcement of the determinism
+  program's invariant (every other phase is a one-time cleanup that decays
+  without this). Escape hatch: `Derived-value-gate: N/A — <reason>`.
+
+### Fixed
+- **`end-session.md`'s drift check now calls `test-count-rerun.sh`** instead
+  of hand-deriving the same majority-vote rerun Phase 6-B already scripted
+  for `primer.md` — the two command files were computing the identical
+  algorithm two different ways.
+
 ## [0.34.0] — 2026-09-09
 
 ### Changed

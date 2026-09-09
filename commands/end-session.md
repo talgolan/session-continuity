@@ -220,29 +220,53 @@ Read `.session-continuity/SESSION_PRIMER.md` and compare its `git log --oneline 
   - **≥1 `appears-DONE` item.** Run the drift-clean close-candidate prompt below instead of skipping Step 1.
 - **Block differs** (any line differs — subjects, hashes, or ordering). Enter the refresh flow below.
 
-If the primer has a test-counts section, decide whether to re-run it (logic
-lives in Step 5.3 of `commands/primer.md` — summarized here). Do this as
-**one Bash call**, timed, tracking a `RETRIES` count (0 if skipped or the
-first run matched, else the number of *extra* runs actually executed
-beyond the first):
+Run the shared test-count rerun script — the same one `commands/primer.md`
+Step 4 item 3 calls, so both commands stay in lockstep — timed:
 
-- **Skip the rerun** if the commit list already computed above
-  (`<last-primer-commit>..HEAD`) contains no file outside
-  `.session-continuity/` — no source or test file changed, so the recorded
-  count cannot have drifted.
-- **Otherwise, run the test command(s) once.** Matches the primer's
-  recorded count → stop, no drift on this axis.
-- **Only if that first run disagrees**, retry up to 2 more times (3 total)
-  to rule out flakiness. Pin to the count seen in ≥2 of 3 runs — if that
-  pinned count matches the primer, the first run was the flake and there's
-  no drift; if it still differs, report drift with the pinned count. If all
-  three runs disagree with each other, surface the spread (`saw 1162 / 1161
-  / 1162 across 3 runs — using 1162; suite is unstable`) instead of
-  silently picking one.
+```bash
+_PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+LAST_PRIMER_COMMIT=$(git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md)
+source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
+if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/test-count-rerun.sh" 1; then
+  RERUN_OUTPUT="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/test-count-rerun.sh" . "$LAST_PRIMER_COMMIT" 2>&1)"
+  RERUN_STATUS=$?
+else
+  RERUN_OUTPUT="$SC_REQUIRE_SCRIPT_MSG"
+  RERUN_STATUS=1
+fi
+_PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+_PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
+RETRIES=$(printf '%s' "$RERUN_OUTPUT" | awk -F= '/^RETRIES=/{print $2}')
+echo "$RERUN_OUTPUT"
+echo "RERUN_STATUS=$RERUN_STATUS"
+```
 
-Common cases stay cheap: zero test runs when nothing relevant changed, one
-run when the count still holds, three only when there's an actual
-discrepancy to resolve.
+Run this as the **same Bash tool call** as the pre-existing perf-log block a
+few lines below ("At the end of this Bash call (whichever branch above
+ran):", unmodified by this task) — that block reads `$_PERF_DURATION` and
+`$RETRIES` from this one. A separate tool invocation would see both empty
+and silently log a wrong duration/retries.
+
+**If `RERUN_STATUS` is nonzero, or `$RERUN_OUTPUT` has no `MODE=` line:**
+report `$RERUN_OUTPUT` to the user and fall back to `TBD` for this axis —
+never fabricate a drift verdict from a failed script.
+
+**Otherwise**, report per `MODE`:
+- `skip` — no relevant file changed; say nothing (matches today's silent
+  skip).
+- `no-command` — no test command recorded; nothing to check.
+- `no-count`, `RETRIES=0`, `DRIFT=0` always — nothing recorded yet to
+  compare against; no report needed on this axis.
+- `run` with `DRIFT=0` — the count held (whether on the first try or after
+  majority-vote confirmation); no report needed.
+- `run` with `DRIFT=1` — report drift using `PINNED_COUNT` (`"Test count
+  drifted: recorded <RECORDED_COUNT>, now <PINNED_COUNT> (confirmed over
+  <RETRIES>+1 runs)."`).
+- `run` with `SPREAD=1` — report instability using the comma-joined
+  `OBSERVED` values (`"Test suite is unstable: saw <OBSERVED, /-joined>
+  across 3 runs."`), not a drift verdict.
+- `run` with `UNPARSEABLE=1` and no `PINNED_COUNT` — report `"Test command
+  produced no parseable count after <RETRIES>+1 attempts."`
 
 At the end of this Bash call (whichever branch above ran):
 ```bash
@@ -278,7 +302,8 @@ A lighter-weight alternative to the refresh flow below — no git-log regenerati
 Follow the logic in **Step 5 of `commands/primer.md`** (refresh mode):
 
 1. Regenerate the `git log --oneline -5` block with current output.
-2. If the primer has a test-counts section and the counts changed (after the 3× retry), update them to match current output.
+2. If `MODE=run` and `DRIFT=1` (per the test-count rerun script's output
+   above), update the test-counts section to `PINNED_COUNT`.
 3. **Surface commits since the last primer refresh, with backlog overlay.** Reuse the commit list already computed in the Backlog verification section above (`git log <last-primer-commit>..HEAD --oneline`) — do not recompute it. Present the subject list as candidate prompts.
 
    Then look up the **backlog overlay** for each subject: filter
