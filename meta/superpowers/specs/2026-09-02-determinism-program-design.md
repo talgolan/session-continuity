@@ -239,14 +239,12 @@ and D shipped; C and E stay parked until this plugin actually has external
 installs old enough to hit either path (tracked via `#35`, not reopened
 here speculatively).
 
-**Phase 7 `#44` — the gate that keeps it true.** A commit-time content gate on
-staged `commands/*.md` that blocks prompt text instructing a model to count,
-tally, renumber, compute a duration, compare a claimed value against an
-actual one, or print fixed text verbatim, with the usual
-`<Gate-name>: N/A — <reason>` escape. This is the reconciler-level enforcement
-of the invariant; every other phase is a one-time cleanup that decays without
-it. Ships last because the gate's pattern list should be written from what the
-earlier phases actually removed, not guessed beforehand.
+**Phase 7 `#44` — the gate that keeps it true.** Shipped as
+`hooks/derived-value-gate.sh`, covering four of the five originally-scoped
+classes (renumber dropped — no grounded removal exists to anchor it on).
+Also fixed `#54` (an un-migrated duplicate of Phase 6-B's majority-vote logic
+that the gate's own count pattern would otherwise have immediately flagged).
+Plan: `meta/superpowers/plans/2026-09-09-determinism-phase-7-derived-value-gate.md`.
 
 ## Non-goals
 
