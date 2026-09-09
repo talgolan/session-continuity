@@ -73,10 +73,10 @@ One command, six behaviors, dispatched on the repo's current state:
 - **No primer yet** → copies the templates into `.session-continuity/`, fills every placeholder it can derive (project name, latest commits, working directory, test command), asks you for the rest, files named follow-ups as GitHub Issues labeled `backlog` when `gh` is authenticated for the origin's host (github.com or a GitHub Enterprise Server instance), and stages four files. Any field you skip becomes `TBD` rather than a leftover `{{PLACEHOLDER}}`.
 - **Primer exists but not yet split** → partitions its stable sections (layout, conventions, module table, "where to look for what") into a new `.session-continuity/PROJECT_CONTEXT.md`, leaving the primer with only the volatile shortlist. One-time content move, no file move.
 - **Primer has an inline Outstanding items section, or a leftover `OUTSTANDING_ITEMS.md` / `BACKLOG.md`** → migrates that markdown queue to GitHub Issues labeled `backlog` when `gh` is authenticated for the origin's host, then deletes the file. Without that, the file is left as a fossil and `doctor` warns.
-- **Primer exists but drifted** → regenerates the `git log --oneline -5` block, re-runs the primer's test commands (retrying flaky suites up to three times so a single bad sample doesn't cry wolf), surfaces every commit since the last refresh as a candidate, and prompts you for backlog changes before staging.
+- **Primer exists but drifted** → rewrites Mid-flight + Confirm only (thin hard-template), re-runs Confirm commands, validates shape via `primer-validate.sh`, surfaces commits since the last primer touch as candidates, and prompts you for backlog changes before staging. Peers (engrim + committed `graphify-out/graph.json`) stay doctor/SessionStart concerns — refresh does not embed a git-log dump.
 - **Primer current** → reports a four-line status (HEAD, last refresh, backlog count, learnings count) and exits without touching anything.
 
-Drift is detected by diffing the stored `git log` block against reality, not by file mtime, because formatters and save-on-blur bump mtime without changing content.
+Drift is detected by `primer-freshness.sh` (substantive commits after the last primer touch, with basename ignores for README/CHANGELOG/LICENSE), not by an embedded git-log block or file mtime.
 
 ### `/session-continuity:learning`
 
@@ -86,7 +86,7 @@ Appends a properly formatted entry. It prompts for the recipe fields, lets you p
 
 The close-out ritual, bounded to at most two prompts in the common case:
 
-1. **Refresh the primer**, but only if it actually drifted. If the `git log` block already matches reality, this step checks whether any backlog item now looks resolved (verified against actual code, never guessed) — if so, it offers a lightweight prompt to close it; otherwise it's a silent no-op.
+1. **Refresh the primer**, but only if it actually drifted (`STALE=1` from `primer-freshness.sh`). If freshness is current, this step checks whether any backlog item now looks resolved (verified against actual code, never guessed) — if so, it offers a lightweight prompt to close it; otherwise it's a silent no-op.
 2. **Mine the session for learnings.** It reads the session transcript (falling back to the live context window when the transcript isn't reachable) and runs four deterministic detectors: a *retry burst* (the same command run three or more times), a *revert/reset* (hard reset, checkout, revert, or `rm -rf` on a tracked file), an *error recurrence* (the same normalized error three or more times across 15+ minutes), and a *fix burst* (a `fix:` commit preceded by a long investigation). Candidates are pre-drafted into full LEARNINGS entries and presented in one batch for a single confirm.
 3. **Print a state checklist.** Staged, unstaged, untracked, and unpushed are each enumerated file by file, with a suggested commit message and a terminal sign-off so you know the ritual is done.
 
@@ -160,7 +160,7 @@ Detects no primer exists, copies templates into `.session-continuity/`, fills de
 /session-continuity:primer
 ```
 
-Detects drift, regenerates the `git log` block, prompts for backlog updates, and stages the refreshed primer. Commit it alongside your substantive change, not in a primer-only commit.
+Detects drift, refreshes Mid-flight + Confirm (and validates the thin hard-template), prompts for backlog updates, and stages the refreshed primer. Commit it alongside your substantive change, not in a primer-only commit.
 
 **After a painful bug (15+ min to diagnose):**
 
