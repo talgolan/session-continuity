@@ -231,8 +231,13 @@ speculative work for a hypothetical future user, not a real one — see
 `#59`, which also documents a real format mismatch found while scoping this
 (Step 3b's `OUTSTANDING_ITEMS.md` headings carry no hex tag/date; Step 3d's
 `BACKLOG.md` parser assumes both are present) to fix whenever this is
-revisited. Still pending: E (Step 3/3b's section-bucketing judgment, lowest
-priority — near-zero remaining audience, most judgment-heavy of the five).
+revisited. **Sub-project E deprioritized, not scoped, same reasoning** —
+Step 3/3b's section-bucketing (pre-v0.13/v0.22 split-mode migrations) is the
+same category as C: legacy-migration-only, zero real audience today, and
+the most judgment-heavy of the five besides. Phase 6 is done for now: A, B,
+and D shipped; C and E stay parked until this plugin actually has external
+installs old enough to hit either path (tracked via `#35`, not reopened
+here speculatively).
 
 **Phase 7 `#44` — the gate that keeps it true.** A commit-time content gate on
 staged `commands/*.md` that blocks prompt text instructing a model to count,
