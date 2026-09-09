@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.34.0] — 2026-09-09
+
+### Changed
+- **`/session-continuity:primer`'s Step 2 placeholder derivation is now
+  scripted.** New `hooks/lib/primer-init-derive.sh`/`.jq` replace four
+  hand-evaluated derivations (`{{PROJECT_NAME}}`'s manifest-priority pick,
+  `{{LATEST_COMMIT_HASH_N}}`/`{{LATEST_COMMIT_SUBJECT_N}}`'s git-log split,
+  `{{WORKING_DIRECTORY_ABSOLUTE_PATH}}`'s passthrough,
+  `{{TEST_COMMAND_SUMMARY}}`'s pass/fail-count regex) with one script call.
+  `{{MODULES_TABLE}}`'s docblock parsing, `{{REPO_LAYOUT_SUMMARY}}`'s
+  inferred sentence, and `{{WORKFLOW_CONVENTIONS}}`'s draft stay prose —
+  each depends on arbitrary per-project convention, not a fixed format, the
+  same reasoning that already excluded the latter two from this program.
+  Determinism Phase 6 (#43) sub-project D; sub-projects C and E remain
+  pending.
+
 ## [0.33.0] — 2026-09-09
 
 ### Changed

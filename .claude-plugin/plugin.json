@@ -1,6 +1,6 @@
 {
   "name": "session-continuity",
-  "version": "0.33.0",
+  "version": "0.34.0",
   "description": "Cross-session memory for Claude Code projects via four in-repo docs: SESSION_PRIMER.md (current state), PROJECT_CONTEXT.md (stable repo context), ROADMAP.md (strategic direction), and LEARNINGS.md (hard-won bugs), plus GitHub Issues labeled backlog for the work queue.",
   "author": {
     "name": "Tal Golan"

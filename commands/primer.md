@@ -105,13 +105,32 @@ trigger Step 4 or Step 5 a second time.
    _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
    _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
    bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-2-init-derive-placeholders --duration="$_PERF_DURATION"
+   export TEST_CMD TEST_OUTPUT
+   source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
+   if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-init-derive.sh" 1; then
+     DERIVE_OUTPUT="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/primer-init-derive.sh" . 2>&1)"
+     DERIVE_STATUS=$?
+   else
+     DERIVE_OUTPUT="$SC_REQUIRE_SCRIPT_MSG"
+     DERIVE_STATUS=1
+   fi
+   echo "$DERIVE_OUTPUT"
+   echo "DERIVE_STATUS=$DERIVE_STATUS"
    ```
 
-   Derive from that output:
-   - `{{PROJECT_NAME}}` — from `package.json` `name`, `Cargo.toml` `name`, `pyproject.toml` `name`, or the current directory basename.
-   - `{{LATEST_COMMIT_HASH_N}}` / `{{LATEST_COMMIT_SUBJECT_N}}` — from the `git log --oneline -5` output above.
-   - `{{WORKING_DIRECTORY_ABSOLUTE_PATH}}` — from the `pwd` output above.
-   - `{{TEST_COMMAND_SUMMARY}}` — if `TEST_RUN_EXIT=0` and the captured output contains a recognizable count (`N pass`, `N passed`, `test result: ok. N passed`, etc.), seed this as "`<TEST_CMD>` — N pass / M fail" from that single run. If `TEST_CMD` was empty, the run timed out (`TEST_RUN_EXIT=124`), or the output has no parseable count, fall back to the bare `scripts.test` string (or `TBD`) — never invent a count.
+   **If `DERIVE_STATUS` is nonzero, or `$DERIVE_OUTPUT` has no
+   `PROJECT_NAME=` line:** report `$DERIVE_OUTPUT` to the user and ask for
+   `{{PROJECT_NAME}}`, the commit placeholders, and `{{TEST_COMMAND_SUMMARY}}`
+   manually in Step 7 below — never fabricate these from a failed script.
+
+   **Otherwise**, fill directly from `$DERIVE_OUTPUT`'s fields:
+   - `{{PROJECT_NAME}}` — `PROJECT_NAME`.
+   - `{{WORKING_DIRECTORY_ABSOLUTE_PATH}}` — `WORKING_DIRECTORY_ABSOLUTE_PATH`.
+   - `{{LATEST_COMMIT_HASH_N}}` / `{{LATEST_COMMIT_SUBJECT_N}}` — for each
+     `N` from 1 to `COMMIT_COUNT`, `LATEST_COMMIT_HASH_N` /
+     `LATEST_COMMIT_SUBJECT_N`. If `COMMIT_COUNT` is below 5, leave the
+     template's remaining `N` slots as `TBD` rather than writing empty pairs.
+   - `{{TEST_COMMAND_SUMMARY}}` — `TEST_COMMAND_SUMMARY`, verbatim.
    - `{{REPO_LAYOUT_SUMMARY}}` — from the `find` output above, plus a one-line description Claude infers from the file extensions present.
    - `{{MODULES_TABLE}}` — if the `@module` grep above found matches, build one table row per file: Component = file path, Purpose = the `@module` value (plus the docblock's one-line description if present), Notes = the adjacent `Exports:` line if present. If it found nothing, leave `TBD` as before — don't invent structure that isn't there.
    - `{{WORKFLOW_CONVENTIONS}} (draft)` — if `CLAUDE.md` exists (cat output above), draft this field by quoting its relevant conventions (runtime choice, commit style, workflow/never-do rules) under a "Conventions inherited from CLAUDE.md" sub-heading, instead of leaving it blank for the user to retype. Present the draft in Step 7 for confirmation rather than asking cold.

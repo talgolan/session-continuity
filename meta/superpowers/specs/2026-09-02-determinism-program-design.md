@@ -214,12 +214,16 @@ shipped** — Step 4's test-count majority-vote rerun (the
 compare-a-claimed-value-against-an-actual-one class Phase 7 is being
 built to gate against), now `hooks/lib/test-count-rerun.sh`/`.jq`. Spec:
 `meta/superpowers/specs/2026-09-09-test-count-rerun-design.md`. Plan:
-`meta/superpowers/plans/2026-09-09-test-count-rerun.md`. Still pending:
+`meta/superpowers/plans/2026-09-09-test-count-rerun.md`. **Sub-project D
+shipped** — Step 2's placeholder derivation (`{{PROJECT_NAME}}`, commit
+hash/subject pairs, `{{TEST_COMMAND_SUMMARY}}`), now
+`hooks/lib/primer-init-derive.sh`/`.jq`. Spec:
+`meta/superpowers/specs/2026-09-09-primer-init-derive-design.md`. Plan:
+`meta/superpowers/plans/2026-09-09-primer-init-derive.md`. Still pending:
 C (Step 3c/3d's `git mv`/`git rm` migration mechanics themselves —
-sub-project A only scripted *whether* they run, not *what* they do), D
-(Step 2's placeholder-derivation gather-and-regex), E (Step 3/3b's
-section-bucketing judgment, lowest priority — near-zero remaining
-audience, most judgment-heavy of the five).
+sub-project A only scripted *whether* they run, not *what* they do) and E
+(Step 3/3b's section-bucketing judgment, lowest priority — near-zero
+remaining audience, most judgment-heavy of the five).
 
 **Phase 7 `#44` — the gate that keeps it true.** A commit-time content gate on
 staged `commands/*.md` that blocks prompt text instructing a model to count,
