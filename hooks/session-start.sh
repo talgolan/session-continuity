@@ -20,8 +20,10 @@
 #   * `$cwd` is extracted from the JSON payload and only used as an argument
 #     to directory/file existence tests. It is never `eval`ed or passed
 #     unquoted to a shell command.
-#   * On any unexpected condition (no payload, no cwd, missing primer) we
-#     exit 0 silently. A hook that crashes would only confuse the user.
+#   * On any unexpected condition (no payload, no cwd) we exit 0 silently.
+#     A hook that crashes would only confuse the user. Never exit non-zero.
+#   * Missing primer → init nudge. Missing peers → hard-stop. Inject-only —
+#     never writes SESSION_PRIMER.md.
 
 set -euo pipefail
 
@@ -49,12 +51,37 @@ fi
 
 primer_new="$cwd/.session-continuity/SESSION_PRIMER.md"
 
-if [ -f "$primer_new" ]; then
-  primer_path=".session-continuity/SESSION_PRIMER.md"
-  learnings_path=".session-continuity/LEARNINGS.md"
-else
+if [ ! -f "$primer_new" ]; then
+  cat <<'EOF'
+<system-reminder>
+No .session-continuity/SESSION_PRIMER.md. Run /session-continuity:primer to init. Required peers: engrim + graphify-out/graph.json.
+</system-reminder>
+EOF
+  script_dir="$(dirname "$0")"
+  if [ -x "$script_dir/version-check.sh" ]; then
+    bash "$script_dir/version-check.sh" || true
+  fi
   exit 0
 fi
+
+primer_path=".session-continuity/SESSION_PRIMER.md"
+learnings_path=".session-continuity/LEARNINGS.md"
+
+# Peer probes (engrim CLI + graphify-out/graph.json). ENGRIM_BIN is read
+# from the environment by peer-probes.sh — export it so nested calls inherit.
+peers_helper="$(dirname "$0")/lib/peer-probes.sh"
+if [ -n "${ENGRIM_BIN:-}" ]; then
+  export ENGRIM_BIN
+fi
+if [ -f "$peers_helper" ]; then
+  peers_out="$(bash "$peers_helper" "$cwd" 2>/dev/null || true)"
+else
+  peers_out=""
+fi
+engrim_status="$(printf '%s\n' "$peers_out" | sed -n 's/^ENGRIM=//p' | head -1)"
+graphify_status="$(printf '%s\n' "$peers_out" | sed -n 's/^GRAPHIFY=//p' | head -1)"
+engrim_status="${engrim_status:-missing}"
+graphify_status="${graphify_status:-missing}"
 
 # Compute a 4-line status line ("Check mode" output) so the user and
 # Claude both see at a glance how fresh the primer is. Every probe is
@@ -99,6 +126,31 @@ else
   outstanding_block=""
 fi
 
+# Hard-stop when peers are incomplete. Inject-only — never write the primer.
+# Optional backlog shortlist still appends after the stop line.
+if [ "$engrim_status" != "ok" ] || [ "$graphify_status" != "ok" ]; then
+  cat <<EOF
+<system-reminder>
+PEER SETUP INCOMPLETE: engrim and graphify-out/graph.json are required. Do not start feature work until /session-continuity:doctor is green.
+${outstanding_block}</system-reminder>
+EOF
+  script_dir="$(dirname "$0")"
+  if [ -x "$script_dir/version-check.sh" ]; then
+    bash "$script_dir/version-check.sh" || true
+  fi
+  exit 0
+fi
+
+# Freshness (substantive commits since last primer change). STALE=1 → warn.
+freshness_helper="$(dirname "$0")/lib/primer-freshness.sh"
+stale_line=""
+if [ -f "$freshness_helper" ]; then
+  freshness_out="$(bash "$freshness_helper" "$cwd" 2>/dev/null || true)"
+  if printf '%s\n' "$freshness_out" | grep -qx 'STALE=1'; then
+    stale_line=$'\n⚠️ Primer may be stale — substantive commits landed since the last primer update.\n'
+  fi
+fi
+
 # Inject the reminder into Claude's SessionStart context. `<system-reminder>`
 # is the convention Claude Code uses for system-injected context that is
 # treated as non-user-originating guidance.
@@ -106,12 +158,14 @@ cat <<EOF
 <system-reminder>
 This project has $primer_path. Read it before any work — it's the fastest path to context. Also check $learnings_path if anything surprises you.
 
+Read Mid-flight and Confirm in the primer before starting work.
+
 Primer status (auto):
 - HEAD: $status_sha
 - Last primer change: $status_mtime
 - Backlog: $status_outstanding
 - Learnings: $status_learnings
-${outstanding_block}</system-reminder>
+${outstanding_block}${stale_line}</system-reminder>
 EOF
 
 # Weekly freshness check (best-effort, silent on failure). Runs AFTER the
