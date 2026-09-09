@@ -219,11 +219,20 @@ shipped** — Step 2's placeholder derivation (`{{PROJECT_NAME}}`, commit
 hash/subject pairs, `{{TEST_COMMAND_SUMMARY}}`), now
 `hooks/lib/primer-init-derive.sh`/`.jq`. Spec:
 `meta/superpowers/specs/2026-09-09-primer-init-derive-design.md`. Plan:
-`meta/superpowers/plans/2026-09-09-primer-init-derive.md`. Still pending:
-C (Step 3c/3d's `git mv`/`git rm` migration mechanics themselves —
-sub-project A only scripted *whether* they run, not *what* they do) and E
-(Step 3/3b's section-bucketing judgment, lowest priority — near-zero
-remaining audience, most judgment-heavy of the five).
+`meta/superpowers/plans/2026-09-09-primer-init-derive.md`. **Sub-project C
+deprioritized, not scoped** — Step 3c/3d's `git mv`/`git rm` migration
+mechanics (sub-project A only scripted *whether* they run, not *what* they
+do) have zero real audience today: this repo's own `BACKLOG.md` is already
+gone, and to the maintainer's knowledge no other installs of this plugin
+exist yet (no marketplace submission — `#35`). The step only matters for a
+project on a pre-v0.29 install that hasn't run `/session-continuity:primer`
+since, a population that's currently empty. Scoping it now would be
+speculative work for a hypothetical future user, not a real one — see
+`#59`, which also documents a real format mismatch found while scoping this
+(Step 3b's `OUTSTANDING_ITEMS.md` headings carry no hex tag/date; Step 3d's
+`BACKLOG.md` parser assumes both are present) to fix whenever this is
+revisited. Still pending: E (Step 3/3b's section-bucketing judgment, lowest
+priority — near-zero remaining audience, most judgment-heavy of the five).
 
 **Phase 7 `#44` — the gate that keeps it true.** A commit-time content gate on
 staged `commands/*.md` that blocks prompt text instructing a model to count,
