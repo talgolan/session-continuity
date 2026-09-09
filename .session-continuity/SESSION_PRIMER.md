@@ -20,6 +20,7 @@ rarely.
 
 ## Current state
 
+- **Thin hard-template SESSION_PRIMER redesign — design landed, impl queued (#62).** Spec committed on `main` (`b3ffca5`): `meta/superpowers/specs/2026-09-09-primer-thin-hard-template-design.md`. Approach A: keep filename; hard sections Boot order / Mid-flight / Confirm / Peers; ≤80 lines excl. Confirm fence; engrim + `graphify-out/graph.json` required peers (SessionStart/doctor hard-incomplete); validator script is the shape gate; backlog stays GitHub Issues. Plan written (untracked until committed with #62): `meta/superpowers/plans/2026-09-09-primer-thin-hard-template.md` — revised after caveman-review (exact hard-stop string, commit `graph.json`, inject-only SessionStart, basename freshness ignores, `require_script`, PRIVACY/README). Next: implement #62 on a branch via subagent-driven strategy.
 - **Determinism Phase 6 sub-project A shipped (issue #43 partially —
   4 of 5 sub-projects remain, PR #52, merged).** `commands/primer.md`
   Step 1's hand-evaluated 4-state-plus-3-migration-trigger dispatch
@@ -698,11 +699,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-de381a8 feat: primer-detect.sh/.jq, scripting /session-continuity:primer's Step 1 dispatch (Phase 6 sub-project A) (#52)
-8dfd9c9 refactor: end-session's overlap gate is now hooks/lib/token-overlap.sh/.jq (#51)
-ddaccca Merge pull request #50 from talgolan/determinism-phase-4-step3-checklist
-40f5496 fix(docs): inline sign-off strings in end-session fallback path
-b7b82f3 docs: Phase 4 doc pointers, changelog, and version bump for the checklist script
+b3ffca5 docs: thin hard-template SESSION_PRIMER design (engrim + graphify)
+8c44a15 Determinism Phase 7: derived-value-gate.sh, closes #44 (and #54) (#61)
+79233c9 fix: bump count-entries-smoke.zsh's real-LEARNINGS.md pin (16 -> 20)
+8a677cc docs: deprioritize Phase 6 sub-project E, same reasoning as C
+ff904fb docs: deprioritize Phase 6 sub-project C, file format-mismatch follow-up
 ```
 
 Regenerate this block whenever you commit — see
