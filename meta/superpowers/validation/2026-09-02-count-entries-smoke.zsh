@@ -37,8 +37,8 @@ work="$(mktemp -d)"
 # against `grep -cE '^### [0-9]+\.'` directly (the naive expression is
 # correct here precisely because no real entry heading sits inside a
 # comment or a fence — that only happens in the shipped templates below).
-# Pin last bumped 2026-09-07 (15 -> 16, one more entry landed since).
-assert_count "real LEARNINGS.md" "$repo/.session-continuity/LEARNINGS.md" 16
+# Pin last bumped 2026-09-09 (16 -> 20, four more entries landed since).
+assert_count "real LEARNINGS.md" "$repo/.session-continuity/LEARNINGS.md" 20
 
 # count-entries.sh is file-format agnostic (LEARNINGS still uses it). A
 # synthetic markdown file pins the heading-count contract without depending
