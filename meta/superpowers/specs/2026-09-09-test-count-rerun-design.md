@@ -34,7 +34,15 @@ drift-detected Refresh-mode call, per the original phase table).
 `PROJECT_CONTEXT.md`'s `{{TEST_COMMAND_SUMMARY}}` placeholder as
 `` `<TEST_CMD>` — N pass / M fail `` when the init test run had exit 0 and
 a parseable count, else the bare command string, else `TBD` — never an
-invented count (line 114). Step 4's rerun reads this same line back.
+invented count (line 114). Step 4's rerun reads this same line back, but
+**only `N` (pass count) round-trips as `RECORDED_COUNT`/`OBSERVED`** — `M`
+(fail count) is parsed for display purposes only and never compared.
+This means a newly-failing test that doesn't change `N` (e.g. a new test
+added and immediately failing, holding the pass count steady while `M`
+rises from 0) produces no drift signal on this axis — same blind spot
+the current hand-evaluated prose already has, since it only ever
+mentions "the primer's recorded count," singular. Not fixed here;
+flagged as a real limitation inherited, not introduced.
 
 ## Architecture
 
@@ -79,47 +87,65 @@ D's scope.
 to stdout on success:
 
 ```
-TEST_CMD=<string, may be empty>
+TEST_CMD=<string, empty only in MODE=no-command>
 RECORDED_COUNT=<int, or empty if PROJECT_CONTEXT.md had no parseable count>
-MODE=skip|run|no-command|no-count|run-unparseable
+MODE=skip|run|no-command|no-count
 RETRIES=<int, 0-2>
-OBSERVED=<comma-separated ints, the runs actually executed, in order>
+OBSERVED=<comma-separated, one entry per run executed in order, an
+  entry is empty if that run's output had no parseable count>
+UNPARSEABLE=0|1  <- 1 iff any OBSERVED entry is empty
 DRIFT=0|1
-PINNED_COUNT=<int, empty if DRIFT=0 or MODE!=run>
-SPREAD=<1 if all 3 runs disagree with each other, else 0>
+PINNED_COUNT=<int, empty unless some value has >=2 parseable votes>
+SPREAD=0|1  <- 1 iff PINNED_COUNT is empty AND >=2 distinct parseable
+  values were observed (a real disagreement, not just missing data)
 ```
+
+`DRIFT` and `SPREAD` are mutually exclusive: `DRIFT=1` requires a
+non-empty `PINNED_COUNT`; `SPREAD=1` only fires when no value pinned.
+Vote counting (`PINNED_COUNT`, `SPREAD`) considers only the parseable
+entries in `OBSERVED` — an unparseable run still counts against the
+3-run budget (`RETRIES`) but casts no vote. Two parseable agreeing
+observations pin a majority even if the third run was unparseable
+(2-of-2 parseable, not strictly 2-of-3 raw); if the two parseable runs
+instead disagree, no majority exists — same as a 3-way disagreement,
+so `SPREAD=1`.
 
 `MODE=skip`: the git-diff check found no file outside `.session-continuity/`
 changed since the last primer touch — `RETRIES=0`, `OBSERVED=` empty,
-`DRIFT=0`.
+`UNPARSEABLE=0`, `DRIFT=0`, `SPREAD=0`.
 
 `MODE=no-command`: `PROJECT_CONTEXT.md`'s `TEST_COMMAND_SUMMARY` line has
 no `<TEST_CMD>` (bare `TBD`, or the line is missing/unparseable) — nothing
-to rerun. `RETRIES=0`, `DRIFT=0`.
+to rerun. `RETRIES=0`, `DRIFT=0`, `SPREAD=0`.
 
 `MODE=no-count`: `TEST_CMD` exists but `RECORDED_COUNT` doesn't (the
 seeded line fell back to the bare command string) — there is nothing to
 diff against. The command still runs once so the caller can seed a count
-going forward, but `DRIFT` is always `0` in this mode — you cannot drift
-from a value that was never recorded.
+going forward, but `DRIFT` is always `0` and `SPREAD` always `0` in this
+mode — you cannot drift from, or disagree against, a value that was
+never recorded.
 
 `MODE=run`: the normal path. Runs 1-3 times per the majority-vote rule
-already in the current prose (unchanged behavior, now scripted):
-first run matching `RECORDED_COUNT` stops at `RETRIES=0`; a mismatch
-triggers 2 more runs; `PINNED_COUNT` is whichever value appears in ≥2 of
-the 3 `OBSERVED` entries; `DRIFT=1` iff `PINNED_COUNT != RECORDED_COUNT`;
-`SPREAD=1` iff all 3 disagree (in which case `PINNED_COUNT` is empty and
-the caller reports the raw spread, matching the current prose's
-`"saw 1162 / 1161 / 1162 across 3 runs"` phrasing using `OBSERVED`
-directly).
-
-A test run that times out or exits nonzero with no parseable count in
-its output is treated as an unparseable observation — dropped from the
-majority-vote pool (not counted as a vote for any value), but the run
-still counts against the 3-run budget. If none of up to 3 runs produce a
-parseable count, `MODE=run-unparseable`, `DRIFT=0` (nothing to compare),
-and the caller surfaces this as "test command produced no parseable
-count after N attempts" rather than silently reporting no drift.
+already in the current prose (unchanged behavior, now scripted): first
+run matching `RECORDED_COUNT` stops at `RETRIES=0`; a mismatch triggers
+2 more runs. Outcomes, by how many of up to 3 runs are parseable and
+what they show:
+- **A value gets ≥2 parseable votes** — `PINNED_COUNT` = that value,
+  `DRIFT=1` iff it differs from `RECORDED_COUNT`, `SPREAD=0`. This is
+  the normal case, and also covers 2-of-2 when the third run was
+  unparseable.
+- **≥2 distinct parseable values, none reaching a majority** (all 3
+  disagree, or 2 disagree and the third was unparseable) — `SPREAD=1`,
+  `PINNED_COUNT` empty, `DRIFT=0`. The caller reports the raw spread
+  from `OBSERVED` (matching the current prose's `"saw 1162 / 1161 /
+  1162 across 3 runs"` phrasing) instead of a drift verdict.
+- **Fewer than 2 parseable observations total** (0 or 1, the rest
+  unparseable/timed out) — `PINNED_COUNT` empty, `DRIFT=0`, `SPREAD=0`
+  (there's no disagreement to report, just missing data).
+  `UNPARSEABLE=1` distinguishes this from the ordinary
+  no-drift-detected case; the caller surfaces "test command produced
+  no parseable count after N attempts" rather than silently reporting
+  no drift.
 
 ## Error handling
 
@@ -138,13 +164,18 @@ Fixture-driven, split across both layers:
 
 - `.jq` filter: synthetic JSON fixtures (no git, no subprocess) covering
   the vote/drift/spread matrix — match-on-first-run, drift confirmed by
-  majority, spread (3-way disagreement), and the `skip`/`no-command`/
-  `no-count` short-circuit modes.
+  majority, spread (3-way disagreement), spread from 2-parseable-disagree
+  plus 1 unparseable, 2-of-2-parseable-agree majority with the third
+  unparseable, all-3-unparseable (`UNPARSEABLE=1`, `SPREAD=0`,
+  `PINNED_COUNT` empty), and the `skip`/`no-command`/`no-count`
+  short-circuit modes.
 - `.sh` shim: scratch git repos with a fake `TEST_CMD` (a tiny script
   that echoes a controlled count, invocation-counted via a side file so
   the fixture can assert exactly how many times it ran) — covering the
   skip-check's git-diff logic, the stop-after-1-on-match short circuit,
-  and the timeout/nonzero/unparseable-output edge case.
+  and the timeout/nonzero/unparseable-output edge case (including all 3
+  runs unparseable, to confirm the shim still emits a well-formed
+  `OBSERVED=` with 3 empty entries rather than erroring out).
 
 Mirrors `meta/superpowers/validation/2026-09-08-primer-detect-smoke.zsh`'s
 format. New runner:
