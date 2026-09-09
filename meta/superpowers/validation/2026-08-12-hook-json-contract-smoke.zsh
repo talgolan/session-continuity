@@ -75,6 +75,8 @@ commit_parses "backend-parity-gate: one named only" \
   backend-parity-gate.sh "meta/plans/p.md" 'This plan needs full backend parity coverage in smoke.'
 commit_parses "occurrence-gate: repeat, no invariant" \
   occurrence-gate.sh ".session-continuity/LEARNINGS.md" $'Occurrence count: 3 of 5\nYet another trigger patch.'
+commit_parses "derived-value-gate: duration computed by hand" \
+  derived-value-gate.sh "commands/end-session.md" 'prior_epoch="$(date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$t" +%s)"'
 
 # Adversarial reasons: staged content carrying the characters that break a
 # hand-built JSON string. smoke-gate echoes the matched line into its
@@ -113,7 +115,7 @@ prompt_parses "prompt-intercept: /session-continuity:help block parses" "/sessio
 
 # Completeness: every gate must own at least one fixture above. A newly added
 # gate fails this runner until someone adds one — that is the point.
-covered=(proven-gate.sh smoke-gate.sh evidence-gate.sh flaky-gate.sh backend-parity-gate.sh occurrence-gate.sh)
+covered=(proven-gate.sh smoke-gate.sh evidence-gate.sh flaky-gate.sh backend-parity-gate.sh occurrence-gate.sh derived-value-gate.sh)
 for f in "$hooks"/*-gate.sh; do
   b="${f:t}"
   if (( ${covered[(Ie)$b]} )); then
