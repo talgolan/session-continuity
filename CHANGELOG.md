@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.32.0] — 2026-09-08
+
+### Changed
+- **`/session-continuity:primer`'s Step 1 dispatch is now scripted.** New `hooks/lib/primer-detect.sh`/`.jq` replace ~15 lines of hand-evaluated nested-conditional prose (a 4-state classification plus 3 migration triggers with an easy-to-miss sequencing rule) with one script call that prints a definitive, ordered `STEPS=` list. The trigger chain is evaluated by threading each trigger's effect forward into the fact the next depends on (`outstanding_split → backlog_rename → backlog_to_issues`), not by re-deriving disjunctions per trigger — an approach tried and found not to compose past one chained link during this work. Determinism Phase 6 (#43) sub-project A; sub-projects B–E remain pending.
+
 ## [0.31.0] — 2026-09-08
 
 ### Changed
