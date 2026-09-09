@@ -46,7 +46,7 @@ _dvg_check_duration() {
 
 _dvg_check_count() {
   local content="$1" path="$2" hit
-  hit="$(printf '%s' "$content" | grep -inoE 'cardinality|Pin to the count seen in|RETRIES count|Pin.*across[[:space:]]+[0-9]+[[:space:]]+runs' | head -1)"
+  hit="$(printf '%s' "$content" | grep -inoE 'cardinality|Pin to the count seen in|RETRIES count|saw.*across[[:space:]]+[0-9]+[[:space:]]+runs[[:space:]]*—' | head -1)"
   [ -n "$hit" ] || return 0
   _dvg_deny "$path" "instructs a model to tally or vote on a count by eye" "$hit" \
     "A script owns cardinality/majority-vote math — see hooks/lib/token-overlap.sh and hooks/lib/test-count-rerun.sh."
