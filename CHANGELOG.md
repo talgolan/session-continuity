@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.33.0] — 2026-09-09
+
+### Changed
+- **`/session-continuity:primer`'s Step 4 test-count rerun is now scripted.** New `hooks/lib/test-count-rerun.sh`/`.jq` replace ~8 lines of hand-evaluated majority-vote prose (skip-check, run-once-then-compare, retry-to-3-on-mismatch, pin-to-majority, spread-on-3-way-disagreement) with one script call. The `.jq` filter's vote algorithm is mode-agnostic — the `skip`/`no-command`/`no-count` cases' "always empty" outputs fall out of the same generic majority computation applied to a 0- or 1-element observation array, with no per-mode special casing. Unparseable test runs (timeout, crash, no recognizable count) are now handled explicitly: they consume a retry slot but cast no vote, so a 2-of-2 parseable majority still pins even when the third run was unparseable, and a genuine 2-way disagreement with one unparseable run reports spread rather than a false no-drift. Determinism Phase 6 (#43) sub-project B; sub-projects C-E remain pending.
+
 ## [0.32.0] — 2026-09-08
 
 ### Changed
