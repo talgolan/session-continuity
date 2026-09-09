@@ -16,6 +16,7 @@ within each group.
   each time it appends a new entry.
 -->
 
+- A capture regex spanning a multi-line git-log fenced block matched fine via… — #19
 - A subagent reported commit `9b2f504` in repo A; `git rev-parse --verify` in… — #18
 - After GitHub squash-merged PR #20, `git merge --ff-only — #15
 - Clean-machine acceptance test for v0.4.0. `/session-continuity:primer` ran init mode cleanly, asked for… — #4
@@ -24,6 +25,7 @@ within each group.
 - Discovered while hardening the Step 2 transcript-extraction jq filter after a user… — #10
 - Documented as an accepted tradeoff while designing the commit-time gates (`meta/superpowers/specs/2026-08-27-commit-time-content-gates-design.md`'s Tradeoffs… — #14
 - Every run of that one check silently wrote a real entry into… — #12
+- Implementing the same state machine directly in jq (to write real tests,… — #20
 - In a live Claude session, the hook runs (verified via debug logs)… — #1
 - Real invocation of `/session-continuity:primer` after installing the change failed every one of… — #11
 - The Bash call is refused outright: "This session is isolated in the… — #8
@@ -123,6 +125,34 @@ The original awk range fails because the same pattern matches both the start and
 ---
 
 ## Slash command skill authoring
+
+### 20. A per-link "OR about to become true" disjunction fix for one chained trigger doesn't generalize to the next link
+Slug: chained-trigger-threading-not-disjunction
+Trigger: Write /\.jq$/
+
+**The trap.** Fixing a state-machine trigger's stale-fact bug by adding "OR about to become true because the prior step is queued" feels like a complete fix — it matches the exact bug reported and verifies correct for that one link.
+
+**Symptom.** Implementing the same state machine directly in jq (to write real tests, not just re-derive it by hand) surfaced an identical bug one link further up the dependency chain: the trigger feeding the just-fixed one had the exact same stale-snapshot problem, because the whole `STEPS` list is computed from one upfront fact snapshot before any step actually runs — a queued-but-not-yet-run migration can't have changed the fact the next trigger reads.
+
+**Fix.** Replace per-link disjunctions with threading a single projected fact forward through the pipeline (`PROJ_X = triggered ? 1 : raw_fact`), so each trigger reads the fact-state that will actually exist at its own execution time given everything queued before it. This generalizes to any chain length; a disjunction has to be rewritten wider for every additional link.
+
+**Diagnostic signal** *(optional)*. A chained dependent-trigger state machine — trigger B's precondition depends on a fact trigger A is about to change — where only the last-reported link got an "about to become true" fix: check every earlier link in the chain for the identical bug, not just the one the report named.
+
+---
+
+### 19. jq/Oniguruma's "m" flag means dot-matches-newline, not PCRE's "s"
+Slug: jq-oniguruma-dotall-flag-swap
+Trigger: Write /\.jq$/
+
+**The trap.** jq's regex flags look like they follow PCRE convention, where "s" (dotall) makes `.` match newlines — a reasonable assumption since dotall-as-"s" is the common cross-language default and jq's own docs describe the flags tersely.
+
+**Symptom.** A capture regex spanning a multi-line git-log fenced block matched fine via `test()` right up through the literal fence delimiter, then silently returned zero matches — not an error, an empty stream — once a `.*?` needed to cross the block's internal newlines, using flag `"s"`.
+
+**Fix.** jq/Oniguruma's `"m"` flag is what makes `.` match newlines; `"s"` instead restricts `^`/`$` to string start/end (single-line anchor mode) — the letters are swapped from PCRE. Use `"m"` whenever a jq regex's `.` must cross line breaks.
+
+**Diagnostic signal** *(optional)*. A jq `capture()`/`match()` against known-good multi-line text returns nothing — not an error, an empty stream — check the flag letter before suspecting the pattern itself.
+
+---
 
 ### 10. jq's `split("\n")[0]` returns `null` on an empty string — crashes the next `gsub` in a chain
 Slug: jq-split-empty-string-null

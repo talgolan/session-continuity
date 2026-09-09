@@ -282,22 +282,48 @@ the file unless the issues exist.
    ```
 
    Use the output above to regenerate the primer's block.
-3. If the primer has a test-counts section, decide whether to re-run it.
-   Do this as **one Bash call**, timed, tracking a `RETRIES` count (0
-   if skipped or the first run matched, else the number of *extra*
-   runs actually executed beyond the first):
-   - **Skip the rerun** if `git diff <last-primer-commit>..HEAD --name-only` (the commit range since the primer was last touched) contains no file outside `.session-continuity/` — no source or test file changed, so the recorded count cannot have drifted. Reuse this diff if already computed elsewhere in this flow; don't recompute it just for this check.
-   - **Otherwise, run the test command(s) once.** If that single run's count matches the primer's recorded count, stop there — no drift on this axis, no further runs.
-   - **Only if that first run disagrees with the recorded count**, retry up to 2 more times (3 runs total) to rule out flakiness before reporting drift — a single sample can swing a pass/fail count and produce a false drift alarm. Pin to the count seen in ≥2 of the 3 runs. If that pinned count matches the primer's recorded count, the first run was the flake — no drift. If it differs, report drift with the pinned count. If all three runs disagree with each other, surface the spread (`saw 1162 / 1161 / 1162 across 3 runs — using 1162; suite is unstable`) instead of silently picking one.
+3. Run the shared test-count rerun script, timed:
 
-   This keeps the common cases cheap: zero test runs when no relevant file changed, one run when relevant files changed but the count still holds, and the full 3-run majority vote only when there's an actual discrepancy to resolve.
-
-   At the end of this Bash call (whichever branch above ran), call:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-test-count-rerun --duration="$_PERF_DURATION" --retries="$RETRIES"
+   _PERF_START=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+   LAST_PRIMER_COMMIT=$(git log -1 --format=%H -- .session-continuity/SESSION_PRIMER.md)
+   source "${CLAUDE_PLUGIN_ROOT}/hooks/lib/require-script.sh"
+   if require_script "${CLAUDE_PLUGIN_ROOT}/hooks/lib/test-count-rerun.sh" 1; then
+     RERUN_OUTPUT="$(bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/test-count-rerun.sh" . "$LAST_PRIMER_COMMIT" 2>&1)"
+     RERUN_STATUS=$?
+   else
+     RERUN_OUTPUT="$SC_REQUIRE_SCRIPT_MSG"
+     RERUN_STATUS=1
+   fi
+   _PERF_END=$(date +%s.%N 2>/dev/null || echo "$SECONDS")
+   _PERF_DURATION=$(awk -v a="$_PERF_START" -v b="$_PERF_END" 'BEGIN{printf "%.3f", b-a}' 2>/dev/null || echo "$(( _PERF_END - _PERF_START ))")
+   RETRIES=$(printf '%s' "$RERUN_OUTPUT" | awk -F= '/^RETRIES=/{print $2}')
+   bash "${CLAUDE_PLUGIN_ROOT}/hooks/lib/perf-log.sh" record --source=command --name=primer --step=step-4-test-count-rerun --duration="$_PERF_DURATION" --retries="${RETRIES:-0}"
+   echo "$RERUN_OUTPUT"
+   echo "RERUN_STATUS=$RERUN_STATUS"
    ```
-   using the same `_PERF_START`/`_PERF_END`/`_PERF_DURATION` pattern
-   shown in item 2 above, captured around this whole check.
+
+   **If `RERUN_STATUS` is nonzero, or `$RERUN_OUTPUT` has no `MODE=` line:**
+   report `$RERUN_OUTPUT` to the user and fall back to `TBD` for this
+   axis — never fabricate a drift verdict from a failed script.
+
+   **Otherwise**, report per `MODE`:
+   - `skip` — no relevant file changed; say nothing (matches today's
+     silent skip).
+   - `no-command` — no test command recorded; nothing to check.
+   - `no-count`, `RETRIES=0`, `DRIFT=0` always — nothing recorded yet
+     to compare against; no report needed on this axis.
+   - `run` with `DRIFT=0` — the count held (whether on the first try or
+     after majority-vote confirmation); no report needed.
+   - `run` with `DRIFT=1` — report drift using `PINNED_COUNT`
+     (`"Test count drifted: recorded <RECORDED_COUNT>, now
+     <PINNED_COUNT> (confirmed over <RETRIES>+1 runs)."`).
+   - `run` with `SPREAD=1` — report instability using the comma-joined
+     `OBSERVED` values (`"Test suite is unstable: saw
+     <OBSERVED, /-joined> across 3 runs."`), not a drift verdict.
+   - `run` with `UNPARSEABLE=1` and no `PINNED_COUNT` — report
+     `"Test command produced no parseable count after <RETRIES>+1
+     attempts."`
 4. **Surface activity since the last primer refresh.** **One Bash
    call**, timed:
 

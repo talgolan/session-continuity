@@ -20,6 +20,32 @@ rarely.
 
 ## Current state
 
+- **Determinism Phase 6 sub-project A shipped (issue #43 partially —
+  4 of 5 sub-projects remain, PR #52, merged).** `commands/primer.md`
+  Step 1's hand-evaluated 4-state-plus-3-migration-trigger dispatch
+  (~15 lines of nested-conditional prose with an easy-to-miss sequencing
+  rule) replaced by `hooks/lib/primer-detect.sh`/`.jq`, which threads
+  each trigger's effect forward into the fact the next trigger reads
+  (`outstanding_split`→`backlog_rename`→`backlog_to_issues`) rather than
+  writing per-trigger "OR about to become true" disjunctions — that
+  approach was tried during implementation-first verification, found not
+  to compose past one chained link (a real bug caught twice: once by
+  caveman-review, once by re-deriving the logic directly in jq), and
+  replaced. Executed via subagent-driven-development (3 tasks, each
+  task-reviewed) plus a final whole-branch review (Opus) that found one
+  more real gap before merge: the terminal-step rule only ran Step 5
+  when `STEPS` was fully empty, silently skipping the status report for
+  a migration-only `STEPS` list — fixed, re-reviewed clean. 16/16 smoke
+  assertions (real scratch git repos). Design spec:
+  `meta/superpowers/specs/2026-09-08-primer-detect-design.md`. Plan:
+  `meta/superpowers/plans/2026-09-08-primer-detect.md`. Sub-projects
+  B (Step 4's test-count majority-vote rerun), C (Step 3c/3d's `git
+  mv`/`git rm` mechanics), D (Step 2's placeholder derivation), and E
+  (Step 3/3b's section-bucketing judgment) remain pending on issue #43.
+  One parked minor: the corrected terminal-step rule also fires Step 5
+  after `STEPS=init` on every fresh install (Step 2 already prints its
+  own terminal report) — harmless, one extra status paragraph, happens
+  once per repo ever. v0.32.0.
 - **Determinism Phase 5 re-scoped and shipped (issue #42, branch
   `determinism-phase-5-token-overlap`).** Original scoping conflated two
   unrelated things: `candidate-extract.jq`'s `overlap()` (a Jaccard ratio
@@ -672,11 +698,11 @@ rarely.
 **Current `git log --oneline -5` (primary branch):**
 
 ```
-66468ee refactor: end-session's overlap gate is now hooks/lib/token-overlap.sh/.jq
+de381a8 feat: primer-detect.sh/.jq, scripting /session-continuity:primer's Step 1 dispatch (Phase 6 sub-project A) (#52)
+8dfd9c9 refactor: end-session's overlap gate is now hooks/lib/token-overlap.sh/.jq (#51)
 ddaccca Merge pull request #50 from talgolan/determinism-phase-4-step3-checklist
 40f5496 fix(docs): inline sign-off strings in end-session fallback path
 b7b82f3 docs: Phase 4 doc pointers, changelog, and version bump for the checklist script
-17d866d refactor: end-session Step 4 becomes a pure timing step, sign-off now owned by checklist-assemble.sh
 ```
 
 Regenerate this block whenever you commit — see
