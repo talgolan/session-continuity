@@ -11,7 +11,12 @@ pass=0; fail=0
 ok()  { print -P "%F{green}✓%f $1"; (( pass++ )); return 0; }
 bad() { print -P "%F{red}✗%f $1"; (( fail++ )); return 0; }
 
-work="$(mktemp -d)"
+# Workspace-local temp: system /tmp denied in sandbox; macOS mktemp -d
+# ignores TMPDIR unless template is explicit under the repo.
+tmpdir_root="$repo/.superpowers/sdd/tmp"
+mkdir -p "$tmpdir_root"
+export TMPDIR="$tmpdir_root"
+work="$(mktemp -d "$tmpdir_root/smoke.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 
 last_rc=0
@@ -22,11 +27,12 @@ run_fresh() {
   out="$(bash "$helper" "$dir" 2>/dev/null)" || last_rc=$?
 }
 
-# init_repo <dir> — empty git repo with identity set
+# init_repo <dir> — empty git repo with identity set.
+# Empty templateDir: sandbox-safe (no hook template copy).
 init_repo() {
   local d="$1"
   mkdir -p "$d"
-  git -C "$d" init -q
+  git -C "$d" -c init.templateDir= init -q
   git -C "$d" config user.email "test@example.com"
   git -C "$d" config user.name "Test"
 }
