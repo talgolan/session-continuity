@@ -9,7 +9,7 @@
 6. `/session-continuity:backlog` for the deferred queue
 
 ## Mid-flight
-- Branch `eval/gate-escape-smoke-scope`: gate eval spec written, no hook code touched — awaiting implement-vs-park call
+- Branch `eval/gate-escape-smoke-scope`: eval + delta-trigger reconciler design approved; plan next, no hook code touched yet
 - #68+#37 unreleased: zero-turn doctor-report.sh; scratch primer init/split smoke
 - Determinism Phase 6 on #43 — A/B/D shipped; C/E deprioritized (issue closed)
 - Next backlog candidates: #36 integration, #35 marketplace
