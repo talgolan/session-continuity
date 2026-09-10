@@ -9,10 +9,10 @@
 6. `/session-continuity:backlog` for the deferred queue
 
 ## Mid-flight
-- #55+#53 landed unreleased: no-count skips suite run; end-session TSV uses `command cp`
+- #45 done → concrete doctor retrofit filed as #68 (zero-turn `doctor-report.sh`)
 - Determinism Phase 6 on #43 — A/B/D shipped; C/E deprioritized (issue closed)
-- Next backlog candidates: #45 doctor, #37 scratch-smoke, #36 integration, #35 marketplace
-- Optional: derive `count-entries-smoke.zsh` pin (still hardcodes 21)
+- Next backlog candidates: #68 doctor zero-turn, #37 scratch-smoke, #36 integration, #35 marketplace
+- Patch release deferred (Unreleased: #60/#55/#53 + graphify ignore)
 
 ## Confirm
 ```bash
