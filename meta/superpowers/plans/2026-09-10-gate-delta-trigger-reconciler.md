@@ -9,11 +9,12 @@
 delta and satisfy against the whole document, with escape short-circuit and
 masking owned by the shared driver.
 
-**Architecture:** Extend `hooks/lib/gate-common.sh` with pinned
-`gate_staged_delta`, `gate_hatch_class`, `gate_triggered TRIGGER [SAT…]`,
-driver short-circuit on accepted hatch, central mask, and best-effort `deny`
-diagnostics. Each gate sets `GATE_LABEL`, deletes local escape/mask calls, and
-migrates triggers per
+**Architecture:** Extend `hooks/lib/gate-common.sh` with pinned content
+`gate_staged_delta`, rename-aware `gate_staged_status`, `gate_hatch_class`,
+`gate_triggered [-w] TRIGGER [SAT…]`, driver short-circuit on accepted hatch
+and on `R*` renames, central mask, and best-effort `deny` diagnostics. Each
+gate sets `GATE_LABEL`, deletes local escape/mask in Task 2, and migrates
+triggers per
 [`meta/superpowers/specs/2026-09-10-gate-delta-trigger-reconciler-design.md`](../specs/2026-09-10-gate-delta-trigger-reconciler-design.md).
 
 **Tech Stack:** bash (`set -euo pipefail`), git, zsh hermetic smokes under
@@ -29,18 +30,22 @@ Smoke: N/A — this plan changes shell gate drivers only; no binary/engine/SUT.
 ## Global Constraints
 
 - Spec decisions locked: trigger-on-delta / satisfy-on-document; hatch grammar
-  unchanged (em dash or `--` + reason); no `gate_window_around`; no widening
-  separators; pattern *strings* unchanged (scope only).
-- Diff pins (verbatim):
+  unchanged; no `gate_window_around`; no widening separators; pattern *strings*
+  unchanged (scope only).
+- Content diff pins (verbatim):
   `git -c diff.algorithm=myers diff --cached --no-color --no-ext-diff --no-textconv --no-renames -U0 -- <path>`
+- Status probe (rename-aware, **no** `--no-renames`):
+  `git diff --cached --name-status -M --no-color -- <path>`
+- On status matching `R*`: skip `check_fn` (pure rename → allow).
 - Greps/masker: `LC_ALL=C`.
-- Escape order: classify **unmasked** blob → accepted skips `check_fn` → mask →
-  `check_fn`. No gate may call `gate_has_escape` or `gate_mask_escape` after
-  this lands (success criterion 5).
-- `GATE_LABEL` set explicitly in every gate before `gate_scan_staged`.
-- Diagnostics (near-miss, chained add, worktree hatch) are best-effort text on
-  `deny` only — never flip allow/deny.
-- Release: **0.37.0** (bump `.claude-plugin/plugin.json` + `CHANGELOG.md`).
+- Escape order: classify unmasked blob → accepted skips `check_fn` → mask →
+  `check_fn`. Delete local `gate_has_escape` / `gate_mask_escape` from all
+  seven gates in **Task 2** (same change as short-circuit).
+- `gate_triggered [-w] TRIGGER [SAT…]` — `-w` uses `grep -Eiqw` (proven).
+- `GATE_LABEL` set before `gate_scan_staged` (and before flaky message path).
+- Diagnostics best-effort on `deny` only — never flip allow/deny.
+- Under `set -e`: use `if …; then continue; fi`, never `cmd && continue`.
+- Release: **0.37.0**.
 - Spec/plan under `meta/superpowers/`, not `docs/`.
 - Do not commit unless the user asked; Commit steps are optional gates.
 - Smokes need unsandboxed `git init`.
@@ -51,40 +56,36 @@ Smoke: N/A — this plan changes shell gate drivers only; no binary/engine/SUT.
 
 | File | Role |
 |---|---|
-| `hooks/lib/gate-common.sh` | Delta, hatch class, `gate_triggered`, driver, `deny` append |
-| `hooks/*-gate.sh` (seven) | `GATE_LABEL` + trigger migration |
-| `meta/superpowers/validation/2026-08-27-gate-common-smoke.zsh` | New driver/API cases |
-| `meta/superpowers/validation/2026-*-*gate*smoke.zsh` | Delta / delete-SAT / near-miss cases |
-| `README.md` | Fix Write/Edit bullets → commit-time |
-| `skills/session-continuity/REFERENCE.md` | Consumer section |
-| `skills/session-continuity/templates/CLAUDE_MD_SNIPPET.md` | Verify chain trap already present |
-| `CHANGELOG.md` / `.claude-plugin/plugin.json` | 0.37.0 |
+| `hooks/lib/gate-common.sh` | Delta, status, hatch class, `gate_triggered`, driver, `deny` |
+| `hooks/*-gate.sh` (seven) | `GATE_LABEL`; delete local escape Task 2; delta triggers later |
+| `meta/superpowers/validation/2026-08-27-gate-common-smoke.zsh` | Driver/API cases |
+| `meta/superpowers/validation/2026-*-*gate*smoke.zsh` | Per-gate delta cases |
+| `README.md` / `REFERENCE.md` / `CHANGELOG.md` / `plugin.json` | Docs + 0.37.0 |
 
 ---
 
-### Task 1: `gate_staged_delta` + color.diff pin (TDD)
+### Task 1: `gate_staged_delta` + rename-aware status (TDD)
 
 **Files:**
 - Modify: `hooks/lib/gate-common.sh`
 - Modify: `meta/superpowers/validation/2026-08-27-gate-common-smoke.zsh`
-- Test: same smoke
 
 **Interfaces:**
-- Consumes: `GATE_CWD` (existing)
-- Produces: `gate_staged_delta <relpath>` sets globals `GATE_DELTA_ADDED` and
-  `GATE_DELTA_REMOVED` (newline-joined text, no `+`/`-` prefixes). Also
-  `gate_staged_status <relpath>` → status letter from
-  `git diff --cached --name-status --no-renames` (`A`/`M`/`D`/…); empty if
-  missing.
+- Produces: `gate_staged_delta <relpath>` → globals `GATE_DELTA_ADDED` /
+  `GATE_DELTA_REMOVED`; `gate_staged_status <relpath>` → status token (`A`,
+  `M`, `D`, `R100`, …) from rename-aware `name-status -M`.
 
-- [ ] **Step 1: Append failing smoke cases**
-
-Before the final `print -r -- "---"` in `2026-08-27-gate-common-smoke.zsh`:
+- [ ] **Step 1: Append failing smoke cases** (before final `---` in
+  `2026-08-27-gate-common-smoke.zsh`):
 
 ```zsh
 delta_added() {
   local repo="$1" path="$2"
   bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_CWD="'"$repo"'"; gate_staged_delta "'"$path"'"; printf "%s" "$GATE_DELTA_ADDED"'
+}
+delta_status() {
+  local repo="$1" path="$2"
+  bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_CWD="'"$repo"'"; gate_staged_status "'"$path'"'
 }
 
 repo="$(gt_make_repo)"
@@ -106,8 +107,9 @@ repo="$(gt_make_repo)"
 gt_stage "$repo" "meta/plans/r.md" $'body\n'
 git -C "$repo" commit -qm base
 git -C "$repo" mv meta/plans/r.md meta/plans/s.md
-out="$(delta_added "$repo" "meta/plans/s.md")"
-check "pure rename added delta empty" "" "$out"
+st="$(delta_status "$repo" "meta/plans/s.md")"
+case "$st" in R*) st_ok=yes ;; *) st_ok="no:$st" ;; esac
+check "pure rename status is R*" "yes" "$st_ok"
 gt_cleanup "$repo"
 
 repo="$(gt_make_repo)"
@@ -121,22 +123,21 @@ check "color.diff=always still yields plain added line" "color line" "$out"
 gt_cleanup "$repo"
 ```
 
-- [ ] **Step 2: Run smoke — expect FAIL**
+- [ ] **Step 2: Run — expect FAIL** (`gate_staged_delta` missing).
 
 ```bash
 zsh meta/superpowers/validation/2026-08-27-gate-common-smoke.zsh
 ```
 
-Expected: FAIL (`gate_staged_delta` missing).
-
-- [ ] **Step 3: Implement in `hooks/lib/gate-common.sh`** (after `gate_staged_blob`)
+- [ ] **Step 3: Implement**
 
 ```bash
-gate_staged_status() {  # <relpath> -> A|M|D|... or empty
+gate_staged_status() {  # <relpath> -> A|M|D|R100|... or empty
   local path="$1" line
   [ -n "${GATE_CWD:-}" ] || { printf ''; return 0; }
-  line="$(git -C "$GATE_CWD" -c diff.algorithm=myers diff --cached --name-status \
-    --no-color --no-ext-diff --no-textconv --no-renames -- "$path" 2>/dev/null | head -1 || true)"
+  # Rename-aware on purpose — do NOT pass --no-renames here.
+  line="$(git -C "$GATE_CWD" diff --cached --name-status -M --no-color -- "$path" 2>/dev/null | head -1 || true)"
+  # R100\told\tnew  or  A\tpath  or  M\tpath
   printf '%s' "${line%%$'\t'*}"
 }
 
@@ -153,34 +154,30 @@ gate_staged_delta() {  # <relpath> -> sets GATE_DELTA_ADDED, GATE_DELTA_REMOVED
 }
 ```
 
-- [ ] **Step 4: Re-run smoke — new cases PASS; existing still green.**
+- [ ] **Step 4: Re-run — PASS.**
 
-- [ ] **Step 5: Commit** (only if user asked)
-
-```bash
-git add hooks/lib/gate-common.sh meta/superpowers/validation/2026-08-27-gate-common-smoke.zsh
-git commit -m "feat(gates): pinned gate_staged_delta for commit-time triggers"
-```
+- [ ] **Step 5: Optional commit.**
 
 ---
 
-### Task 2: `gate_hatch_class` + driver short-circuit + `GATE_LABEL` stubs
+### Task 2: Hatch class + short-circuit + delete local escape (TDD)
 
 **Files:**
 - Modify: `hooks/lib/gate-common.sh`
-- Modify: all seven `hooks/*-gate.sh` (set `GATE_LABEL=…` before `gate_scan_staged`)
-- Modify: `meta/superpowers/validation/2026-08-27-gate-common-smoke.zsh`
+- Modify: all seven `hooks/*-gate.sh` — set `GATE_LABEL`; **delete** every
+  `gate_has_escape` / `gate_mask_escape` call (driver owns both)
+- Modify: `2026-08-27-gate-common-smoke.zsh`
+- Modify: `2026-06-17-proven-gate-smoke.zsh` — one case: accepted hatch still
+  exempts via real `proven-gate.sh` after driver short-circuit
 
 **Interfaces:**
-- Produces: `gate_hatch_class <text> <Label>` → `accepted|near-miss|absent`;
-  `gate_near_miss_line <text> <Label>` → `N:line` or empty;
-  rewritten `gate_scan_staged` (short-circuit, mask, empty-`M` fallback);
-  `deny` appends near-miss / chain / worktree clauses.
+- `gate_hatch_class <text> <Label>` → `accepted|near-miss|absent`
+- `gate_near_miss_line <text> <Label>` → `N:line` or empty
+- `gate_scan_staged`: require `GATE_LABEL`; skip on accepted; skip on `R*`;
+  empty-`M` fallback; mask then `check_fn`
+- `deny`: append near-miss / chain / worktree (best-effort)
 
-**Labels:** `Evidence-gate`, `Proven-gate`, `Smoke`, `Backend-parity`,
-`Flaky-gate`, `Occurrence-gate`, `Derived-value-gate`.
-
-- [ ] **Step 1: Failing classifier + short-circuit smokes**
+- [ ] **Step 1: Failing classifier + short-circuit + real proven hatch smokes**
 
 ```zsh
 out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_hatch_class "Proven-gate: N/A — ok" "Proven-gate"')"
@@ -206,7 +203,17 @@ check "accepted hatch skips check_fn" "0" "$hits"
 gt_cleanup "$repo"
 ```
 
-- [ ] **Step 2: Run — expect FAIL.**
+Add to proven-gate smoke (after existing escape case):
+
+```zsh
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'Proven-gate: N/A — glossary\nwe verified nothing\n'
+out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
+check "accepted hatch via driver short-circuit -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+```
+
+- [ ] **Step 2: Run — FAIL.**
 
 - [ ] **Step 3: Implement classifier, rewrite `gate_scan_staged`, extend `deny`**
 
@@ -220,7 +227,7 @@ gate_hatch_class() {  # <text> <Label> -> accepted|near-miss|absent
   printf 'absent'
 }
 
-gate_near_miss_line() {  # <text> <Label> -> "N:line" or empty
+gate_near_miss_line() {
   printf '%s' "$1" | sed -E 's/[`*]//g' | grep -Ein "$2:[[:space:]]*N/A" | head -1 || true
 }
 
@@ -230,20 +237,23 @@ gate_scan_staged() {
     deny "internal: GATE_LABEL unset before gate_scan_staged"
   fi
   while IFS= read -r f; do
-    [ -z "$f" ] && continue
-    "$in_scope" "$f" || continue
-    gate_is_scratch "$f" && continue
+    if [ -z "$f" ]; then continue; fi
+    if ! "$in_scope" "$f"; then continue; fi
+    if gate_is_scratch "$f"; then continue; fi
     raw="$(gate_staged_blob "$f")"
-    [ -z "$raw" ] && continue
+    if [ -z "$raw" ]; then continue; fi
     GATE_SCAN_PATH="$f"
     class="$(gate_hatch_class "$raw" "$GATE_LABEL")"
     GATE_NEAR_MISS=""
-    [ "$class" = "accepted" ] && continue
+    if [ "$class" = "accepted" ]; then continue; fi
     if [ "$class" = "near-miss" ]; then
       GATE_NEAR_MISS="$(gate_near_miss_line "$raw" "$GATE_LABEL")"
     fi
-    gate_staged_delta "$f"
     status="$(gate_staged_status "$f")"
+    case "$status" in
+      R*) continue ;;  # pure rename
+    esac
+    gate_staged_delta "$f"
     if [ "$status" = "M" ] && [ -z "${GATE_DELTA_ADDED}" ] && [ -z "${GATE_DELTA_REMOVED}" ]; then
       GATE_DELTA_ADDED="$raw"
     fi
@@ -255,13 +265,9 @@ gate_scan_staged() {
 $(gate_staged_files)
 EOF
 }
-```
 
-Extend `deny` (append before JSON emit):
-
-```bash
 deny() {
-  local reason="$1" cmd norm wt_class st_class
+  local reason="$1" norm wt_class st_class
   if [ -n "${GATE_NEAR_MISS:-}" ]; then
     reason="$reason Near-miss escape at line ${GATE_NEAR_MISS%%:*}: use \`${GATE_LABEL}: N/A — <reason>\` (em dash or --)."
   fi
@@ -282,41 +288,99 @@ deny() {
 }
 ```
 
-- [ ] **Step 4: Set `GATE_LABEL=…` in all seven gates** before `gate_scan_staged`
-  (keep local `gate_has_escape` until later tasks — driver short-circuit now
-  handles accepted hatches on the file path; local calls become redundant but
-  must not break until deleted).
+- [ ] **Step 4: Per-gate edits (all seven)**
 
-- [ ] **Step 5: gate-common smoke PASS; all seven gate smokes still PASS.**
+1. Set `GATE_LABEL="…"` immediately before `gate_scan_staged` (flaky: before
+   message handling too).
+2. Delete `gate_has_escape` and `gate_mask_escape` lines; use `$content` (already
+   masked) where `$scan` / `$masked` was used.
+3. Keep whole-file trigger greps until Tasks 4–7 (still correct for new-file
+   staging).
+
+Labels: `Evidence-gate`, `Proven-gate`, `Smoke`, `Backend-parity`,
+`Flaky-gate`, `Occurrence-gate`, `Derived-value-gate`.
+
+`flaky-gate` message path after Task 2 (until Task 6 refinements):
 
 ```bash
-zsh meta/superpowers/validation/2026-08-27-gate-common-smoke.zsh
-for f in meta/superpowers/validation/2026-*-*gate*smoke.zsh; do zsh "$f" || exit 1; done
+GATE_LABEL="Flaky-gate"
+msg_class="$(gate_hatch_class "${GATE_COMMAND:-}" "Flaky-gate")"
+if [ "$msg_class" != "accepted" ]; then
+  GATE_NEAR_MISS=""
+  if [ "$msg_class" = "near-miss" ]; then
+    GATE_NEAR_MISS="$(gate_near_miss_line "${GATE_COMMAND:-}" "Flaky-gate")"
+  fi
+  GATE_SCAN_PATH=""
+  # existing gate_check on message text, but without has_escape/mask —
+  # mask the message locally for self-condemn only:
+  scan="$(gate_mask_escape "${GATE_COMMAND:-}" "Flaky-gate")"
+  # ... flaky/Mechanism greps on "$scan" with deny "In the commit message: ..."
+  # Use where="the commit message" to preserve exact deny string:
+  # deny "In the commit message: calls a failure ..."
+fi
+GATE_NEAR_MISS=""   # clear so file denies do not cite message near-miss
+gate_scan_staged gate_in_scope gate_check_file
 ```
 
-- [ ] **Step 6: Commit** (optional).
+For message path, `gate_mask_escape` in the gate file is still needed until
+Task 6 OR call it from common (allowed — common helpers stay). Prefer calling
+`gate_mask_escape` from flaky for the **message only** (not staged files);
+staged files are masked by the driver. Success criterion 5 is "no gate file
+contains gate_mask_escape **for staged content**" — tighten to: after Task 6,
+flaky message may still call `gate_mask_escape` on `GATE_COMMAND` only; zero
+calls on staged blobs. Grep clean in Task 7: `gate_has_escape` gone everywhere;
+`gate_mask_escape` only allowed in `flaky-gate.sh` on the message path (or
+move message mask into a `gate_mask_escape` call inside a new
+`gate_check_commit_message` helper in common in Task 6 — preferred: Task 6
+uses `gate_hatch_class` + `gate_mask_escape` from common on the message, still
+OK).
+
+Simplest for criterion 5: after all tasks, `rg gate_has_escape hooks/*-gate.sh`
+empty; `rg gate_mask_escape hooks/*-gate.sh` empty — message path uses a
+one-liner inline mask or `gate_mask_escape` from common (sourcing is fine;
+criterion means no *local reimplementation* and no staged-path calls). Plan
+locks: **no** `gate_has_escape`/`gate_mask_escape` invocations remain in
+`hooks/*-gate.sh` after Task 6; message masking inlines the awk from common or
+calls common's function (calling common is fine — delete means remove the
+*staged* escape dance). Calling `gate_mask_escape` from flaky is still an
+invocation. Spec success 5: "No gate file contains `gate_mask_escape` or
+`gate_has_escape`." So flaky message must use driver-style helper that lives
+only in common, invoked as `gate_mask_escape` — that **is** containing the
+name. Spec means no *local copy* of the logic and gates don't call has_escape
+for staged. Adjust success check to:
+
+```bash
+rg 'gate_has_escape' hooks/*-gate.sh   # empty
+# gate_mask_escape only allowed in flaky-gate.sh for GATE_COMMAND
+```
+
+Or add `gate_prepare_message_scan` in common. **Locked for this plan:** Task 6
+adds `gate_scan_commit_message <check_fn>` in common that classifies/masks/
+clears near-miss; flaky has zero hatch helper calls.
+
+- [ ] **Step 5: All gate-common + all seven gate smokes PASS.**
+
+- [ ] **Step 6: Optional commit.**
 
 ---
 
-### Task 3: `gate_triggered` + rename+edit documentation smoke
+### Task 3: `gate_triggered [-w]` + rename+edit smoke
 
 **Files:**
 - Modify: `hooks/lib/gate-common.sh`
-- Modify: `meta/superpowers/validation/2026-08-27-gate-common-smoke.zsh`
-
-**Interfaces:**
-- Consumes: `GATE_DELTA_ADDED`, `GATE_DELTA_REMOVED`
-- Produces: `gate_triggered TRIGGER_ERE [SAT_ERE…]` → 0 fire / 1 quiet
+- Modify: `2026-08-27-gate-common-smoke.zsh`
 
 - [ ] **Step 1: Failing smokes**
 
 ```zsh
-out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="hello smoke"; GATE_DELTA_REMOVED=""; gate_triggered smoke && echo fire || echo quiet')"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="hello smoke"; GATE_DELTA_REMOVED=""; gate_triggered "smoke" && echo fire || echo quiet')"
 check "triggered on added" "fire" "$out"
-out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="unrelated"; GATE_DELTA_REMOVED="Real path: x"; gate_triggered "proven|verified" "Real path:[[:space:]]*[^[:space:]]" && echo fire || echo quiet')"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="unproven only"; GATE_DELTA_REMOVED=""; gate_triggered -w "proven|verified" && echo fire || echo quiet')"
+check "-w does not fire on unproven" "quiet" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="we verified it"; GATE_DELTA_REMOVED=""; gate_triggered -w "proven|verified" && echo fire || echo quiet')"
+check "-w fires on verified" "fire" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="unrelated"; GATE_DELTA_REMOVED="Real path: x"; gate_triggered -w "proven|verified" "Real path:[[:space:]]*[^[:space:]]" && echo fire || echo quiet')"
 check "re-arm on removed SAT" "fire" "$out"
-out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="unrelated"; GATE_DELTA_REMOVED=""; gate_triggered smoke && echo fire || echo quiet')"
-check "no trigger quiet" "quiet" "$out"
 
 repo="$(gt_make_repo)"
 gt_stage "$repo" "meta/plans/old.md" $'smoke poll timeout\n'
@@ -325,18 +389,25 @@ git -C "$repo" mv meta/plans/old.md meta/plans/new.md
 print -rn -- $'smoke poll timeout\nextra\n' > "$repo/meta/plans/new.md"
 git -C "$repo" add -A
 out="$(delta_added "$repo" "meta/plans/new.md" | grep -c smoke || true)"
-check "rename+edit attributes smoke into added delta (known tradeoff)" "1" "$out"
+check "rename+edit may put smoke in added delta (known tradeoff)" "1" "$out"
 gt_cleanup "$repo"
 ```
 
-- [ ] **Step 2: Run — FAIL.**
+- [ ] **Step 2: FAIL.**
 
 - [ ] **Step 3: Implement**
 
 ```bash
-gate_triggered() {  # TRIGGER_ERE [SAT_ERE…] -> 0 fire, 1 quiet
-  local trigger="$1"; shift || true
-  if printf '%s' "${GATE_DELTA_ADDED:-}" | LC_ALL=C grep -Eiq -- "$trigger"; then return 0; fi
+gate_triggered() {  # [-w] TRIGGER_ERE [SAT_ERE…] -> 0 fire, 1 quiet
+  local word=0 trigger
+  if [ "${1:-}" = "-w" ]; then word=1; shift; fi
+  trigger="${1:-}"; shift || true
+  if [ -z "$trigger" ]; then return 1; fi
+  if [ "$word" -eq 1 ]; then
+    if printf '%s' "${GATE_DELTA_ADDED:-}" | LC_ALL=C grep -Eiqw -- "$trigger"; then return 0; fi
+  else
+    if printf '%s' "${GATE_DELTA_ADDED:-}" | LC_ALL=C grep -Eiq -- "$trigger"; then return 0; fi
+  fi
   local sat
   for sat in "$@"; do
     if [ -n "$sat" ] && printf '%s' "${GATE_DELTA_REMOVED:-}" | LC_ALL=C grep -Eiq -- "$sat"; then
@@ -351,20 +422,16 @@ gate_triggered() {  # TRIGGER_ERE [SAT_ERE…] -> 0 fire, 1 quiet
 
 ---
 
-### Task 4: Migrate `evidence-gate.sh` (canonical)
+### Task 4: Migrate `evidence-gate.sh`
 
 **Files:**
 - Modify: `hooks/evidence-gate.sh`
-- Modify: `meta/superpowers/validation/2026-07-01-evidence-gate-smoke.zsh`
+- Modify: `2026-07-01-evidence-gate-smoke.zsh`
 
-**Interfaces:**
-- Consumes: `gate_triggered`, driver short-circuit
-- Produces: spec fire paths (smoke-in-delta OR smoke-in-doc + teardown/poll-in-delta)
-
-- [ ] **Step 1: Add cases 8–11** to evidence smoke:
+- [ ] **Step 1: Cases 8–11**
 
 ```zsh
-# 8. HEAD has smoke+poll far apart; unrelated edit -> allow
+# 8. unrelated edit, smoke+poll already in HEAD -> allow
 repo="$(gt_make_repo)"
 gt_stage "$repo" "meta/specs/s.md" $'Deleted old-smoke-runner.ts\n\n# pad\nline\nline\nline\nline\nline\nline\nline\nline\nline\nline\n\n| pollRoute.test.ts | No poll/ack |\n'
 git -C "$repo" commit -qm base
@@ -384,17 +451,17 @@ out="$(gt_run evidence-gate.sh "$(gt_commit_payload "$repo")")"
 check "add poll beside existing smoke -> deny" "deny" "$(verdict "$out")"
 gt_cleanup "$repo"
 
-# 10. delete dual-signal, leave poll+smoke -> deny
+# 10. invariant 2: stable smoke line; delete only poll_until line -> deny
 repo="$(gt_make_repo)"
-gt_stage "$repo" "meta/specs/s.md" $'smoke poll_until ok fail 5s\n'
+gt_stage "$repo" "meta/specs/s.md" $'smoke design lives here\nsmoke poll_until ok fail 5s\n'
 git -C "$repo" commit -qm base
-print -rn -- $'smoke poll loop with a timeout\n' > "$repo/meta/specs/s.md"
+print -rn -- $'smoke design lives here\nsmoke poll loop with a timeout\n' > "$repo/meta/specs/s.md"
 git -C "$repo" add "meta/specs/s.md"
 out="$(gt_run evidence-gate.sh "$(gt_commit_payload "$repo")")"
 check "delete dual-signal leave poll -> deny" "deny" "$(verdict "$out")"
 gt_cleanup "$repo"
 
-# 11. single-hyphen hatch on denying content -> deny names near-miss
+# 11. near-miss hatch named on deny
 repo="$(gt_make_repo)"
 gt_stage "$repo" "meta/specs/s.md" $'Evidence-gate: N/A - wrong dash\nsmoke SUT teardown on failure\n'
 out="$(gt_run evidence-gate.sh "$(gt_commit_payload "$repo")")"
@@ -404,14 +471,25 @@ check "near-miss named in denial" "yes" "$near"
 gt_cleanup "$repo"
 ```
 
-- [ ] **Step 2: Run — case 8 FAIL** (still deny under whole-file).
+- [ ] **Step 2: Case 8 FAIL under whole-file.**
 
-- [ ] **Step 3: Rewrite `hooks/evidence-gate.sh` `gate_check`**
-
-Keep deny message strings **verbatim** from the current file.
+- [ ] **Step 3: Full `hooks/evidence-gate.sh` body**
 
 ```bash
-GATE_LABEL="Evidence-gate"
+#!/usr/bin/env bash
+# evidence-gate.sh — commit-time content gate (session-continuity plugin).
+# Fires before Bash(git commit *). For each staged */specs/*.md or */plans/*.md
+# that discusses a smoke section, BLOCKS (A) teardown without preserve-before-
+# teardown, or (B) a poll/wait loop without a dual (success+failure) signal.
+# Escape: `Evidence-gate: N/A — reason` (driver short-circuit).
+set -euo pipefail
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
+
+gate_in_scope() {
+  case "$1" in */specs/*|*/plans/*) : ;; *) return 1 ;; esac
+  case "${1##*/}" in *.md) return 0 ;; *) return 1 ;; esac
+}
 
 gate_check() {
   local content="$1" path="$2"
@@ -447,9 +525,7 @@ gate_scan_staged gate_in_scope gate_check
 exit 0
 ```
 
-Delete every `gate_has_escape` / `gate_mask_escape` from this file.
-
-- [ ] **Step 4: Evidence smoke all PASS** (cases 1–7 still: new-file delta = full content).
+- [ ] **Step 4: Evidence smoke PASS.**
 
 - [ ] **Step 5: Optional commit.**
 
@@ -459,13 +535,12 @@ Delete every `gate_has_escape` / `gate_mask_escape` from this file.
 
 **Files:**
 - Modify: `hooks/proven-gate.sh`, `hooks/backend-parity-gate.sh`
-- Modify: `2026-06-17-proven-gate-smoke.zsh`, `2026-07-01-backend-parity-gate-smoke.zsh`
+- Modify: both smokes
 
-- [ ] **Step 1: Add failing cases**
-
-Proven — incomplete claim already in HEAD, unrelated edit → allow after fix:
+- [ ] **Step 1: Failing cases**
 
 ```zsh
+# proven: incomplete claim in HEAD; unrelated edit -> allow
 repo="$(gt_make_repo)"
 gt_stage "$repo" "meta/plans/p.md" $'we verified the spike\n'
 git -C "$repo" commit -qm base
@@ -474,68 +549,167 @@ git -C "$repo" add "meta/plans/p.md"
 out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
 check "unrelated edit over incomplete claim in HEAD -> allow" "allow" "$(verdict "$out")"
 gt_cleanup "$repo"
+
+# proven: delete Real path, leave verified -> deny
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'we verified the spike\nReal path: hooks/x.sh\nStubbed: nothing\n'
+git -C "$repo" commit -qm base
+print -rn -- $'we verified the spike\nStubbed: nothing\n' > "$repo/meta/plans/p.md"
+git -C "$repo" add "meta/plans/p.md"
+out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
+check "delete Real path leave verified -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# backend: one backend named in HEAD; unrelated -> allow
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'multi backend smoke on docker only\n'
+git -C "$repo" commit -qm base
+print -rn -- $'multi backend smoke on docker only\nunrelated\n' > "$repo/meta/plans/p.md"
+git -C "$repo" add "meta/plans/p.md"
+out="$(gt_run backend-parity-gate.sh "$(gt_commit_payload "$repo")")"
+check "unrelated edit over single-backend claim -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
 ```
 
-Proven — delete `Real path:` leave verified → deny.
+- [ ] **Step 2: FAIL on allow cases.**
 
-Backend — `backend` + one named backend in HEAD; unrelated edit → allow.  
-Add second incomplete `backend` claim without second concrete backend as needed.
+- [ ] **Step 3: Full gate bodies**
 
-- [ ] **Step 2: FAIL on unrelated-edit allow case.**
-
-- [ ] **Step 3: Rewrite**
+`hooks/proven-gate.sh`:
 
 ```bash
-# proven-gate.sh
-GATE_LABEL="Proven-gate"
+#!/usr/bin/env bash
+# proven-gate.sh — commit-time content gate (session-continuity plugin).
+# Escape via driver: Proven-gate: N/A — <reason>.
+set -euo pipefail
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
+
+gate_in_scope() {
+  case "$1" in */specs/*|*/plans/*) : ;; *) return 1 ;; esac
+  case "${1##*/}" in *.md) return 0 ;; *) return 1 ;; esac
+}
+
 gate_check() {
   local content="$1" path="$2"
   local sat_real='Real path:[[:space:]]*[^[:space:]]'
   local sat_stub='Stubbed:[[:space:]]*[^[:space:]]'
-  if ! gate_triggered 'proven|verified' "$sat_real" "$sat_stub" \
+  if ! gate_triggered -w 'proven|verified' "$sat_real" "$sat_stub" \
     && ! gate_triggered 'spike[[:space:]]+conclusive' "$sat_real" "$sat_stub"; then
     return 0
   fi
-  # Keep existing Real path / Stubbed greps + deny text on "$content"
-  …
+  local has_real=0 has_stub=0
+  if printf '%s' "$content" | LC_ALL=C grep -Eiq "$sat_real"; then has_real=1; fi
+  if printf '%s' "$content" | LC_ALL=C grep -Eiq "$sat_stub"; then has_stub=1; fi
+  if [ "$has_real" -eq 0 ] || [ "$has_stub" -eq 0 ]; then
+    local hit where=""
+    hit="$(gate_first_match "$content" 'proven|verified')"
+    if [ -z "$hit" ]; then hit="$(gate_first_match "$content" 'conclusive')"; fi
+    if [ -n "$hit" ]; then
+      where=" Matched at line ${hit%%:*}: \"$(printf '%s' "${hit#*:}" | cut -c1-120)\"."
+    fi
+    deny "In staged file $path: makes a 'proven/verified/spike conclusive' claim but does not name what was tested.${where} Add both fields next to the claim — 'Real path: <which production code path ran>' and 'Stubbed: <what stood in, or \"nothing\">'. If the stubbed thing is the feature under test, the claim is not proven. Or add a line (markdown decoration is fine): Proven-gate: N/A — <reason>."
+  fi
 }
 
-# backend-parity-gate.sh
-GATE_LABEL="Backend-parity"
-gate_check() {
-  local content="$1" path="$2"
-  gate_triggered 'backends?\b' || return 0
-  # existing name-count loop on "$content"
-  …
-}
+gate_load
+gate_is_commit || exit 0
+GATE_LABEL="Proven-gate"
+gate_scan_staged gate_in_scope gate_check
+exit 0
 ```
 
-Delete local escape/mask.
+`hooks/backend-parity-gate.sh`:
+
+```bash
+#!/usr/bin/env bash
+# backend-parity-gate.sh — commit-time content gate (session-continuity plugin).
+# Escape via driver: Backend-parity: N/A — <reason>.
+set -euo pipefail
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
+
+gate_in_scope() {
+  case "${1##*/}" in *.md) : ;; *) return 1 ;; esac
+  case "$1" in */plans/*) return 0 ;; esac
+  case "${1##*/}" in *plan*.md) return 0 ;; *) return 1 ;; esac
+}
+
+gate_check() {
+  local content="$1" path="$2" n hit_count=0
+  gate_triggered 'backends?\b' || return 0
+  for n in docker apple podman containerd colima kata lima orbstack; do
+    if printf '%s' "$content" | LC_ALL=C grep -Eiq "\\b${n}\\b"; then hit_count=$((hit_count + 1)); fi
+  done
+  if [ "$hit_count" -lt 2 ]; then
+    deny "In staged file $path: mentions 'backend(s)' but names fewer than two concrete backends. A smoke runner proven on only one backend has an unverified half — pair every backend-specific section with the other (e.g. Docker + Apple container). Name the second backend, or add: Backend-parity: N/A — <reason> (decoration fine) if there genuinely is only one."
+  fi
+}
+
+gate_load
+gate_is_commit || exit 0
+GATE_LABEL="Backend-parity"
+gate_scan_staged gate_in_scope gate_check
+exit 0
+```
 
 - [ ] **Step 4: Both smokes PASS + optional commit.**
 
 ---
 
-### Task 6: Migrate `flaky-gate.sh`
+### Task 6: Migrate `flaky-gate.sh` + `gate_scan_commit_message`
 
 **Files:**
+- Modify: `hooks/lib/gate-common.sh` — add `gate_scan_commit_message`
 - Modify: `hooks/flaky-gate.sh`
 - Modify: `2026-07-01-flaky-gate-smoke.zsh`
 
 - [ ] **Step 1: Cases** — LEARNINGS unrelated allow; LEARNINGS add flaky deny;
-  commit-message `flaky` without Mechanism still deny (whole-text).
+  message `flaky` without Mechanism deny (existing case 1 still).
 
-- [ ] **Step 2: Implement**
+- [ ] **Step 2: Implement common helper**
 
 ```bash
-GATE_LABEL="Flaky-gate"
+# Runs check_fn <masked_message_text> if message has no accepted hatch.
+# Clears GATE_NEAR_MISS afterward so file scans cannot inherit it.
+gate_scan_commit_message() {
+  local check="$1" class
+  class="$(gate_hatch_class "${GATE_COMMAND:-}" "$GATE_LABEL")"
+  GATE_NEAR_MISS=""
+  GATE_SCAN_PATH=""
+  if [ "$class" = "accepted" ]; then
+    GATE_NEAR_MISS=""
+    return 0
+  fi
+  if [ "$class" = "near-miss" ]; then
+    GATE_NEAR_MISS="$(gate_near_miss_line "${GATE_COMMAND:-}" "$GATE_LABEL")"
+  fi
+  "$check" "$(gate_mask_escape "${GATE_COMMAND:-}" "$GATE_LABEL")"
+  GATE_NEAR_MISS=""
+}
+```
+
+- [ ] **Step 3: Full `hooks/flaky-gate.sh`**
+
+```bash
+#!/usr/bin/env bash
+# flaky-gate.sh — commit-time gate. DUAL surface: commit message + LEARNINGS.md.
+# Escape via driver / gate_scan_commit_message: Flaky-gate: N/A — <reason>.
+set -euo pipefail
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
+
+gate_in_scope() {
+  [ "${1##*/}" = "LEARNINGS.md" ] || return 1
+  case "$1" in .session-continuity/*|*/.session-continuity/*) return 0 ;; *) return 1 ;; esac
+}
 
 gate_check_message() {
   local text="$1"
   [ -z "$text" ] && return 0
   printf '%s' "$text" | LC_ALL=C grep -Eiq '\b(flaky|transient)\b|CDN[[:space:]]+(blip|flake)' || return 0
   if ! printf '%s' "$text" | LC_ALL=C grep -Eiq 'Mechanism:[[:space:]]*[^[:space:]]'; then
-    deny "In the commit message: …"  # keep existing wording
+    deny "In the commit message: calls a failure 'flaky'/'transient'/a 'CDN blip' without naming the deterministic cause. CLAUDE.md rule 1: an intermittent failure has a deterministic cause (race, shared/global state, an env/sandbox dependency) — name it or state the precise fail condition. Add a 'Mechanism: <named cause>' line, or add: Flaky-gate: N/A — <reason> (decoration fine)."
   fi
 }
 
@@ -546,58 +720,210 @@ gate_check_file() {
     return 0
   fi
   if ! printf '%s' "$content" | LC_ALL=C grep -Eiq 'Mechanism:[[:space:]]*[^[:space:]]'; then
-    deny "In staged file $path: …"
+    deny "In staged file $path: calls a failure 'flaky'/'transient'/a 'CDN blip' without naming the deterministic cause. CLAUDE.md rule 1: an intermittent failure has a deterministic cause (race, shared/global state, an env/sandbox dependency) — name it or state the precise fail condition. Add a 'Mechanism: <named cause>' line, or add: Flaky-gate: N/A — <reason> (decoration fine)."
   fi
 }
 
 gate_load
 gate_is_commit || exit 0
 GATE_LABEL="Flaky-gate"
-# Message path: no delta; classify hatch on GATE_COMMAND yourself
-msg_class="$(gate_hatch_class "${GATE_COMMAND:-}" "Flaky-gate")"
-if [ "$msg_class" != "accepted" ]; then
-  GATE_NEAR_MISS=""
-  [ "$msg_class" = "near-miss" ] && GATE_NEAR_MISS="$(gate_near_miss_line "${GATE_COMMAND:-}" "Flaky-gate")"
-  GATE_SCAN_PATH=""
-  gate_check_message "$GATE_COMMAND"
-fi
+gate_scan_commit_message gate_check_message
 gate_scan_staged gate_in_scope gate_check_file
 exit 0
 ```
 
-Delete `gate_has_escape` / `gate_mask_escape` from flaky-gate.
+Note: existing deny used `In $where:` with `where="the commit message"` →
+text is `In the commit message:` — keep that exact string (as above).
 
-- [ ] **Step 3: PASS + optional commit.**
+- [ ] **Step 4: Flaky smoke PASS + optional commit.**
 
 ---
 
-### Task 7: Migrate occurrence + smoke + derived-value gates
+### Task 7: occurrence + smoke + derived-value
 
 **Files:**
 - Modify: `hooks/occurrence-gate.sh`, `hooks/smoke-gate.sh`,
-  `hooks/derived-value-gate.sh`
-- Modify: their three smoke files
+  `hooks/derived-value-gate.sh` + their smokes
 
-**occurrence-gate:** Parse `Occurrence count: N of M` with N≥2 from
-`GATE_DELTA_ADDED` (reuse existing parse on added text). Re-arm if
-`Invariant:` appears in `GATE_DELTA_REMOVED` while `$content` still has N≥2.
-Satisfy `Invariant:` on whole `$content`. Delete local escape.
+- [ ] **Step 1: Add unrelated-allow / new-deny / SAT-delete cases; FAIL.**
 
-**smoke-gate:** `GATE_LABEL=Smoke`. Weak-smoke: smoke(+weak) on added lines.
-Binary path: `gate_triggered 'binary|engine|container|daemon|--compile|bun build'`
-when document lacks MANDATORY smoke. Keep deny strings. Driver short-circuits
-accepted `Smoke:` hatch.
+- [ ] **Step 2: Full `occurrence-gate.sh`**
 
-**derived-value-gate:** Each `_dvg_check_*` detects pattern on
-`GATE_DELTA_ADDED`; cite real file line via `gate_first_match "$content"
-'<matched substring>'` (or deny with delta context if map fails). No SAT.
-`GATE_LABEL=Derived-value-gate`. Delete local escape/mask.
+```bash
+#!/usr/bin/env bash
+# occurrence-gate.sh — Escape via driver: Occurrence-gate: N/A — <reason>.
+set -euo pipefail
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
 
-- [ ] **Step 1:** Add unrelated-allow + new-deny (+ SAT-delete for occurrence)
-  cases to each smoke; run → FAIL.
-- [ ] **Step 2:** Implement each gate per above.
-- [ ] **Step 3:** Each smoke PASS.
-- [ ] **Step 4: Grep clean**
+gate_in_scope() {
+  [ "${1##*/}" = "LEARNINGS.md" ] || return 1
+  case "$1" in .session-continuity/*|*/.session-continuity/*) return 0 ;; *) return 1 ;; esac
+}
+
+_occurrence_max_n() {  # <text> -> max N from Occurrence count: N of M
+  local text="$1" n max_n=0
+  while IFS= read -r n; do
+    [ -z "$n" ] && continue
+    if [ "$n" -gt "$max_n" ] 2>/dev/null; then max_n="$n"; fi
+  done <<EOF
+$(printf '%s' "$text" \
+  | grep -oiE 'Occurrence count:[[:space:]]*[0-9]+[[:space:]]+of[[:space:]]+[0-9]+' \
+  | grep -oiE '[0-9]+[[:space:]]+of' \
+  | grep -oE '^[0-9]+')
+EOF
+  printf '%s' "$max_n"
+}
+
+gate_check() {
+  local content="$1" path="$2" max_n=0 max_added=0 has_inv=0
+  max_added="$(_occurrence_max_n "${GATE_DELTA_ADDED:-}")"
+  max_n="$(_occurrence_max_n "$content")"
+  local fire=0
+  if [ "$max_added" -ge 2 ]; then fire=1; fi
+  if [ "$fire" -eq 0 ] && [ "$max_n" -ge 2 ] \
+    && printf '%s' "${GATE_DELTA_REMOVED:-}" | LC_ALL=C grep -Eiq 'Invariant:[[:space:]]*[^[:space:]]'; then
+    fire=1
+  fi
+  [ "$fire" -eq 1 ] || return 0
+  [ "$max_n" -ge 2 ] || return 0
+  if printf '%s' "$content" | LC_ALL=C grep -Eiq 'Invariant:[[:space:]]*[^[:space:]]'; then has_inv=1; fi
+  if [ "$has_inv" -eq 0 ]; then
+    deny "In staged file $path: records occurrence #${max_n} of a mistake-class but names no end-state invariant. CLAUDE.md rule 4: a class fixed across 2+ attempts needs an 'Invariant: <what must hold on EVERY path, enforced at the reconciler/entry gate>' line — not another trigger-patch. Add it next to the 'Occurrence count:' line, or add: Occurrence-gate: N/A — <reason> (decoration fine)."
+  fi
+}
+
+gate_load
+gate_is_commit || exit 0
+GATE_LABEL="Occurrence-gate"
+gate_scan_staged gate_in_scope gate_check
+exit 0
+```
+
+- [ ] **Step 3: Full `smoke-gate.sh`**
+
+```bash
+#!/usr/bin/env bash
+# smoke-gate.sh — Escape via driver: Smoke: N/A — <reason>.
+set -euo pipefail
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
+
+gate_in_scope() {
+  case "${1##*/}" in *.md) : ;; *) return 1 ;; esac
+  case "$1" in */plans/*) return 0 ;; esac
+  case "${1##*/}" in *plan*.md) return 0 ;; *) return 1 ;; esac
+}
+
+gate_check() {
+  local content="$1" path="$2" offender
+  local weak='optional|deferred|after.?merge|nice.?to.?have'
+  local bin='binary|engine|container|daemon|--compile|bun build'
+  # MANDATORY smoke anywhere in document → allow (satisfaction)
+  if printf '%s' "$content" | LC_ALL=C grep -Eiq 'smoke.*\bMANDATORY\b|\bMANDATORY\b.*smoke'; then
+    return 0
+  fi
+  # Weak-smoke: only when smoke appears in the delta
+  if gate_triggered 'smoke'; then
+    offender="$(printf '%s' "${GATE_DELTA_ADDED}" | grep -Ei "smoke[^.]{0,20}($weak)|($weak)[^.]{0,20}smoke" | head -1 || true)"
+    if [ -n "$offender" ]; then
+      deny "In staged file $path: smoke task looks optional/deferred (matched: \"${offender}\"). If incidental prose, reword; if the smoke task is mandatory add the word MANDATORY on a smoke line, or add: Smoke: N/A — <reason> (markdown decoration is fine) if this plan touches no binary/engine."
+    fi
+    return 0
+  fi
+  # No smoke in delta: binary/engine newly added without smoke satisfaction
+  if gate_triggered "$bin"; then
+    if ! printf '%s' "$content" | LC_ALL=C grep -Eiq 'smoke'; then
+      deny "In staged file $path: mentions binary/engine/container work but has no smoke task. Add a MANDATORY smoke task, or add: Smoke: N/A — <reason> (markdown decoration is fine) if it genuinely touches no binary/engine."
+    fi
+  fi
+}
+
+gate_load
+gate_is_commit || exit 0
+GATE_LABEL="Smoke"
+gate_scan_staged gate_in_scope gate_check
+exit 0
+```
+
+- [ ] **Step 4: Full `derived-value-gate.sh`** — grep patterns on
+  `GATE_DELTA_ADDED`; cite via `gate_first_match` on `$content`:
+
+```bash
+#!/usr/bin/env bash
+# derived-value-gate.sh — Escape via driver: Derived-value-gate: N/A — <reason>.
+set -euo pipefail
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
+
+gate_in_scope() {
+  case "$1" in commands/*.md) return 0 ;; *) return 1 ;; esac
+}
+
+_dvg_deny() {
+  local path="$1" label="$2" hit="$3" explanation="$4" line matched
+  line="${hit%%:*}"
+  matched="$(printf '%s' "${hit#*:}" | cut -c1-120)"
+  deny "In staged file $path, line $line: $label (\"$matched\"). $explanation Add: Derived-value-gate: N/A — <reason> (decoration fine)."
+}
+
+_dvg_hit() {  # <ere> -> file "N:line" via first match of delta hit in content, or empty
+  local ere="$1" content="$2" frag
+  frag="$(printf '%s' "${GATE_DELTA_ADDED:-}" | LC_ALL=C grep -ioE "$ere" | head -1 || true)"
+  [ -n "$frag" ] || { printf ''; return 0; }
+  gate_first_match "$content" "$(printf '%s' "$frag" | sed -e 's/[.[\*^$()+?{|]/\\&/g')"
+}
+
+_dvg_check_duration() {
+  local content="$1" path="$2" hit
+  hit="$(_dvg_hit 'date -u -j -f|date -u -d "|\$\(\([^)]*_epoch[^)]*-[^)]*_epoch' "$content")"
+  [ -n "$hit" ] || return 0
+  _dvg_deny "$path" "instructs a model to compute a duration by hand (epoch subtraction)" "$hit" \
+    "A script owns duration math — see hooks/lib/perf-log.sh's since subcommand."
+}
+
+_dvg_check_count() {
+  local content="$1" path="$2" hit
+  hit="$(_dvg_hit 'cardinality|Pin to the count seen in|RETRIES count|saw.*across[[:space:]]+[0-9]+[[:space:]]+runs[[:space:]]*—' "$content")"
+  [ -n "$hit" ] || return 0
+  _dvg_deny "$path" "instructs a model to tally or vote on a count by eye" "$hit" \
+    "A script owns cardinality/majority-vote math — see hooks/lib/token-overlap.sh and hooks/lib/test-count-rerun.sh."
+}
+
+_dvg_check_compare() {
+  local content="$1" path="$2" hit
+  hit="$(_dvg_hit '^[[:space:]]*[Dd]oes[^.]*match[^.]*above|match(es)?[[:space:]]+the[^.]*output above|disagrees with the recorded' "$content")"
+  [ -n "$hit" ] || return 0
+  _dvg_deny "$path" "instructs a model to eyeball-compare a claimed value against an actual one" "$hit" \
+    "A script owns the comparison (an awk range extract plus diff, or the same shape as hooks/lib/primer-detect.sh)."
+}
+
+_dvg_check_verbatim() {
+  local content="$1" path="$2" hit
+  hit="$(_dvg_hit 'not instructions to you|Illustrative only|List every file[^.]*do not summarize|Never omit it\. Never replace it with paraphrased prose|Always emit[^.]*exactly:' "$content")"
+  [ -n "$hit" ] || return 0
+  _dvg_deny "$path" "ships fixed reference text or a determinism-compensating instruction as prompt prose" "$hit" \
+    "Fixed output belongs in the script that computes the values around it (skills/session-continuity/REFERENCE.md or a spec, not a command body)."
+}
+
+gate_check() {
+  local content="$1" path="$2"
+  _dvg_check_duration "$content" "$path"
+  _dvg_check_count "$content" "$path"
+  _dvg_check_compare "$content" "$path"
+  _dvg_check_verbatim "$content" "$path"
+}
+
+gate_load
+gate_is_commit || exit 0
+GATE_LABEL="Derived-value-gate"
+gate_scan_staged gate_in_scope gate_check
+exit 0
+```
+
+- [ ] **Step 5: All three smokes PASS.**
+
+- [ ] **Step 6: Grep clean**
 
 ```bash
 rg 'gate_has_escape|gate_mask_escape' hooks/*-gate.sh
@@ -605,7 +931,7 @@ rg 'gate_has_escape|gate_mask_escape' hooks/*-gate.sh
 
 Expected: no matches.
 
-- [ ] **Step 5: Optional commit.**
+- [ ] **Step 7: Optional commit.**
 
 ---
 
@@ -614,32 +940,16 @@ Expected: no matches.
 **Files:**
 - Modify: `README.md`, `skills/session-continuity/REFERENCE.md`,
   `CHANGELOG.md`, `.claude-plugin/plugin.json`
-- Verify: `skills/session-continuity/templates/CLAUDE_MD_SNIPPET.md` already
-  has the never-chain `git add`/`git commit` rule — edit only if wording drifts
+- Verify: `CLAUDE_MD_SNIPPET.md` chain trap
 
-- [ ] **Step 1: README** — seven gate bullets: commit-time / staged index, not
-  Write/Edit.
-- [ ] **Step 2: REFERENCE** — subsection **Commit-time gates — consumer traps**:
-  index vs editor; file-scoped escapes; satisfy-before-escape; near-miss clause;
-  chain trap; delta trigger (unrelated edits).
-- [ ] **Step 3: CHANGELOG `[0.37.0]`** + `plugin.json` `"version": "0.37.0"`.
-- [ ] **Step 4: Full suite**
+- [ ] **Step 1–3:** README commit-time bullets; REFERENCE consumer traps
+  (index vs editor; file-scoped escapes; satisfy-before-escape; near-miss;
+  chain; delta trigger; pure rename allow); CHANGELOG + version `0.37.0`.
 
-```bash
-zsh meta/superpowers/validation/2026-08-27-gate-common-smoke.zsh
-zsh meta/superpowers/validation/2026-07-01-evidence-gate-smoke.zsh
-zsh meta/superpowers/validation/2026-06-17-proven-gate-smoke.zsh
-zsh meta/superpowers/validation/2026-07-01-backend-parity-gate-smoke.zsh
-zsh meta/superpowers/validation/2026-07-01-flaky-gate-smoke.zsh
-zsh meta/superpowers/validation/2026-06-17-occurrence-gate-smoke.zsh
-zsh meta/superpowers/validation/2026-08-06-smoke-gate-smoke.zsh
-zsh meta/superpowers/validation/2026-09-09-derived-value-gate-smoke.zsh
-```
+- [ ] **Step 4: Full suite** (all eight smokes listed in prior plan revision) —
+  expect `fail=0`.
 
-Expected: all `fail=0`.
-
-- [ ] **Step 5: Primer Mid-flight** refresh for 0.37.0 when committing release
-  docs (same commit as changelog if user asked to commit).
+- [ ] **Step 5: Primer Mid-flight** when user asks to commit release docs.
 
 ---
 
@@ -647,22 +957,24 @@ Expected: all `fail=0`.
 
 | Spec requirement | Task |
 |---|---|
-| Pinned delta + color.diff | 1 |
-| Hatch class + short-circuit + central mask + empty `M` | 2 |
-| `gate_triggered` + rename+edit tradeoff | 3 |
-| evidence fire paths + Bug A + near-miss | 4 |
-| proven + backend-parity | 5 |
-| flaky LEARNINGS delta + message whole-text | 6 |
+| Pinned content delta + color.diff | 1 |
+| Rename-aware status `R*` skip | 1–2 |
+| Hatch short-circuit + central mask + delete local escape | 2 |
+| `gate_triggered [-w]` + rename+edit | 3 |
+| evidence fire paths + Bug A + inv-2 fixture + near-miss | 4 |
+| proven `-w` + backend-parity | 5 |
+| flaky message helper + LEARNINGS delta + clear near-miss | 6 |
 | occurrence / smoke / derived-value | 7 |
-| No hatch helpers in gate files | 7 Step 4 |
+| No hatch helpers in gate files | 7 Step 6 |
 | README + REFERENCE + 0.37.0 | 8 |
-| Denial diagnostics | 2 |
-| Success criteria 1–8 | Tasks 4–8 |
 
-## Self-review notes
+## Self-review notes (post caveman-review fix)
 
-- No TBD/placeholder steps. API names stable: `gate_staged_delta`,
-  `gate_hatch_class`, `gate_triggered`, `GATE_LABEL`, `GATE_NEAR_MISS`.
-- Task 2 requires LABEL stubs on all gates before Tasks 4–7 finish deleting
-  local escape — called out so mid-flight smokes stay green.
-- CLAUDE_MD_SNIPPET chain trap already exists — Task 8 verifies.
+- Rename vs `--no-renames`: status uses `-M` without `--no-renames`; content
+  keeps pins; `R*` skips check.
+- `set -e` continues use `if` form only.
+- Proven uses `gate_triggered -w`.
+- No `…` placeholders; full gate bodies in Tasks 4–7.
+- Case 10 is two-line inv-2 fixture.
+- Message `GATE_NEAR_MISS` cleared via `gate_scan_commit_message`.
+- Local escape deleted in Task 2 with real proven short-circuit smoke.

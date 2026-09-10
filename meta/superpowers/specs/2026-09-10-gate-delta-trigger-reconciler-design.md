@@ -77,18 +77,18 @@ where the rule "what may a gate fire on" is enforced once for all of them.
 | Decision | Choice |
 |---|---|
 | Where the rule lives | `gate_scan_staged` / new helpers in `hooks/lib/gate-common.sh`; no per-gate reimplementation of delta or masking |
-| Trigger API | `gate_triggered TRIGGER_ERE [SAT_ERE…]` — true if added lines match `TRIGGER_ERE`, **or** removed lines match any `SAT_ERE` (invariant 2) |
+| Trigger API | `gate_triggered [-w] TRIGGER_ERE [SAT_ERE…]` — true if added lines match `TRIGGER_ERE` (`-w` ⇒ `grep -Eiqw`, for proven), **or** removed lines match any `SAT_ERE` (invariant 2) |
 | Satisfaction greps | Still scan the whole staged document (`$content` after mask) |
 | Pattern strings | Unchanged; only evaluation *scope* changes (delta vs whole file) |
-| Escape order | Driver: classify hatch on **unmasked** blob → accepted ⇒ skip `check_fn`; then mask content+delta; then `check_fn`. Gates delete local `gate_has_escape` / `gate_mask_escape` |
+| Escape order | Driver: classify hatch on **unmasked** blob → accepted ⇒ skip `check_fn`; then mask content+delta; then `check_fn`. Gates delete local `gate_has_escape` / `gate_mask_escape` in the **same** change as short-circuit (no masked+local-escape window) |
 | Masking | Central in the driver. Each gate sets `GATE_LABEL`; no filename derivation |
 | Hatch grammar | Unchanged — em dash or `--`, non-blank reason. Not widened |
 | Near-miss hatch | Recorded for `deny` append only; never changes the verdict alone |
 | `gate_window_around` | Not built |
 | Worktree-vs-index | Best-effort diagnostic text only; never allow/deny |
 | Chained `git add` + `git commit` | Best-effort diagnostic; fixed matcher below |
-| Rename+edit | Accepted tradeoff: `--no-renames` may attribute whole-file add; document + smoke |
-| Empty `M` delta fallback | Whole-document scan when status is `M` and added+removed text is empty (mode-only / empty blob / pin failure). Pure `R` stays empty → allow |
+| Rename status vs content pins | **Split:** content delta keeps `--no-renames` (determinism). Status uses `git diff --cached --name-status -M` **without** `--no-renames` so pure rename reports `R*`. On `R*`, skip `check_fn` (allow). Rename+edit may still appear as `D`+`A` or low-score `R` — document + smoke |
+| Empty `M` delta fallback | Whole-document scan when status is `M` and added+removed text is empty (mode-only / empty blob / pin failure) |
 | Release | 0.37.0 — behavior change across all seven gates |
 
 ## Architecture
@@ -100,7 +100,9 @@ gate_scan_staged(in_scope_fn, check_fn)
     class = gate_hatch_class(raw, GATE_LABEL)  # accepted | near-miss | absent
     if class == accepted: continue             # short-circuit; never call check_fn
     GATE_NEAR_MISS = near-miss details or empty
-    added, removed = gate_staged_delta(path)   # pinned git diff (see below)
+    status = gate_staged_status(path)          # name-status -M (renames OK)
+    if status matches R*: continue             # pure rename → allow
+    added, removed = gate_staged_delta(path)   # content pins: --no-renames
     if status==M and added and removed empty:
       added = raw                              # fallback: behave like today
     content = gate_mask_escape(raw, GATE_LABEL)
@@ -117,24 +119,25 @@ before mask; gates must not re-call `gate_has_escape` / `gate_mask_escape`.
 ### Trigger API
 
 ```bash
-gate_triggered TRIGGER_ERE [SAT_ERE…]
+gate_triggered [-w] TRIGGER_ERE [SAT_ERE…]
 # return 0 (fire) iff:
-#   GATE_DELTA_ADDED matches TRIGGER_ERE, OR
+#   GATE_DELTA_ADDED matches TRIGGER_ERE (-w ⇒ grep -Eiqw), OR
 #   any SAT_ERE is provided and GATE_DELTA_REMOVED matches that SAT_ERE
 # return 1 (do not fire) otherwise
 ```
 
-Callers that only care about new claims pass one argument. Callers that
-implement invariant 2 pass the same satisfaction EREs they already use in
-whole-document greps as optional trailing args — one shared list, two uses
-(re-arm on delete; satisfy on document).
+`proven-gate` uses `-w` so `unproven` does not fire. Callers that only care
+about new claims pass one argument. Callers that implement invariant 2 pass
+the same satisfaction EREs they already use in whole-document greps as
+optional trailing args — one shared list, two uses (re-arm on delete;
+satisfy on document).
 
 ### Per-gate migration (not a one-line swap)
 
 | Gate | Trigger(s) via `gate_triggered` | Satisfy on whole `$content` |
 |---|---|---|
 | `evidence-gate` | Two fire paths, both require `smoke` somewhere in the **document** before any teardown/poll check (same as today). (1) `gate_triggered 'smoke' …` → then run teardown/poll SAT checks on whole `$content`. (2) Else if `$content` already has `smoke` and `gate_triggered` on `teardown\|…` or `poll\|…` (with that path's SAT) → same SAT checks. Adding only `poll` next to existing `smoke` **fires**. Adding only unrelated text when smoke+poll already present **does not**. Adding `poll` with **no** smoke in the document **does not**. | Existing preserve-before-teardown / dual-signal greps |
-| `proven-gate` | `proven\|verified` / spike-conclusive | `Real path:` + `Stubbed:` |
+| `proven-gate` | `gate_triggered -w 'proven\|verified'` and `gate_triggered 'spike[[:space:]]+conclusive'` (with SAT list) | `Real path:` + `Stubbed:` |
 | `backend-parity-gate` | `backends?\b` | ≥2 named backends (existing loop) |
 | `flaky-gate` (LEARNINGS) | flaky/transient/CDN | `Mechanism:` |
 | `flaky-gate` (commit message) | **Whole `GATE_COMMAND` text** — no delta; keep today's scan | same |
@@ -151,18 +154,28 @@ required for invariant 4.
 
 ### Delta extraction
 
+Content (pinned):
+
 ```
 git -c diff.algorithm=myers diff --cached --no-color --no-ext-diff \
     --no-textconv --no-renames -U0 -- <path>
 ```
 
-Pins are load-bearing (see Determinism). Added = `^+` minus `^+++`. Removed =
-`^-` minus `^---`.
+Status (rename-aware, separate call):
 
-**Rename+edit tradeoff:** `--no-renames` can present rename+edit as delete+add
-of the whole file → entire content in `GATE_DELTA_ADDED` → full re-litigation
-for that commit. Accepted cost of config-stable diffs. Pure rename (`R`, empty
-text delta) allows. Smoke covers rename+edit once.
+```
+git diff --cached --name-status -M --no-color -- <path>
+```
+
+Pins on the content call are load-bearing (see Determinism). Added = `^+`
+minus `^+++`. Removed = `^-` minus `^---`.
+
+**Pure rename:** status `R*` → skip `check_fn`. Measured: with `--no-renames`
+on status, the same rename is `D`+`A` and content delta for the new path is
+the full body — that is why status must not use `--no-renames`.
+
+**Rename+edit tradeoff:** may still appear as `D`+`A` (whole-file add) or a
+low-score `R`. Accepted cost. Smoke covers one rename+edit case.
 
 ### Near-miss recognition
 
