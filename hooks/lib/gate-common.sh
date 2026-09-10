@@ -112,6 +112,14 @@ gate_is_scratch() {  # <relpath> -> true if basename is dot-prefixed
   esac
 }
 
+# True when this gate's driver would run check_fn on <relpath>: in scope and
+# not scratch. R100 skip must use the same predicate as the scan loop so a
+# rename that promotes scratch into a real doc cannot pretend the source was
+# already evaluated.
+gate_would_scan() {  # <in_scope_fn> <relpath>
+  "$1" "$2" && ! gate_is_scratch "$2"
+}
+
 # --- escape hatch (decoration-tolerant) ------------------------------------
 gate_has_escape() {  # <text> <Label> -> true if an escape line is present
   # Strip markdown emphasis/code marks so `**Label:**` and `` `Label:` ``
@@ -221,8 +229,7 @@ gate_scan_staged() {
   fi
   while IFS=$'\t' read -r status f source; do
     if [ -z "$f" ]; then continue; fi
-    if ! "$in_scope" "$f"; then continue; fi
-    if gate_is_scratch "$f"; then continue; fi
+    if ! gate_would_scan "$in_scope" "$f"; then continue; fi
     raw="$(gate_staged_blob "$f")"
     GATE_SCAN_PATH="$f"
     class="$(gate_hatch_class "$raw" "$GATE_LABEL")"
@@ -233,7 +240,7 @@ gate_scan_staged() {
     fi
     case "$status" in
       R100)
-        if [ -n "$source" ] && "$in_scope" "$source"; then continue; fi
+        if [ -n "$source" ] && gate_would_scan "$in_scope" "$source"; then continue; fi
         ;;
     esac
     gate_staged_delta "$f"

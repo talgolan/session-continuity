@@ -164,4 +164,17 @@ out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
 check "pure rename within scope -> allow" "allow" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+# 17. Promoting a dot-prefixed scratch file into a real in-scope doc is new
+# gated content: the source was never scanned (scratch skip), so R100 must
+# not treat "source in scope" as already-evaluated.
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/.scratch.md" $'We verified the pipeline.\n'
+git -C "$repo" commit -qm base
+git -C "$repo" mv "meta/plans/.scratch.md" "meta/plans/plan.md"
+rename_status="$(git -C "$repo" diff --cached --name-status -M --no-color | cut -f1)"
+check "scratch-promote rename fixture is R100" "R100" "$rename_status"
+out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
+check "pure rename scratch into real with claim -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]
