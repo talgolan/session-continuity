@@ -2,11 +2,11 @@
 # CONTRACT_VERSION=1
 # hooks/prompt-intercept.sh — UserPromptSubmit hook for the session-continuity
 # plugin. Intercepts a fixed, small set of read-only prompts (backlog,
-# learnings, help, update — natural language plus their fully plugin-scoped
-# slash forms) and answers them directly via hooks/lib/render.sh, at zero
+# learnings, help, update, doctor — natural language plus their fully
+# plugin-scoped slash forms) and answers them directly via
+# hooks/lib/render.sh (or hooks/lib/doctor-report.sh for doctor), at zero
 # model calls. See meta/superpowers/plans/2026-09-02-zero-turn-read-only-
-# commands.md and meta/superpowers/specs/2026-09-02-zero-turn-read-only-
-# commands-design.md.
+# commands.md and GitHub #68 (doctor).
 #
 # Usage (from hooks/hooks.json, via perf-wrap.sh): the UserPromptSubmit JSON
 # payload arrives on stdin; see the design spec's Measurement 1 for its
@@ -44,6 +44,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RENDER_SH="$SCRIPT_DIR/lib/render.sh"
+DOCTOR_SH="$SCRIPT_DIR/lib/doctor-report.sh"
 
 command -v jq >/dev/null 2>&1 || exit 0
 
@@ -79,7 +80,11 @@ LOOKUP="$(cat <<'JSONEOF'
   "what's in learnings": "learnings",
   "/session-continuity:learnings": "learnings",
   "/session-continuity:help": "help",
-  "/session-continuity:update": "update"
+  "/session-continuity:update": "update",
+  "doctor": "doctor",
+  "run doctor": "doctor",
+  "run the doctor": "doctor",
+  "/session-continuity:doctor": "doctor"
 }
 JSONEOF
 )"
@@ -129,8 +134,17 @@ case "$CMD" in
   help|update)
     RENDERED="$(bash "$RENDER_SH" "$CMD" 2>/dev/null)"
     ;;
+  doctor)
+    [[ -r "$DOCTOR_SH" ]] || exit 0
+    # doctor-report.sh resolves the project dir; pass cwd when present.
+    if [[ -n "$CWD" ]]; then
+      RENDERED="$(bash "$DOCTOR_SH" "$CWD" 2>/dev/null)"
+    else
+      RENDERED="$(bash "$DOCTOR_SH" 2>/dev/null)"
+    fi
+    ;;
   *)
-    # Not one of the four known subcommands — cannot happen given LOOKUP's
+    # Not one of the known subcommands — cannot happen given LOOKUP's
     # fixed value set, but fail open rather than assume.
     exit 0
     ;;

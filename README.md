@@ -6,7 +6,7 @@ Cross-session memory for Claude Code projects. A skill Claude loads on its own, 
 
 LLMs start every session cold. Claude doesn't remember yesterday's debugging, last week's refactor, or the three-hour bug you eventually cornered. The usual fixes reach for clever infrastructure: vector databases, MCP memory servers, auto-generated notes stored in vendor-specific ways that hide the knowledge outside the repo, away from human eyes and tangled with whichever tool happens to be installed.
 
-This plugin takes a different route: plain Markdown files, committed to git, alongside the code they describe, plus GitHub Issues labeled `backlog` for the queue. Four files hold the durable memory, nine slash commands keep them honest — four of them (`backlog`, `learnings`, `help`, `update`) answered at zero model calls by a hook, falling back to one call apiece if the hook doesn't fire — and a handful of hooks nudge or gate when the habit slips. That's the whole system.
+This plugin takes a different route: plain Markdown files, committed to git, alongside the code they describe, plus GitHub Issues labeled `backlog` for the queue. Four files hold the durable memory, nine slash commands keep them honest — five of them (`backlog`, `learnings`, `help`, `update`, `doctor`) answered at zero model calls by a hook, falling back to one call apiece if the hook doesn't fire — and a handful of hooks nudge or gate when the habit slips. That's the whole system.
 
 The choice buys three properties most AI memory systems lack. Humans and Claude read the same files, so there's no opaque layer between you and what's remembered. Every change is a git commit, so history is auditable and every edit has an author. The storage is plain text, so it's portable: any tool that reads Markdown can use it, including future LLMs that don't exist yet.
 
@@ -94,7 +94,7 @@ It never commits and never pushes. The checklist flags what's outstanding; you d
 
 ### `/session-continuity:doctor`
 
-Read-only, zero-arg diagnostic: is the install actually wired up? Rows cover install mode (plugin vs. vendored), hooks registered, the four `.session-continuity/` files plus primer shape (`primer-validate.sh`), peers (engrim + committed `graphify-out/graph.json`), freshness (`primer-freshness.sh`), `CLAUDE_PLUGIN_ROOT` / cache staleness, gate scripts executable, and GitHub backlog reachability. Never mutates anything; every fix is a printed command you run yourself.
+Read-only, zero-arg diagnostic: is the install actually wired up? Rows cover install mode (plugin vs. vendored), hooks registered, the four `.session-continuity/` files plus primer shape (`primer-validate.sh`), peers (engrim + committed `graphify-out/graph.json`), freshness (`primer-freshness.sh`), `CLAUDE_PLUGIN_ROOT` / cache staleness, gate scripts executable, and GitHub backlog reachability. Printed by `hooks/lib/doctor-report.sh` — zero model calls when the `UserPromptSubmit` hook intercepts; one-call fallback shells the same script. Never mutates anything; every fix is a printed command you run yourself.
 
 ### `/session-continuity:spike-check`
 
