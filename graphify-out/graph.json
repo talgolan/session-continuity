@@ -15560,7 +15560,7 @@
       "node_kind": "heading",
       "norm_label": "confirm",
       "source_file": ".session-continuity/SESSION_PRIMER.md",
-      "source_location": "L17"
+      "source_location": "L16"
     },
     {
       "id": "session_continuity_session_primer_mid_flight",
@@ -15584,7 +15584,7 @@
       "node_kind": "heading",
       "norm_label": "peers",
       "source_file": ".session-continuity/SESSION_PRIMER.md",
-      "source_location": "L26"
+      "source_location": "L25"
     },
     {
       "id": "session_continuity_session_primer_session_primer_session_continuity",
@@ -27440,7 +27440,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": ".session-continuity/SESSION_PRIMER.md",
-      "source_location": "L17",
+      "source_location": "L16",
       "weight": 1.0
     },
     {
@@ -27451,7 +27451,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": ".session-continuity/SESSION_PRIMER.md",
-      "source_location": "L26",
+      "source_location": "L25",
       "weight": 1.0
     },
     {
@@ -28908,5 +28908,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "74101d5e8d3df6d1e86e6769b3d8a95bbd6926df"
+  "built_at_commit": "e3a81570b45152651bd50ad8dd0615d750e45203"
 }

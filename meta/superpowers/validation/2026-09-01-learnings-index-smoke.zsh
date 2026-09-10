@@ -13,11 +13,15 @@ bad() { print -P "%F{red}✗%f $1"; (( fail++ )); return 0; }
 
 work="$(mktemp -d)"
 
+# Derive expected entry count from the real file (not a hardcoded pin —
+# same recurrence class as #56 / #60). count-entries.sh is the contract.
+n_real="$(bash "$lib/count-entries.sh" "$repo/.session-continuity/LEARNINGS.md")"
+
 # --- report: no duplicates on this repo's real file -------------------------
 
 cat "$repo/.session-continuity/LEARNINGS.md" > "$work/real.md"
 out="$(bash "$lib/learnings-index.sh" report "$work/real.md")"
-if print -r -- "$out" | grep -q '^MAX 15$'; then ok "report: MAX matches real file (15)"; else bad "report MAX: $out"; fi
+if print -r -- "$out" | grep -q "^MAX ${n_real}$"; then ok "report: MAX matches real file ($n_real)"; else bad "report MAX: $out (expected MAX $n_real)"; fi
 if print -r -- "$out" | grep -q DUPNUM; then bad "report: false-positive duplicate number on real file"; else ok "report: no duplicate numbers on real file"; fi
 if print -r -- "$out" | grep -q DUPSLUG; then bad "report: false-positive duplicate slug on real file"; else ok "report: no duplicate slugs on real file"; fi
 
@@ -68,20 +72,20 @@ print -r -- "$out" | grep -q '^DUPSLUG foo ' && ok "report: detects duplicate sl
 out="$(bash "$lib/learnings-index.sh" report "$work/does-not-exist.md")"
 [[ "$out" == "MAX 0" ]] && ok "report: missing file -> MAX 0" || bad "report: missing file gave '$out'"
 
-# --- reindex: idempotent from the first run on the real 15-entry file -------
+# --- reindex: idempotent from the first run on the real file ----------------
 
 bash "$lib/learnings-index.sh" reindex "$work/real.md" > /dev/null
 cp_after1="$(cat "$work/real.md")"
 bash "$lib/learnings-index.sh" reindex "$work/real.md" > /dev/null
 cp_after2="$(cat "$work/real.md")"
 if [[ "$cp_after1" == "$cp_after2" ]]; then
-  ok "reindex: idempotent from the first run (real 15-entry file)"
+  ok "reindex: idempotent from the first run (real $n_real-entry file)"
 else
   bad "reindex: run 2 differs from run 1 on the real file"
 fi
 grep -q '^## Symptoms index' "$work/real.md" && ok "reindex: Symptoms index section present" || bad "reindex: no Symptoms index section after reindex"
 
-# --- reindex: inserts a fresh section when none exists (68-entry-file case) -
+# --- reindex: inserts a fresh section when none exists ----------------------
 
 awk 'BEGIN{skip=0} /^## Symptoms index/{skip=1} skip && /^## / && !/Symptoms index/{skip=0} !skip' \
   "$repo/.session-continuity/LEARNINGS.md" > "$work/virgin.md"
@@ -95,7 +99,7 @@ else
   bad "reindex: insert path did not create a Symptoms index"
 fi
 n_bullets="$(grep -c '^- ' "$work/virgin.md")"
-[[ "$n_bullets" -eq 15 ]] && ok "reindex: insert path produced 15 bullets" || bad "reindex: expected 15 bullets, got $n_bullets"
+[[ "$n_bullets" -eq "$n_real" ]] && ok "reindex: insert path produced $n_real bullets" || bad "reindex: expected $n_real bullets, got $n_bullets"
 after1="$(cat "$work/virgin.md")"
 bash "$lib/learnings-index.sh" reindex "$work/virgin.md" > /dev/null
 after2="$(cat "$work/virgin.md")"

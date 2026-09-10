@@ -103,12 +103,11 @@ run_once() {  # prints the parsed count, or nothing, on stdout
 
 OBSERVED_JSON="[]"
 case "$MODE" in
-  skip|no-command)
-    : # OBSERVED stays empty; the command never runs.
-    ;;
-  no-count)
-    v="$(run_once)"
-    OBSERVED_JSON="[$( [[ -n "$v" ]] && echo "$v" || echo null )]"
+  skip|no-command|no-count)
+    # OBSERVED stays empty; the command never runs.
+    # no-count: TEST_CMD exists but nothing was recorded to compare against.
+    # Running once "to seed" was dead cost — callers never wrote OBSERVED back
+    # into PROJECT_CONTEXT.md (#55). Skip until a count is recorded.
     ;;
   run)
     v1="$(run_once)"

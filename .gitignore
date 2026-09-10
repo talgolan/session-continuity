@@ -8,3 +8,7 @@ node_modules/
 .sf/
 .session-continuity/performance.log
 .session-continuity/.gitignore-ensured
+
+# graphify: only graph.json is the committed peer (doctor / SessionStart)
+graphify-out/*
+!graphify-out/graph.json

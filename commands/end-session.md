@@ -495,7 +495,9 @@ TSV_INREPO=".session-continuity/.end-session-checklist.tsv"
 TSV=""
 if [[ -r "$TSV_INREPO" ]]; then
   TSV="$(mktemp)"
-  cp "$TSV_INREPO" "$TSV"
+  # `command cp` bypasses a user alias like `cp -i` (common on macOS/zsh),
+  # which would hang forever on the existing mktemp destination (#53).
+  command cp "$TSV_INREPO" "$TSV"
   rm -f "$TSV_INREPO"
 fi
 BACKLOG_MODE="normal"   # set to none|unavailable|not-migrated|fast-path per Step 1's skip conditions/fast path instead, when applicable

@@ -160,14 +160,18 @@ out="$(cd "$d" && bash "$tool" "$d" "$lc" 2>&1)"
 [[ "$(jq_field "$out" MODE)" == "no-command" && "$(jq_field "$out" TEST_CMD)" == "" ]] \
   && ok "B2: freeform prose -> no-command, empty TEST_CMD" || bad "B2: got '$out'"
 
-# B3: no-count mode -- backtick command present, no parseable count
+# B3: no-count mode -- backtick command present, no parseable count.
+# Must NOT run the suite (nothing to compare; primer never seeds OBSERVED).
 d="$work/b3"; mk_repo "$d" '`./fake-test.sh`'
 lc="$(last_commit "$d")"
 touch "$d/some-file"
 git -C "$d" add -A; git -C "$d" commit -qm "code change"
 fake_cmd "$d" "$d/counter" "3"
 out="$(cd "$d" && COUNTER_FILE="$d/counter" bash "$tool" "$d" "$lc" 2>&1)"
-[[ "$(jq_field "$out" MODE)" == "no-count" ]] && ok "B3: bare command, no count -> no-count" || bad "B3: got '$out'"
+invocations="$(wc -l < "$d/counter" | tr -d ' ')"
+[[ "$(jq_field "$out" MODE)" == "no-count" && "$(jq_field "$out" RETRIES)" == "0" && "$invocations" == "0" ]] \
+  && ok "B3: bare command, no count -> no-count, zero runs" \
+  || bad "B3: got '$out' (invocations=$invocations)"
 
 # B4: run mode, first-run match -> exactly 1 invocation, no drift
 d="$work/b4"; mk_repo "$d" '`./fake-test.sh` — 3 pass / 0 fail'

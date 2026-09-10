@@ -3,9 +3,10 @@
 # Hermetic: mocked GH_BIN + synthetic LEARNINGS fixtures + this repo's
 # real LEARNINGS.md copied into a temp dir. Never hits the live GitHub API.
 #
-# NOTE: learnings(real) pins the live LEARNINGS.md entry count and the
-# help case pins plugin.json version + commands/*.md count. Update those
-# pins in the same commit when those sources change.
+# NOTE: learnings(real) derives its expected entry count and file-order
+# first-three from the live LEARNINGS.md (via count-entries.sh + heading
+# scrape) so adding an entry does not stale the smoke. help still derives
+# plugin.json version + commands/*.md count the same way.
 set -uo pipefail
 
 here="${0:A:h}"
@@ -66,16 +67,26 @@ out="$(bash "$render" backlog "$proj1")"; rc=$?
 
 # --- real LEARNINGS.md: verbatim numbers, grouped by section, zero-entry ----
 # sections and Symptoms index dropped ----------------------------------------
+# Expected count + first-three titles come from the live file (not hardcoded
+# pins) so entry growth does not reopen #56/#60.
 
 proj2="$work/proj-real2"
 mkdir -p "$proj2/.session-continuity"
 cp "$repo/.session-continuity/LEARNINGS.md" "$proj2/.session-continuity/LEARNINGS.md"
+n_real="$(bash "$lib/count-entries.sh" "$repo/.session-continuity/LEARNINGS.md")"
+# Render drops the leading "### "; scrape the first three headings in the
+# load-bearing section so file-order stays asserted without title pins.
+expect_first_three="$(awk '
+  /^## Claude Code plugin mechanics$/ { f=1; next }
+  f && /^## / { exit }
+  f && /^### [0-9]+\./ { sub(/^### /, ""); print; if (++c == 3) exit }
+' "$repo/.session-continuity/LEARNINGS.md")"
 lout="$(bash "$render" learnings "$proj2")"
 rc=$?
 ln="$(print -r -- "$lout" | grep -cE '^[0-9]+\. ')"
 [[ "$rc" -eq 0 ]] && ok "learnings(real): exit 0" || bad "learnings(real): exit $rc"
-[[ "$ln" -eq 16 ]] && ok "learnings(real): renders all 16 entries" \
-  || bad "learnings(real): expected 16 rendered entries, got $ln"
+[[ "$ln" -eq "$n_real" ]] && ok "learnings(real): renders all $n_real entries" \
+  || bad "learnings(real): expected $n_real rendered entries, got $ln"
 print -r -- "$lout" | grep -q '^## Symptoms index$' \
   && bad "learnings(real): Symptoms index section leaked into output" \
   || ok "learnings(real): Symptoms index section dropped"
@@ -86,8 +97,7 @@ print -r -- "$lout" | grep -q '^## Claude Code plugin mechanics$' \
   && ok "learnings(real): section headings present" \
   || bad "learnings(real): missing 'Claude Code plugin mechanics' section heading"
 first_three="$(print -r -- "$lout" | awk '/^## Claude Code plugin mechanics/{f=1;next} f && /^## /{exit} f && /^[0-9]/{print; c++} c==3{exit}')"
-expect=$'11. `$CLAUDE_PLUGIN_ROOT` inside a bash fence in a skill/command file is never resolved — only the braced `${CLAUDE_PLUGIN_ROOT}` form is\n8. `git -C` and compound commands blocked inside a worktree-isolated session\n2. awk CHANGELOG range collapses on single-version files'
-[[ "$first_three" == "$expect" ]] && ok "learnings(real): entries stay in file order (11, 8, 2), not sorted" \
+[[ "$first_three" == "$expect_first_three" ]] && ok "learnings(real): entries stay in file order, not sorted" \
   || bad "learnings(real): file-order check got: $first_three"
 
 # --- synthetic: learnings numbers are verbatim — duplicate/non-contiguous --
