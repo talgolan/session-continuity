@@ -106,6 +106,7 @@ table_entries=(
   "/session-continuity:learnings"
   "/session-continuity:help"
   "/session-continuity:update"
+  "doctor" "run doctor" "run the doctor" "/session-continuity:doctor"
 )
 for t in $table_entries; do
   assert_blocks "table entry blocks: '$t'" "$t"

@@ -21,9 +21,9 @@ state, or transcript data. Remaining Phase 6 sub-projects C/E stay
 deprioritized (see #43). Design spine:
 `meta/superpowers/specs/2026-09-02-determinism-program-design.md`.
 
-**Near-term backlog (GitHub `#N`):** #68 zero-turn `/doctor` retrofit
-(post-`4a9d` / closes placeholder #45), #37 scratch-project primer-split
-smoke, #36 automated integration tests, #35 Anthropic marketplace.
+**Near-term backlog (GitHub `#N`):** #36 automated integration tests, #35
+Anthropic marketplace. #68 zero-turn `/doctor` and #37 scratch primer smoke
+shipped (Unreleased).
 
 ## Next
 

@@ -9,18 +9,18 @@
 6. `/session-continuity:backlog` for the deferred queue
 
 ## Mid-flight
-- #45 done → concrete doctor retrofit filed as #68 (zero-turn `doctor-report.sh`)
+- #68+#37 unreleased: zero-turn doctor-report.sh; scratch primer init/split smoke
 - Determinism Phase 6 on #43 — A/B/D shipped; C/E deprioritized (issue closed)
-- Next backlog candidates: #68 doctor zero-turn, #37 scratch-smoke, #36 integration, #35 marketplace
-- Patch release deferred (Unreleased: #60/#55/#53 + graphify ignore)
+- Next backlog candidates: #36 integration, #35 marketplace
+- Patch release deferred (also ships prior Unreleased: #60/#55/#53 + graphify ignore)
 
 ## Confirm
 ```bash
 bash hooks/lib/primer-validate.sh .session-continuity/SESSION_PRIMER.md
-zsh meta/superpowers/validation/2026-09-09-peer-probes-smoke.zsh
-zsh meta/superpowers/validation/2026-09-09-primer-freshness-smoke.zsh
-zsh meta/superpowers/validation/2026-09-08-primer-detect-smoke.zsh
-zsh meta/superpowers/validation/2026-09-09-session-start-peers-smoke.zsh
+zsh meta/superpowers/validation/2026-09-10-doctor-report-smoke.zsh
+zsh meta/superpowers/validation/2026-09-10-primer-scratch-smoke.zsh
+zsh meta/superpowers/validation/2026-09-02-prompt-intercept-smoke.zsh
+zsh meta/superpowers/validation/2026-09-09-test-count-rerun-smoke.zsh
 ```
 
 ## Peers

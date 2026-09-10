@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- **Zero-turn `/session-continuity:doctor`.** New `hooks/lib/doctor-report.sh`
+  prints the finished six-row diagnostic table; `prompt-intercept.sh` answers
+  matching prompts at zero model calls. `commands/doctor.md` is the one-call
+  fallback. Gate inventory includes `derived-value-gate.sh`. (#68)
+- **Scratch-project primer init/split smoke**
+  (`meta/superpowers/validation/2026-09-10-primer-scratch-smoke.zsh`) —
+  deferred Testing items from the v0.13 split spec, plus init-derive against
+  a fresh repo. (#37)
+
 ### Fixed
 - **`test-count-rerun.sh` `MODE=no-count` no longer runs the suite.** Nothing
   was recorded to compare against, and callers never seeded `OBSERVED` back
