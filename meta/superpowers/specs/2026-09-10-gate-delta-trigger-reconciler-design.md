@@ -55,32 +55,40 @@ where the rule "what may a gate fire on" is enforced once for all of them.
 ## Invariants
 
 1. **Trigger on the delta, satisfy on the document.** A gate fires only when
-   the commit's own changes contain the trigger, and it looks for satisfying
+   the commit's own changes contain a trigger, and it looks for satisfying
    evidence anywhere in the document. Prose you did not touch can never
    condemn your edit; evidence that lives fifty lines away still counts.
 2. **Deleting evidence counts as a change.** Removing a satisfying field while
    leaving the claim in place must re-arm the gate.
-3. **A hatch attempt is never silently ignored.** A line a human would read as
-   this gate's escape hatch either exempts the file, or the denial names it by
-   line number and states the accepted form.
+3. **On a denial, a hatch attempt is never silent.** If the gate denies and a
+   near-miss hatch line exists in the staged blob, the denial names that line
+   and states the accepted form. Near-miss alone never flips allow → deny
+   (and never produces a denial when the gate would otherwise allow).
 4. **No gate can forget the self-condemnation mask.** It is applied by the
-   driver, before any gate sees content.
-5. **The verdict is a pure function of the repository.** Not of the user's git
-   config, locale, or working tree.
+   driver, before any gate's claim scan sees content. Accepted hatches are
+   short-circuited by the driver before `check_fn` runs.
+5. **The allow/deny verdict is a pure function of the repository.** Not of the
+   user's git config, locale, or working tree. Worktree / chained-command
+   text in denials is best-effort diagnostic only and never participates in
+   the verdict.
 
 ## Decisions (locked)
 
 | Decision | Choice |
 |---|---|
-| Where the rule lives | `gate_scan_staged` / new helpers in `hooks/lib/gate-common.sh`; no per-gate reimplementation |
-| Per-gate change shape | Trigger greps switch to `gate_triggered <ere>`; satisfaction greps untouched |
-| Delta definition | Added lines from `git diff --cached`, plus removed lines when matching a satisfaction pattern (invariant 2) |
-| Masking | Moved into the driver; the five local `gate_mask_escape` calls are deleted. Each gate sets `GATE_LABEL`; no filename derivation |
+| Where the rule lives | `gate_scan_staged` / new helpers in `hooks/lib/gate-common.sh`; no per-gate reimplementation of delta or masking |
+| Trigger API | `gate_triggered TRIGGER_ERE [SAT_ERE…]` — true if added lines match `TRIGGER_ERE`, **or** removed lines match any `SAT_ERE` (invariant 2) |
+| Satisfaction greps | Still scan the whole staged document (`$content` after mask) |
+| Pattern strings | Unchanged; only evaluation *scope* changes (delta vs whole file) |
+| Escape order | Driver: classify hatch on **unmasked** blob → accepted ⇒ skip `check_fn`; then mask content+delta; then `check_fn`. Gates delete local `gate_has_escape` / `gate_mask_escape` |
+| Masking | Central in the driver. Each gate sets `GATE_LABEL`; no filename derivation |
 | Hatch grammar | Unchanged — em dash or `--`, non-blank reason. Not widened |
-| Near-miss hatch | Detected by the shared recognizer, reported in the denial, never changes the verdict on its own |
-| `gate_window_around` | Not built. The diff is the exact answer the window approximates |
-| Worktree-vs-index divergence | Diagnostic text only; never participates in allow/deny |
-| Chained `git add && git commit` | Detected from `GATE_COMMAND`, reported in the denial |
+| Near-miss hatch | Recorded for `deny` append only; never changes the verdict alone |
+| `gate_window_around` | Not built |
+| Worktree-vs-index | Best-effort diagnostic text only; never allow/deny |
+| Chained `git add` + `git commit` | Best-effort diagnostic; fixed matcher below |
+| Rename+edit | Accepted tradeoff: `--no-renames` may attribute whole-file add; document + smoke |
+| Empty `M` delta fallback | Whole-document scan when status is `M` and added+removed text is empty (mode-only / empty blob / pin failure). Pure `R` stays empty → allow |
 | Release | 0.37.0 — behavior change across all seven gates |
 
 ## Architecture
@@ -88,44 +96,58 @@ where the rule "what may a gate fire on" is enforced once for all of them.
 ```
 gate_scan_staged(in_scope_fn, check_fn)
   for each staged file in scope:
-    content = gate_staged_blob(path)          # whole document, as today
-    delta   = gate_staged_delta(path)          # added lines (+ removed, see below)
-    content = gate_mask_escape(content, GATE_LABEL)  # now central, was per gate
-    delta   = gate_mask_escape(delta,   GATE_LABEL)
-    GATE_DELTA, GATE_NEAR_MISS set as globals
+    raw = gate_staged_blob(path)               # unmasked staged blob
+    class = gate_hatch_class(raw, GATE_LABEL)  # accepted | near-miss | absent
+    if class == accepted: continue             # short-circuit; never call check_fn
+    GATE_NEAR_MISS = near-miss details or empty
+    added, removed = gate_staged_delta(path)   # pinned git diff (see below)
+    if status==M and added and removed empty:
+      added = raw                              # fallback: behave like today
+    content = gate_mask_escape(raw, GATE_LABEL)
+    GATE_DELTA_ADDED = gate_mask_escape(added, GATE_LABEL)
+    GATE_DELTA_REMOVED = gate_mask_escape(removed, GATE_LABEL)
     check_fn(content, path)                    # signature unchanged
 ```
 
-`check_fn`'s signature does not change, so the seven gates keep their shape.
-What changes inside each is one line:
+**Escape short-circuit is mandatory.** Masking blanks accepted hatch lines. If
+`check_fn` still called `gate_has_escape` on masked `$content`, every hatch
+would stop exempting. Classification and short-circuit happen on `raw`
+before mask; gates must not re-call `gate_has_escape` / `gate_mask_escape`.
+
+### Trigger API
 
 ```bash
-# before
-printf '%s' "$content" | grep -Eiq 'smoke' || return 0
-# after
-gate_triggered 'smoke' || return 0
+gate_triggered TRIGGER_ERE [SAT_ERE…]
+# return 0 (fire) iff:
+#   GATE_DELTA_ADDED matches TRIGGER_ERE, OR
+#   any SAT_ERE is provided and GATE_DELTA_REMOVED matches that SAT_ERE
+# return 1 (do not fire) otherwise
 ```
 
-`gate_triggered <ere>` reads `GATE_DELTA`. Satisfaction greps continue to read
-`$content`. A gate that needs the old whole-file trigger for a documented
-reason can still grep `$content` directly — but none currently do.
+Callers that only care about new claims pass one argument. Callers that
+implement invariant 2 pass the same satisfaction EREs they already use in
+whole-document greps as optional trailing args — one shared list, two uses
+(re-arm on delete; satisfy on document).
 
-`gate_mask_escape` moves to the driver, which means the driver needs each
-gate's hatch label. Every gate sets `GATE_LABEL` explicitly before calling
-`gate_scan_staged`; the label is not derived from the filename. Five of the
-seven labels do match their filename, but `smoke-gate.sh` uses `Smoke` and
-`backend-parity-gate.sh` uses `Backend-parity`, so derivation would be a rule
-with two silent exceptions — and a wrong label masks nothing while still
-looking correct.
+### Per-gate migration (not a one-line swap)
 
-Central masking is a no-op for the two gates that do not mask today.
-`evidence-gate` and `occurrence-gate` will now see masked content, but a
-blanked `Evidence-gate: N/A` or `Occurrence-gate: N/A` line carries none of
-their trigger or satisfaction patterns, so no verdict changes.
+| Gate | Trigger(s) via `gate_triggered` | Satisfy on whole `$content` |
+|---|---|---|
+| `evidence-gate` | Two fire paths, both require `smoke` somewhere in the **document** before any teardown/poll check (same as today). (1) `gate_triggered 'smoke' …` → then run teardown/poll SAT checks on whole `$content`. (2) Else if `$content` already has `smoke` and `gate_triggered` on `teardown\|…` or `poll\|…` (with that path's SAT) → same SAT checks. Adding only `poll` next to existing `smoke` **fires**. Adding only unrelated text when smoke+poll already present **does not**. Adding `poll` with **no** smoke in the document **does not**. | Existing preserve-before-teardown / dual-signal greps |
+| `proven-gate` | `proven\|verified` / spike-conclusive | `Real path:` + `Stubbed:` |
+| `backend-parity-gate` | `backends?\b` | ≥2 named backends (existing loop) |
+| `flaky-gate` (LEARNINGS) | flaky/transient/CDN | `Mechanism:` |
+| `flaky-gate` (commit message) | **Whole `GATE_COMMAND` text** — no delta; keep today's scan | same |
+| `occurrence-gate` | delta must contain an `Occurrence count:` line with N≥2 (parse added lines; not a naive word grep) | `Invariant:` |
+| `smoke-gate` | Weak-smoke path: `smoke` (+ weak adjacency) on added; binary/engine path: `binary\|engine\|…` on added when no smoke satisfaction in document | `MANDATORY` smoke / hatch (driver) |
+| `derived-value-gate` | Each `_dvg_check_*` greps **`GATE_DELTA_ADDED`** (and re-arms if a future SAT is defined; today denial-is-the-trigger, no SAT) | N/A — hit is the defect |
 
-`flaky-gate` checks two things: staged `LEARNINGS.md` content, which follows
-the delta rule, and the commit message itself, which has no delta and keeps
-whole-text triggering.
+`smoke-gate`, `occurrence-gate`, and `derived-value-gate` get dedicated plan
+tasks; they are not "replace one `grep` with `gate_triggered`."
+
+Central masking is a no-op for verdict on `evidence-gate` / `occurrence-gate`
+today (their hatch labels do not match their trigger/SAT patterns). Still
+required for invariant 4.
 
 ### Delta extraction
 
@@ -134,128 +156,125 @@ git -c diff.algorithm=myers diff --cached --no-color --no-ext-diff \
     --no-textconv --no-renames -U0 -- <path>
 ```
 
-Every flag is a determinism pin, not a preference — see below. Added lines are
-the `^+` lines with the `^+++` header filtered out. Removed lines (`^-`, minus
-`^---`) are scanned only against the gate's satisfaction pattern, to serve
-invariant 2.
+Pins are load-bearing (see Determinism). Added = `^+` minus `^+++`. Removed =
+`^-` minus `^---`.
+
+**Rename+edit tradeoff:** `--no-renames` can present rename+edit as delete+add
+of the whole file → entire content in `GATE_DELTA_ADDED` → full re-litigation
+for that commit. Accepted cost of config-stable diffs. Pure rename (`R`, empty
+text delta) allows. Smoke covers rename+edit once.
 
 ### Near-miss recognition
 
 One recognizer classifies each line as `accepted`, `near-miss`, or `absent`
-for a given label. `accepted` is today's `gate_has_escape` grammar. `near-miss`
-is today's wider `gate_mask_escape` shape minus `accepted` — a `Label:` and an
-`N/A` without the separator-and-reason. The driver records near-misses in
-`GATE_NEAR_MISS` (line number and text); `deny` appends them to its message.
+for `GATE_LABEL`. `accepted` = today's `gate_has_escape` grammar. `near-miss`
+= today's wider `gate_mask_escape` shape minus `accepted`. Driver records
+near-misses in `GATE_NEAR_MISS`; `deny` appends them when a denial fires.
 
-This replaces the current split between a strict matcher and a deliberately
-wider masker, which is the structural reason a hatch can be recognized enough
-to mask but not enough to exempt.
+### Denial diagnostics (best-effort; not part of the verdict)
 
-### Denial diagnostics
+`deny` may append:
 
-`deny` appends, when applicable:
-
-- the near-miss hatch line and the accepted form (invariant 3);
-- "this command chained `git add` with `git commit`; the add did not run"
-  when `GATE_COMMAND` matches an `add` followed by `&&` or `;` and a `commit`;
-- "the working-tree copy of this file contains a hatch that is not staged"
-  when the worktree file differs from the blob on that point.
+1. Near-miss hatch line + accepted form (invariant 3), when `GATE_NEAR_MISS`
+   is set for this file.
+2. Chained add+commit, when `GATE_COMMAND` matches this fixed shape (after
+   normalizing newlines to spaces):  
+   `git[[:space:]]+add\b` … then `(&&|;|\|\|)` … then `git[[:space:]]+commit\b`  
+   within the same command string. No attempt to parse `git add -p` interactivity;
+   false negatives OK. Message: the add did not run; stage and commit as two
+   tool calls.
+3. Worktree hatch not in index: compare `gate_hatch_class` on worktree file vs
+   staged blob. Race with the editor is acceptable; omit the clause if the
+   worktree path is unreadable. Never flips the verdict.
 
 ## Determinism
 
 The verdict path contains no model call: delta, trigger, satisfaction, hatch
 classification and near-miss detection are all shell and git. That preserves
-the determinism program's invariant, which forbids asking a model to compute a
-pure function of files, git state, or transcript data.
+the determinism program's invariant.
 
-`git diff` output, however, is a function of the repository **and the user's
-git config**. Measured: with `color.diff=always` set, added lines arrive
-wrapped in ANSI escapes, `grep '^+'` matches zero lines, the delta reads as
-empty, and every gate allows everything with no symptom. `--no-color` fixes
-it. `--no-ext-diff` and `--no-textconv` stop a `.gitattributes` diff driver or
-`GIT_EXTERNAL_DIFF` from rewriting the content the gate reads.
-`-c diff.algorithm=myers` and `--no-renames` remove the remaining config
-inputs; the three algorithms agreed on the case measured, but which lines an
-edit is attributed to is algorithm-dependent in principle and a verdict must
-not depend on a knob. `diff.mnemonicPrefix` was measured harmless: it rewrites
-the header to `i/<path>`, which still begins with `+++`.
+`git diff` output is a function of the repository **and** the user's git
+config. Measured: with `color.diff=always`, added lines are ANSI-wrapped,
+`grep '^+'` matches zero lines, delta empties, every gate would allow with no
+symptom. `--no-color` fixes it. `--no-ext-diff` / `--no-textconv` stop external
+diff drivers. `-c diff.algorithm=myers` and `--no-renames` remove remaining
+config inputs. `diff.mnemonicPrefix` measured harmless (`+++` still prefixes
+the header).
 
-All gate greps and the masker run under `LC_ALL=C` for byte-stable matching.
-The em dash keeps matching as a literal byte sequence; measured identical
-under C, POSIX and en_US.UTF-8.
+All gate greps and the masker run under `LC_ALL=C`. Em dash measured identical
+under C, POSIX, and en_US.UTF-8.
 
-**Fallback, because a pin is a promise and not an enforcement:** if a file is
-staged as a modification (`--name-status` `M`) and the extracted delta is
-empty, the driver scans the whole document instead. The failure mode becomes
-"behaves like today" rather than "silently allows everything." A pure rename
-reports `R` and legitimately yields an empty delta; it is allowed.
+**Empty `M` fallback:** status `M` with empty added and removed text can happen
+for mode-only changes, some empty/binary edge paths, or a pin failure mode we
+have not listed. Fallback scans the whole document ("behaves like today").
+Pure `R` with empty text allows without fallback.
 
-Two pre-existing determinism caveats stay as they are. Which denial surfaces
-first when a file violates two gates depends on the runner's hook execution
-order. And `git commit -a` / pathspec commits remain the documented permissive
-miss from CHANGELOG `[0.17.0]`.
+Pre-existing caveats unchanged: multi-gate denial order depends on the runner;
+`git commit -a` / pathspec commits remain the documented permissive miss from
+CHANGELOG `[0.17.0]`.
 
 ## Deliverables
 
-1. `hooks/lib/gate-common.sh` — `gate_staged_delta`, `gate_triggered`, the
-   unified hatch recognizer, central masking in `gate_scan_staged`, denial
-   diagnostics in `deny`.
-2. The seven gates — trigger greps switched to `gate_triggered`; the five
-   local `gate_mask_escape` calls and their comments deleted; `GATE_LABEL` set
-   in all seven.
-3. `README.md` — correct the five gate bullets that say `PreToolUse` on
-   Write/Edit. All seven fire on `Bash(git commit *)`.
-4. `skills/session-continuity/REFERENCE.md` — consumer section: gates read the
-   index and not the editor buffer, escapes are file-scoped, satisfying beats
-   escaping, and what the new denial diagnostics mean.
-5. `skills/session-continuity/templates/CLAUDE_MD_SNIPPET.md` — the
-   never-chain-`git add`-with-`git commit` trap, stated as a rule.
+1. `hooks/lib/gate-common.sh` — delta helpers, `gate_triggered`, hatch
+   classifier, driver short-circuit + central mask, `deny` diagnostics.
+2. All seven gates — delete local escape/mask; set `GATE_LABEL`; migrate
+   triggers per the table above.
+3. `README.md` — fix Write/Edit bullets; all seven are `Bash(git commit *)`.
+4. `skills/session-continuity/REFERENCE.md` — consumer section (index vs
+   editor, file-scoped escapes, satisfy-before-escape, denial diagnostics).
+5. `skills/session-continuity/templates/CLAUDE_MD_SNIPPET.md` — never chain
+   `git add` with `git commit`.
 6. `CHANGELOG.md` — 0.37.0.
 
 ## Testing
 
-Test-first, against the existing per-gate smokes and
+Test-first against existing per-gate smokes and
 `2026-08-27-gate-common-smoke.zsh`.
 
-New cases in `gate-common`:
+`gate-common`:
 
-- Added lines only are returned for an edit; all lines for a new file; empty
-  for a pure rename.
-- `color.diff=always` in the repo config still yields a correct delta.
-- A modification with an empty extracted delta falls back to whole-document.
-- Removed lines matching a satisfaction pattern re-arm the trigger.
-- The recognizer classifies accepted, near-miss, and absent hatch lines.
+- Edit → added lines only; new file → all lines; pure rename → empty.
+- `color.diff=always` still yields a correct delta.
+- `M` + empty text delta → whole-document fallback.
+- `gate_triggered TRIGGER SAT` returns true when only removed lines match SAT.
+- Classifier: accepted / near-miss / absent.
+- Accepted hatch → `check_fn` never invoked (spy / counter in smoke).
+- Rename+edit → documents current whole-file-add behavior (not a flake).
 
-Per gate, each of the seven suites gains the same pair: its trigger word
-already present in the committed file and an unrelated line added, which must
-allow; and its trigger newly added without the satisfying field, which must
-deny. Spelled out for `evidence-gate`, the pattern the other six copy:
+Per gate (LEARNINGS path for flaky; **not** the commit-message path for the
+"unrelated line" pair):
 
-- The eval's case A (unrelated "smoke" and "poll" already in the file, an
-  unrelated paragraph added) now allows.
-- The eval's case B (a real smoke section with a success-only poll, newly
-  added) still denies.
-- Deleting the dual-signal sentence while leaving the poll denies.
-- A single-hyphen hatch denies, and the denial names the line.
-- Every existing case in all seven suites still passes.
+- Trigger already in HEAD, unrelated line added → allow.
+- Trigger newly added without satisfaction → deny.
+- Satisfaction deleted, claim left → deny (where the gate has a SAT ERE).
+
+`evidence-gate` extras: eval case A allow; case B deny; add-only-`poll` beside
+existing `smoke` deny; single-hyphen hatch on a denying commit names the line.
+
+`flaky-gate` commit-message path: one smoke that a message containing `flaky`
+without `Mechanism:` still denies (whole-text, unchanged).
+
+All pre-existing cases in all seven suites still pass.
 
 ## Out of scope
 
-- `gate_window_around` and any within-file windowing.
-- Widening the accepted hatch separators.
-- Changing what any gate asks for — no trigger or satisfaction regex changes.
+- `gate_window_around` / within-file windowing.
+- Widening accepted hatch separators.
+- Changing trigger or satisfaction *pattern strings* (scope only).
 - `git commit -a` / pathspec coverage.
 - Anything under `commands/`.
+- Warning on near-miss when the gate would allow (invariant 3 is denial-only).
 
 ## Success criteria
 
-1. Adding an unrelated paragraph to a document that already contains trigger
-   words is allowed by all seven gates.
-2. Newly added prose that makes a claim without its field is still denied by
-   the gate that owns it, with the same message as today plus diagnostics.
-3. Deleting a satisfying field while leaving the claim is denied.
-4. A malformed hatch never produces a denial that fails to mention it.
-5. No gate contains a local `gate_mask_escape` call.
-6. A repository with `color.diff=always` produces the same verdicts as one
-   without.
+1. Unrelated paragraph on a file whose triggers already exist in HEAD → allow
+   on all seven file-scoped paths (flaky LEARNINGS; not commit message).
+2. Newly added claim without its field → deny with today's message plus any
+   applicable diagnostics.
+3. Deleting a satisfying field while leaving the claim → deny (gates with SAT).
+4. On every denial that has a near-miss hatch in the staged blob, the denial
+   names that hatch.
+5. No gate file contains `gate_mask_escape` or `gate_has_escape`.
+6. `color.diff=always` verdicts match a clean config.
 7. Every pre-existing smoke in all seven gate suites passes unchanged.
+8. Accepted hatch still exempts (driver short-circuit smoke).
