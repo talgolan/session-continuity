@@ -84,5 +84,48 @@ else
   ((fail++))
 fi
 
+delta_added() {
+  local repo="$1" relpath="$2"
+  bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_CWD="'"$repo"'"; gate_staged_delta "'"$relpath"'"; printf "%s" "$GATE_DELTA_ADDED"'
+}
+delta_status() {
+  local repo="$1" relpath="$2"
+  bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_CWD="'"$repo"'"; gate_staged_status "'"$relpath"'"'
+}
+
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/d.md" $'keep\nsmoke here\n'
+git -C "$repo" commit -qm base
+print -rn -- $'keep\nsmoke here\nnew line\n' > "$repo/meta/plans/d.md"
+git -C "$repo" add "meta/plans/d.md"
+out="$(delta_added "$repo" "meta/plans/d.md")"
+check "edit delta is added lines only" "new line" "$out"
+gt_cleanup "$repo"
+
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/n.md" $'a\nb\n'
+out="$(delta_added "$repo" "meta/plans/n.md" | tr '\n' '|')"
+check "new file delta is all lines" "a|b|" "$out"
+gt_cleanup "$repo"
+
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/r.md" $'body\n'
+git -C "$repo" commit -qm base
+git -C "$repo" mv meta/plans/r.md meta/plans/s.md
+st="$(delta_status "$repo" "meta/plans/s.md")"
+case "$st" in R*) st_ok=yes ;; *) st_ok="no:$st" ;; esac
+check "pure rename status is R*" "yes" "$st_ok"
+gt_cleanup "$repo"
+
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/c.md" $'a\n'
+git -C "$repo" commit -qm base
+print -rn -- $'a\ncolor line\n' > "$repo/meta/plans/c.md"
+git -C "$repo" add "meta/plans/c.md"
+git -C "$repo" config color.diff always
+out="$(delta_added "$repo" "meta/plans/c.md")"
+check "color.diff=always still yields plain added line" "color line" "$out"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"
 [[ $fail -eq 0 ]]

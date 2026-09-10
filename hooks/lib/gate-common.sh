@@ -43,6 +43,37 @@ gate_staged_blob() {  # <relpath> -> staged (index) content of the file
   git -C "${GATE_CWD:-}" show ":$1" 2>/dev/null || true
 }
 
+gate_staged_status() {  # <relpath> -> A|M|D|R100|... or empty
+  local path="$1" line
+  [ -n "${GATE_CWD:-}" ] || { printf ''; return 0; }
+  # Rename-aware on purpose — do NOT pass --no-renames here.
+  # Do not path-filter the diff: `diff -- <path>` collapses R* into A/D for
+  # the single remaining side (verified: pure git mv → A when filtered).
+  line="$(git -C "$GATE_CWD" diff --cached --name-status -M --no-color 2>/dev/null \
+    | awk -v p="$path" -F '\t' '
+        $1 ~ /^R/ && ($2 == p || $3 == p) { print; exit }
+        $1 !~ /^R/ && $2 == p { print; exit }
+      ' || true)"
+  # R100\told\tnew  or  A\tpath  or  M\tpath
+  printf '%s' "${line%%$'\t'*}"
+}
+
+gate_staged_delta() {  # <relpath> -> sets GATE_DELTA_ADDED, GATE_DELTA_REMOVED
+  local path="$1" raw
+  GATE_DELTA_ADDED=""
+  GATE_DELTA_REMOVED=""
+  [ -n "${GATE_CWD:-}" ] || return 0
+  [ -d "$GATE_CWD" ] || return 0
+  raw="$(git -C "$GATE_CWD" -c diff.algorithm=myers diff --cached --no-color \
+    --no-ext-diff --no-textconv --no-renames -U0 -- "$path" 2>/dev/null || true)"
+  # Trailing x sentinel: command substitution strips a final newline, which
+  # would drop the last empty segment when callers split on \n.
+  GATE_DELTA_ADDED="$( { printf '%s\n' "$raw" | grep -E '^\+' | grep -Ev '^\+\+\+' | sed 's/^+//' || true; printf x; } )"
+  GATE_DELTA_ADDED="${GATE_DELTA_ADDED%x}"
+  GATE_DELTA_REMOVED="$( { printf '%s\n' "$raw" | grep -E '^-' | grep -Ev '^---' | sed 's/^-//' || true; printf x; } )"
+  GATE_DELTA_REMOVED="${GATE_DELTA_REMOVED%x}"
+}
+
 gate_is_scratch() {  # <relpath> -> true if basename is dot-prefixed
   case "${1##*/}" in
     .*) return 0 ;;
