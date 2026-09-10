@@ -22,6 +22,14 @@ check "dot-prefixed is scratch" "yes" "$out"
 out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_is_scratch "a/b/plan.md" && echo yes || echo no')"
 check "normal not scratch" "no" "$out"
 
+# gate_would_scan: same predicate as the driver loop (in_scope && !scratch)
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; in_scope(){ case "$1" in */plans/*) return 0;; *) return 1;; esac; }; gate_would_scan in_scope "meta/plans/p.md" && echo yes || echo no')"
+check "would_scan in-scope real" "yes" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; in_scope(){ case "$1" in */plans/*) return 0;; *) return 1;; esac; }; gate_would_scan in_scope "meta/plans/.scratch.md" && echo yes || echo no')"
+check "would_scan in-scope scratch" "no" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; in_scope(){ case "$1" in */plans/*) return 0;; *) return 1;; esac; }; gate_would_scan in_scope "notes/p.md" && echo yes || echo no')"
+check "would_scan out-of-scope" "no" "$out"
+
 # gate_has_escape: bare and decorated both match; absent does not
 esc_bare='Proven-gate: N/A — reason here'
 esc_dec='> **Proven-gate:** N/A — reason here'
