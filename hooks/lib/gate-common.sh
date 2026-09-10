@@ -74,6 +74,25 @@ gate_staged_delta() {  # <relpath> -> sets GATE_DELTA_ADDED, GATE_DELTA_REMOVED
   GATE_DELTA_REMOVED="${GATE_DELTA_REMOVED%x}"
 }
 
+gate_triggered() {  # [-w] TRIGGER_ERE [SAT_ERE…] -> 0 fire, 1 quiet
+  local word=0 trigger
+  if [ "${1:-}" = "-w" ]; then word=1; shift; fi
+  trigger="${1:-}"; shift || true
+  if [ -z "$trigger" ]; then return 1; fi
+  if [ "$word" -eq 1 ]; then
+    if printf '%s' "${GATE_DELTA_ADDED:-}" | LC_ALL=C grep -Eiqw -- "$trigger"; then return 0; fi
+  else
+    if printf '%s' "${GATE_DELTA_ADDED:-}" | LC_ALL=C grep -Eiq -- "$trigger"; then return 0; fi
+  fi
+  local sat
+  for sat in "$@"; do
+    if [ -n "$sat" ] && printf '%s' "${GATE_DELTA_REMOVED:-}" | LC_ALL=C grep -Eiq -- "$sat"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 gate_is_scratch() {  # <relpath> -> true if basename is dot-prefixed
   case "${1##*/}" in
     .*) return 0 ;;

@@ -174,5 +174,24 @@ out="$(delta_added "$repo" "meta/plans/c.md")"
 check "color.diff=always still yields plain added line" "color line" "$out"
 gt_cleanup "$repo"
 
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="hello smoke"; GATE_DELTA_REMOVED=""; gate_triggered "smoke" && echo fire || echo quiet')"
+check "triggered on added" "fire" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="unproven only"; GATE_DELTA_REMOVED=""; gate_triggered -w "proven|verified" && echo fire || echo quiet')"
+check "-w does not fire on unproven" "quiet" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="we verified it"; GATE_DELTA_REMOVED=""; gate_triggered -w "proven|verified" && echo fire || echo quiet')"
+check "-w fires on verified" "fire" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="unrelated"; GATE_DELTA_REMOVED="Real path: x"; gate_triggered -w "proven|verified" "Real path:[[:space:]]*[^[:space:]]" && echo fire || echo quiet')"
+check "re-arm on removed SAT" "fire" "$out"
+
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/old.md" $'smoke poll timeout\n'
+git -C "$repo" commit -qm base
+git -C "$repo" mv meta/plans/old.md meta/plans/new.md
+print -rn -- $'smoke poll timeout\nextra\n' > "$repo/meta/plans/new.md"
+git -C "$repo" add -A
+out="$(delta_added "$repo" "meta/plans/new.md" | grep -c smoke || true)"
+check "rename+edit may put smoke in added delta (known tradeoff)" "1" "$out"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"
 [[ $fail -eq 0 ]]
