@@ -81,9 +81,9 @@ gt_cleanup "$repo"
 
 # 10. deleting dual-signal while leaving poll/smoke -> deny
 repo="$(gt_make_repo)"
-gt_stage "$repo" "meta/specs/s.md" $'smoke design lives here\nsmoke poll_until ok fail 5s\n'
+gt_stage "$repo" "meta/specs/s.md" $'smoke design lives here\npoll loop with a timeout\nwatch success and failure\n'
 git -C "$repo" commit -qm base
-print -rn -- $'smoke design lives here\nsmoke poll loop with a timeout\n' > "$repo/meta/specs/s.md"
+print -rn -- $'smoke design lives here\npoll loop with a timeout\n' > "$repo/meta/specs/s.md"
 git -C "$repo" add "meta/specs/s.md"
 out="$(gt_run evidence-gate.sh "$(gt_commit_payload "$repo")")"
 check "delete dual-signal leave poll -> deny" "deny" "$(verdict "$out")"
@@ -96,6 +96,16 @@ out="$(gt_run evidence-gate.sh "$(gt_commit_payload "$repo")")"
 check "near-miss hatch still denies" "deny" "$(verdict "$out")"
 printf '%s' "$out" | grep -qi 'Near-miss' && near=yes || near=no
 check "near-miss named in denial" "yes" "$near"
+gt_cleanup "$repo"
+
+# 12. deleting dual-signal outside smoke scope -> allow
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/specs/s.md" $'deploy design lives here\npoll loop with a timeout\nwatch success and failure\n'
+git -C "$repo" commit -qm base
+print -rn -- $'deploy design lives here\npoll loop with a timeout\n' > "$repo/meta/specs/s.md"
+git -C "$repo" add "meta/specs/s.md"
+out="$(gt_run evidence-gate.sh "$(gt_commit_payload "$repo")")"
+check "delete dual-signal without smoke -> allow" "allow" "$(verdict "$out")"
 gt_cleanup "$repo"
 
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

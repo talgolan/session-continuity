@@ -22,8 +22,9 @@ gate_check() {
   local trig_td='teardown|tear down|cleanup|clean up'
   local trig_poll='poll|wait[_-]?for|readiness check|timeout loop'
   local fire=0
+  printf '%s' "$content" | LC_ALL=C grep -Eiq 'smoke' || return 0
   if gate_triggered 'smoke' "$sat_td" "$sat_poll"; then fire=1; fi
-  if [ "$fire" -eq 0 ] && printf '%s' "$content" | LC_ALL=C grep -Eiq 'smoke'; then
+  if [ "$fire" -eq 0 ]; then
     if gate_triggered "$trig_td" "$sat_td" || gate_triggered "$trig_poll" "$sat_poll"; then
       fire=1
     fi
