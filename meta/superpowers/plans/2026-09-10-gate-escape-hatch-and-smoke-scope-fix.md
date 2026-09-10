@@ -1,5 +1,15 @@
 # Plan: fix evidence-gate.sh's smoke/poll false positive + the shared gate-common.sh escape-hatch reliability bug (also hits proven-gate.sh)
 
+> **Superseded disposition — read the eval first.** Every claim below was
+> reproduced against the live hooks on 2026-09-10; see
+> [`../specs/2026-09-10-gate-escape-hatch-and-smoke-scope-eval.md`](../specs/2026-09-10-gate-escape-hatch-and-smoke-scope-eval.md).
+> Summary: Tasks 1–2 are valid, with two corrections (drop the section-narrowing
+> refinement; scope the trigger greps to the window but leave the satisfaction
+> greps whole-file). Task 3 must not be executed as written — there is no
+> divergence in `gate_has_escape` to find. Its Symptom A is escape-line
+> separator grammar and its Symptom B is already mitigated by
+> `gate_mask_escape`. The eval names the replacement work.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > `superpowers:subagent-driven-development` (or lean SDD) to implement this
 > plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
