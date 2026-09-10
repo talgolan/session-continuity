@@ -83,4 +83,24 @@ else
 fi
 gt_cleanup "$repo"
 
+# 11. an unrelated addition does not re-litigate an incomplete claim in HEAD
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'we verified the spike\n'
+git -C "$repo" commit -qm base
+print -rn -- $'we verified the spike\nunrelated\n' > "$repo/meta/plans/p.md"
+git -C "$repo" add "meta/plans/p.md"
+out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
+check "unrelated edit over incomplete claim in HEAD -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 12. removing a satisfaction field rechecks the remaining claim
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'we verified the spike\nReal path: hooks/x.sh\nStubbed: nothing\n'
+git -C "$repo" commit -qm base
+print -rn -- $'we verified the spike\nStubbed: nothing\n' > "$repo/meta/plans/p.md"
+git -C "$repo" add "meta/plans/p.md"
+out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
+check "delete Real path leave verified -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

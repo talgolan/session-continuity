@@ -21,13 +21,15 @@ gate_in_scope() {
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
 gate_check() {
   local content="$1" path="$2"
-  local has_claim=0
-  if printf '%s' "$content" | grep -Eiqw 'proven|verified'; then has_claim=1; fi
-  if printf '%s' "$content" | grep -Eiq 'spike[[:space:]]+conclusive'; then has_claim=1; fi
-  if [ "$has_claim" -eq 0 ]; then return 0; fi
+  local sat_real='Real path:[[:space:]]*[^[:space:]]'
+  local sat_stub='Stubbed:[[:space:]]*[^[:space:]]'
+  if ! gate_triggered -w 'proven|verified' "$sat_real" "$sat_stub" \
+    && ! gate_triggered 'spike[[:space:]]+conclusive' "$sat_real" "$sat_stub"; then
+    return 0
+  fi
   local has_real=0 has_stub=0
-  if printf '%s' "$content" | grep -Eiq 'Real path:[[:space:]]*[^[:space:]]'; then has_real=1; fi
-  if printf '%s' "$content" | grep -Eiq 'Stubbed:[[:space:]]*[^[:space:]]'; then has_stub=1; fi
+  if printf '%s' "$content" | LC_ALL=C grep -Eiq "$sat_real"; then has_real=1; fi
+  if printf '%s' "$content" | LC_ALL=C grep -Eiq "$sat_stub"; then has_stub=1; fi
   if [ "$has_real" -eq 0 ] || [ "$has_stub" -eq 0 ]; then
     # Name the offending line so a denial is diagnosable in one read. Line
     # numbers are the real file's: the driver blanks hatch lines, never deletes.
