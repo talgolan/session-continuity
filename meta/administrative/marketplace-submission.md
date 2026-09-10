@@ -6,7 +6,7 @@ Claude Code sessions start cold — Claude doesn't remember yesterday's debuggin
 
 session-continuity takes a different route: plain Markdown files, committed to git, alongside the code they describe, plus GitHub Issues labeled `backlog` for the work queue. `.session-continuity/SESSION_PRIMER.md` is a thin hard-template (Boot order / Mid-flight / Confirm / Peers) refreshed alongside substantive commits — no embedded `git log` dump; drift is `primer-freshness.sh`. `.session-continuity/PROJECT_CONTEXT.md` holds stable repo context. `.session-continuity/ROADMAP.md` holds strategic direction. `.session-continuity/LEARNINGS.md` holds append-only wisdom — numbered entries for bugs that took 15+ minutes to diagnose. Boot also expects local engrim and a committed `graphify-out/graph.json` as required peers (neither leaves the machine via this plugin).
 
-Nine slash commands keep the habit cheap (four of them zero-turn via a prompt-intercept hook in the common case). Notable: `/session-continuity:primer` initializes, splits, slim-migrates, refreshes, or checks; `/session-continuity:end-session` is freshness-gated; `/session-continuity:doctor` diagnoses shape, peers, and freshness. Hooks nudge or gate when the habit slips — SessionStart (peers + freshness), a non-blocking commit nudge, LEARNINGS retrieval before action, and seven commit-time content gates (each with an explicit skip-with-reason escape hatch).
+Nine slash commands keep the habit cheap (five of them — `backlog`, `learnings`, `help`, `update`, `doctor` — zero-turn via a prompt-intercept hook in the common case). Notable: `/session-continuity:primer` initializes, splits, slim-migrates, refreshes, or checks; `/session-continuity:end-session` is freshness-gated; `/session-continuity:doctor` diagnoses shape, peers, and freshness. Hooks nudge or gate when the habit slips — SessionStart (peers + freshness), a non-blocking commit nudge, LEARNINGS retrieval before action, and seven commit-time content gates that trigger on the staged delta and satisfy against the whole staged document (each with an explicit skip-with-reason escape hatch).
 
 Install this when you work on the same project across many sessions and want Claude to pick up context in seconds instead of rebuilding it each time.
 
@@ -35,4 +35,4 @@ For reference, the form likely pulls these directly from the manifest:
 - **License:** MIT
 - **Homepage:** `https://github.com/talgolan/session-continuity`
 - **Keywords:** memory, session, handoff, continuity, documentation, onboarding, post-mortem
-- **Version at submission:** re-check against `.claude-plugin/plugin.json` at actual submission time (was last synced in prose 2026-09-10; plugin was at 0.36.1 then)
+- **Version at submission:** re-check against `.claude-plugin/plugin.json` at actual submission time (was last synced in prose 2026-09-10; plugin is at 0.37.0 as of that sync refresh)

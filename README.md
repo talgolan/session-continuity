@@ -1,6 +1,6 @@
 # session-continuity
 
-Cross-session memory for Claude Code projects. A skill Claude loads on its own, four plain-Markdown docs committed to your repo plus GitHub Issues for the work queue, nine slash commands — four of which cost no model calls in the common case, a hook intercepts and answers them directly, with a one-model-call fallback if it doesn't fire — and a set of session hooks that surface the right knowledge at the right moment.
+Cross-session memory for Claude Code projects. A skill Claude loads on its own, four plain-Markdown docs committed to your repo plus GitHub Issues for the work queue, nine slash commands — five of which (`backlog`, `learnings`, `help`, `update`, `doctor`) cost no model calls in the common case, a hook intercepts and answers them directly, with a one-model-call fallback if it doesn't fire — and a set of session hooks that surface the right knowledge at the right moment.
 
 ## Why this exists
 
@@ -129,10 +129,13 @@ The hooks are bash scripts wired through `hooks/hooks.json`. They split into two
 
 - **Action-keyed retrieval** (`learnings-surface`, `PreToolUse` on Bash/Write/Edit) is the mechanism that turns LEARNINGS from a read-after-symptom file into a read-before-action gate. When a LEARNINGS entry carries a `Trigger: <tool> /<regex>/` line and the command you're about to run (or the file you're about to write) matches that regex, the hook names the relevant entry so you read it *before* repeating the mistake. Entries without a trigger never fire, so there's zero cost to omitting one.
 The seven content gates below are `PreToolUse` hooks on `Bash(git commit *)`.
-They inspect the staged index. A gate is triggered by relevant lines added in
-the current commit, then checks the whole staged document for the required
-field. Deleting a required field also re-arms the applicable gate; unrelated
-edits do not re-litigate old prose, and a pure rename is allowed.
+They inspect the staged index. A gate **triggers on the staged delta** (lines
+added in this commit) and **satisfies against the whole staged document** — a
+new claim can reuse a required field that already exists elsewhere in the file.
+Deleting a required field re-arms the applicable gate; unrelated edits do not
+re-litigate old prose; a pure rename with no content edit is allowed. Escape
+hatches are file-scoped (`Label: N/A — <reason>`, decoration-tolerant); a
+malformed hatch never exempts. Prefer meeting the gate over escaping it.
 
 - **Smoke gate** (`smoke-gate`, staged plan files only) blocks newly added binary/engine/container work that omits a MANDATORY smoke task or marks the smoke task optional. Override with `Smoke: N/A — <reason>`.
 - **Proven gate** (`proven-gate`, staged spec/plan files only) blocks a newly added "proven / verified / spike conclusive" claim unless the staged document carries `Real path:` + `Stubbed:` fields naming what actually ran versus what was a stand-in. Claim-words match on word boundaries (`unproven`/`improven`/`confirmed` do not trigger). Override with `Proven-gate: N/A — <reason>` for quoting, a glossary, or a doc about the gate.
