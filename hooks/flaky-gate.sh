@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
-# flaky-gate.sh — commit-time gate (session-continuity plugin). DUAL surface:
-# Fires before Bash(git commit *). BLOCKS when a failure is called "flaky"/
-# "transient"/"CDN blip|flake" without a `Mechanism:` line, in EITHER the commit
-# message OR any staged LEARNINGS.md under .session-continuity/. Escape:
-# `Flaky-gate: N/A — <reason>`.
+# flaky-gate.sh — commit-time gate. DUAL surface: commit message + LEARNINGS.md.
+# Escape via driver / gate_scan_commit_message: Flaky-gate: N/A — <reason>.
 set -euo pipefail
-# shellcheck disable=SC1091 # dynamically-resolved path; gate-common.sh is shellcheck-clean standalone
+# shellcheck disable=SC1091
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
@@ -14,36 +11,32 @@ gate_in_scope() {
   case "$1" in .session-continuity/*|*/.session-continuity/*) return 0 ;; *) return 1 ;; esac
 }
 
-gate_check() {  # <text> <label-for-reason>
-  local text="$1" where="$2"
-  if [ -z "$text" ]; then return 0; fi
-  printf '%s' "$text" | grep -Eiq '\b(flaky|transient)\b|CDN[[:space:]]+(blip|flake)' || return 0
-  if ! printf '%s' "$text" | grep -Eiq 'Mechanism:[[:space:]]*[^[:space:]]'; then
-    deny "In $where: calls a failure 'flaky'/'transient'/a 'CDN blip' without naming the deterministic cause. CLAUDE.md rule 1: an intermittent failure has a deterministic cause (race, shared/global state, an env/sandbox dependency) — name it or state the precise fail condition. Add a 'Mechanism: <named cause>' line, or add: Flaky-gate: N/A — <reason> (decoration fine)."
+# shellcheck disable=SC2329 # called indirectly by gate_scan_commit_message
+gate_check_message() {
+  local text="$1"
+  [ -z "$text" ] && return 0
+  printf '%s' "$text" | LC_ALL=C grep -Eiq '\b(flaky|transient)\b|CDN[[:space:]]+(blip|flake)' || return 0
+  if ! printf '%s' "$text" | LC_ALL=C grep -Eiq 'Mechanism:[[:space:]]*[^[:space:]]'; then
+    deny "In the commit message: calls a failure 'flaky'/'transient'/a 'CDN blip' without naming the deterministic cause. CLAUDE.md rule 1: an intermittent failure has a deterministic cause (race, shared/global state, an env/sandbox dependency) — name it or state the precise fail condition. Add a 'Mechanism: <named cause>' line, or add: Flaky-gate: N/A — <reason> (decoration fine)."
   fi
 }
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
-gate_check_file() { gate_check "$1" "staged file $2"; }
+gate_check_file() {
+  local content="$1" path="$2"
+  if ! gate_triggered '\b(flaky|transient)\b|CDN[[:space:]]+(blip|flake)' \
+      'Mechanism:[[:space:]]*[^[:space:]]'; then
+    return 0
+  fi
+  if ! printf '%s' "$content" | LC_ALL=C grep -Eiq 'Mechanism:[[:space:]]*[^[:space:]]'; then
+    deny "In staged file $path: calls a failure 'flaky'/'transient'/a 'CDN blip' without naming the deterministic cause. CLAUDE.md rule 1: an intermittent failure has a deterministic cause (race, shared/global state, an env/sandbox dependency) — name it or state the precise fail condition. Add a 'Mechanism: <named cause>' line, or add: Flaky-gate: N/A — <reason> (decoration fine)."
+  fi
+}
 
 gate_load
 gate_is_commit || exit 0
 # shellcheck disable=SC2034 # consumed by sourced helpers
 GATE_LABEL="Flaky-gate"
-# (1) commit message text
-msg_class="$(gate_hatch_class "${GATE_COMMAND:-}" "$GATE_LABEL")"
-if [ "$msg_class" != "accepted" ]; then
-  GATE_NEAR_MISS=""
-  if [ "$msg_class" = "near-miss" ]; then
-    GATE_NEAR_MISS="$(gate_near_miss_line "${GATE_COMMAND:-}" "$GATE_LABEL")"
-  fi
-  # shellcheck disable=SC2034 # consumed by sourced deny
-  GATE_SCAN_PATH=""
-  scan="$(gate_mask_escape "${GATE_COMMAND:-}" "$GATE_LABEL")"
-  gate_check "$scan" "the commit message"
-fi
-# shellcheck disable=SC2034 # consumed by sourced deny
-GATE_NEAR_MISS=""
-# (2) staged LEARNINGS.md content
+gate_scan_commit_message gate_check_message
 gate_scan_staged gate_in_scope gate_check_file
 exit 0

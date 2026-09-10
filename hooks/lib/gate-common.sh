@@ -183,6 +183,22 @@ deny() {
 }
 
 # --- driver ----------------------------------------------------------------
+gate_scan_commit_message() {  # <check_fn>
+  local check="$1" class
+  class="$(gate_hatch_class "${GATE_COMMAND:-}" "$GATE_LABEL")"
+  GATE_NEAR_MISS=""
+  GATE_SCAN_PATH=""
+  if [ "$class" = "accepted" ]; then
+    GATE_NEAR_MISS=""
+    return 0
+  fi
+  if [ "$class" = "near-miss" ]; then
+    GATE_NEAR_MISS="$(gate_near_miss_line "${GATE_COMMAND:-}" "$GATE_LABEL")"
+  fi
+  "$check" "$(gate_mask_escape "${GATE_COMMAND:-}" "$GATE_LABEL")"
+  GATE_NEAR_MISS=""
+}
+
 # Caller defines two functions and passes their names:
 #   <in_scope_fn> <relpath>            -> return 0 if this gate should scan it
 #   <check_fn>    <content> <relpath>  -> inspect; call deny (exits) on violation
