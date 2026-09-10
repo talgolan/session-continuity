@@ -2,10 +2,12 @@
 # CONTRACT_VERSION=1
 # hooks/lib/primer-detect.sh — dispatch decision for /session-continuity:primer.
 # See meta/superpowers/specs/2026-09-08-primer-detect-design.md for the full
-# state machine this ports (unchanged behavior, just executable instead of
-# hand-evaluated per invocation) and
-# meta/superpowers/plans/2026-09-08-primer-detect.md for the implementation
-# plan.
+# state machine this ports (executable instead of hand-evaluated per
+# invocation) and meta/superpowers/plans/2026-09-08-primer-detect.md for
+# the implementation plan. Amended by
+# meta/superpowers/specs/2026-09-10-primer-detect-freshness-design.md:
+# LOG_DRIFT is mapped from primer-freshness.sh (STALE=0→0; STALE=1|? /
+# degraded probe→1), not from an embedded git-log compare.
 #
 # Usage: primer-detect.sh [<project-dir>]   (default: .)
 # Prints KEY=value lines to stdout on success, ending in
@@ -61,8 +63,26 @@ PRIMER_CONTENT=""
 [[ "$PRIMER_EXISTS" == "1" ]] && PRIMER_CONTENT="$(cat "$DIR/.session-continuity/SESSION_PRIMER.md")"
 
 ORIGIN_URL="$(git -C "$DIR" remote get-url origin 2>/dev/null || true)"
-GIT_LOG="$(git -C "$DIR" log --oneline -5 2>/dev/null || true)"
 STAGED_FILES="$(git -C "$DIR" diff --cached --name-only 2>/dev/null || true)"
+
+# LOG_DRIFT from primer-freshness.sh (never forward STALE= to callers).
+LOG_DRIFT=1
+FRESHNESS_SH="$SCRIPT_DIR/primer-freshness.sh"
+if [[ -r "$FRESHNESS_SH" ]] && grep -q '^# CONTRACT_VERSION=1$' "$FRESHNESS_SH"; then
+  # Capture rc without relying on set -e (wrapper is -u/pipefail only today;
+  # keep the || form so a future set -e still soft-fails to LOG_DRIFT=1).
+  FRESH_RC=0
+  FRESH_OUT="$(bash "$FRESHNESS_SH" "$DIR" 2>/dev/null)" || FRESH_RC=$?
+  if [[ "$FRESH_RC" -eq 0 ]]; then
+    FRESH_STALE="$(printf '%s\n' "$FRESH_OUT" | awk -F= '/^STALE=/{print $2; exit}')"
+    case "$FRESH_STALE" in
+      0) LOG_DRIFT=0 ;;
+      1|\?) LOG_DRIFT=1 ;;
+      *) LOG_DRIFT=1 ;;
+    esac
+  fi
+  # nonzero exit or missing STALE= → leave LOG_DRIFT=1
+fi
 
 ERRFILE="$(mktemp)"
 RESULT="$(
@@ -73,8 +93,8 @@ RESULT="$(
     --argjson outstanding_items_exists "$OUTSTANDING_ITEMS_EXISTS" \
     --argjson backlog_exists "$BACKLOG_EXISTS" \
     --argjson roadmap_exists "$ROADMAP_EXISTS" \
+    --argjson log_drift "$LOG_DRIFT" \
     --arg origin_url "$ORIGIN_URL" \
-    --arg git_log "$GIT_LOG" \
     --arg staged_files "$STAGED_FILES" \
     --arg primer_content "$PRIMER_CONTENT" \
     -f "$JQ_FILTER" 2>"$ERRFILE"

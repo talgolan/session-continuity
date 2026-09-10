@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.1] — 2026-09-10
+
+### Fixed
+- **`primer-detect` refresh trigger now follows `primer-freshness.sh`.** Thin
+  hard-template primers (no embedded `git log` block) no longer always look
+  like `LOG_DRIFT=1`. `LOG_DRIFT` maps from `STALE=` (`0`→0; `1`/`?`/degraded
+  probe→1). Check mode can no-op when freshness is clean. (#64)
+
 ## [0.36.0] — 2026-09-09
 
 ### Changed

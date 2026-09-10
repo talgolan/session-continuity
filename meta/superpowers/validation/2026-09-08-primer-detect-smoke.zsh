@@ -18,11 +18,9 @@ trap 'rm -rf "$work"' EXIT
 
 # mk_repo <dir> <split:0|1> <oi_file:0|1> <bl_file:0|1> <inline:0|1> <origin:gh|other> <staged:none|code|docs>
 # Builds a fresh scratch repo with .session-continuity/ populated per the
-# flags, commits everything, then writes SESSION_PRIMER.md's log block to
-# exactly match the post-commit `git log --oneline -5` (never re-committed
-# afterward -- see this plan's Task 1 notes on why that avoids a
-# self-referential-hash problem). Callers that want DRIFT instead
-# overwrite the block themselves after calling mk_repo.
+# flags and commits a thin SESSION_PRIMER.md (no embedded log block).
+# Drift after the primer tip commit is decided by primer-freshness.sh
+# (once detect wires it); callers stage extra files via the staged flag.
 mk_repo() {
   local dir="$1" split=$2 oi=$3 bl=$4 inline=$5 origin=$6 staged=$7
   rm -rf "$dir"
@@ -44,20 +42,16 @@ mk_repo() {
   (( inline )) && heading=$'## Outstanding items\n1. something\n\n'
   print -r -- "${heading}# Primer
 
-placeholder body, overwritten below with the real log block
+## Mid-flight
+- none
+
+## Confirm
+\`\`\`bash
+true
+\`\`\`
 " > "$dir/.session-continuity/SESSION_PRIMER.md"
   git -C "$dir" add -A
   git -C "$dir" commit -qm init
-  local log
-  log="$(git -C "$dir" log --oneline -5)"
-  print -r -- "${heading}# Primer
-
-**Current \`git log --oneline -5\` (primary branch):**
-
-\`\`\`
-$log
-\`\`\`
-" > "$dir/.session-continuity/SESSION_PRIMER.md"
   case "$staged" in
     code) print -r -- x > "$dir/src.js"; git -C "$dir" add src.js ;;
     docs) print -r -- x >> "$dir/.session-continuity/LEARNINGS.md"; git -C "$dir" add .session-continuity/LEARNINGS.md ;;
@@ -81,17 +75,51 @@ d="$work/case2"; mk_repo "$d" 0 0 1 0 other none
 d="$work/case3"; mk_repo "$d" 1 0 1 0 other none
 [[ "$(steps_of "$d")" == "" ]] && ok "3: split+current+clean -> empty" || bad "3: got '$(steps_of "$d")'"
 
-# --- 4: recorded log block differs from actual -> refresh -------------------
-d="$work/case4"; mk_repo "$d" 1 0 1 0 other none
+# --- 3b: dogfood thin primer, migration facts off, STALE=0 -> empty --------
+d="$work/case3b"; mk_repo "$d" 1 0 0 0 other none
+drift="$(bash "$tool" "$d" | awk -F= '/^LOG_DRIFT=/{print $2}')"
+[[ "$(steps_of "$d")" == "" && "$drift" == "0" ]] \
+  && ok "3b: thin+STALE=0+no migrations -> empty, LOG_DRIFT=0" \
+  || bad "3b: steps='$(steps_of "$d")' drift='$drift'"
+
+# --- 4: substantive commit after primer tip -> refresh --------------------
+d="$work/case4"; mk_repo "$d" 1 0 0 0 other none
+mkdir -p "$d/src"
+print -r -- x > "$d/src/foo.sh"
+git -C "$d" add src/foo.sh
+git -C "$d" commit -qm "src after primer"
+[[ "$(steps_of "$d")" == "refresh" ]] \
+  && ok "4: STALE=1 after src commit -> refresh" \
+  || bad "4: got '$(steps_of "$d")'"
+
+# --- 4b: primer on disk but never committed -> STALE=? -> refresh ---------
+d="$work/case4b"
+rm -rf "$d"
+mkdir -p "$d/.session-continuity"
+git -C "$d" init -q
+git -C "$d" config user.email test@example.com
+git -C "$d" config user.name Test
+git -C "$d" remote add origin https://example.com/example/repo.git
+: > "$d/README.md"
+git -C "$d" add README.md
+git -C "$d" commit -qm init
+# Continuity files on disk only — do NOT git add SESSION_PRIMER.md
+: > "$d/.session-continuity/LEARNINGS.md"
+: > "$d/.session-continuity/PROJECT_CONTEXT.md"
+: > "$d/.session-continuity/ROADMAP.md"
 print -r -- "# Primer
 
-**Current \`git log --oneline -5\` (primary branch):**
+## Mid-flight
+- none
 
-\`\`\`
-0000000 stale placeholder
+## Confirm
+\`\`\`bash
+true
 \`\`\`
 " > "$d/.session-continuity/SESSION_PRIMER.md"
-[[ "$(steps_of "$d")" == "refresh" ]] && ok "4: log drift -> refresh" || bad "4: got '$(steps_of "$d")'"
+[[ "$(steps_of "$d")" == "refresh" ]] \
+  && ok "4b: uncommitted primer -> STALE=? -> refresh" \
+  || bad "4b: got '$(steps_of "$d")'"
 
 # --- 5: non-allowlisted file staged -> refresh -------------------------------
 d="$work/case5"; mk_repo "$d" 1 0 1 0 other code
@@ -155,6 +183,35 @@ done
 out="$(PATH="$nojq/bin" bash "$tool" "$work/case3" 2>&1)"; rc=$?
 [[ "$rc" -ne 0 && "$out" != *"STEPS="* ]] \
   && ok "15: jq absent from PATH -> nonzero exit, no STEPS= line" || bad "15: rc=$rc out='$out'"
+
+# --- 16: missing primer-freshness.sh -> soft-fail LOG_DRIFT=1, still STEPS= --
+softlib="$work/softlib"; mkdir -p "$softlib"
+cp "$lib/primer-detect.sh" "$lib/primer-detect.jq" "$softlib/"
+# deliberately omit primer-freshness.sh
+d="$work/case16"; mk_repo "$d" 1 0 0 0 other none
+out="$(bash "$softlib/primer-detect.sh" "$d" 2>&1)"; rc=$?
+drift="$(printf '%s\n' "$out" | awk -F= '/^LOG_DRIFT=/{print $2}')"
+steps="$(printf '%s\n' "$out" | awk -F= '/^STEPS=/{print $2}')"
+[[ "$rc" -eq 0 && "$drift" == "1" && "$steps" == "refresh" ]] \
+  && ok "16: missing freshness -> soft LOG_DRIFT=1, STEPS=refresh, exit 0" \
+  || bad "16: rc=$rc drift='$drift' steps='$steps' out='$out'"
+
+# --- 17: freshness exits nonzero after STALE=0 -> soft LOG_DRIFT=1 ----------
+nzlib="$work/nzlib"; mkdir -p "$nzlib"
+cp "$lib/primer-detect.sh" "$lib/primer-detect.jq" "$nzlib/"
+print -r -- '#!/usr/bin/env bash
+# CONTRACT_VERSION=1
+echo STALE=0
+exit 1
+' > "$nzlib/primer-freshness.sh"
+chmod +x "$nzlib/primer-freshness.sh"
+d="$work/case17"; mk_repo "$d" 1 0 0 0 other none
+out="$(bash "$nzlib/primer-detect.sh" "$d" 2>&1)"; rc=$?
+drift="$(printf '%s\n' "$out" | awk -F= '/^LOG_DRIFT=/{print $2}')"
+steps="$(printf '%s\n' "$out" | awk -F= '/^STEPS=/{print $2}')"
+[[ "$rc" -eq 0 && "$drift" == "1" && "$steps" == "refresh" ]] \
+  && ok "17: freshness nonzero+STALE=0 -> soft LOG_DRIFT=1, exit 0" \
+  || bad "17: rc=$rc drift='$drift' steps='$steps' out='$out'"
 
 print ""
 print -P "Result: %F{green}$pass passed%f, %F{red}$fail failed%f"
