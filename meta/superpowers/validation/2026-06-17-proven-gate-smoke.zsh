@@ -27,6 +27,12 @@ out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
 check "decorated escape -> allow" "allow" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'Proven-gate: N/A — glossary\nwe verified nothing\n'
+out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
+check "accepted hatch via driver short-circuit -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
 # 4. dot-prefixed scratch file with a violation -> allow (skipped)
 repo="$(gt_make_repo)"
 gt_stage "$repo" "meta/plans/.grounding.md" $'We verified it.\n'

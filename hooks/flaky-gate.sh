@@ -17,12 +17,8 @@ gate_in_scope() {
 gate_check() {  # <text> <label-for-reason>
   local text="$1" where="$2"
   if [ -z "$text" ]; then return 0; fi
-  if gate_has_escape "$text" "Flaky-gate"; then return 0; fi
-  # "Flaky-gate" contains "flaky": scan with the hatch blanked so the line that
-  # exempts this text cannot be the claim that condemns it.
-  local scan; scan="$(gate_mask_escape "$text" "Flaky-gate")"
-  printf '%s' "$scan" | grep -Eiq '\b(flaky|transient)\b|CDN[[:space:]]+(blip|flake)' || return 0
-  if ! printf '%s' "$scan" | grep -Eiq 'Mechanism:[[:space:]]*[^[:space:]]'; then
+  printf '%s' "$text" | grep -Eiq '\b(flaky|transient)\b|CDN[[:space:]]+(blip|flake)' || return 0
+  if ! printf '%s' "$text" | grep -Eiq 'Mechanism:[[:space:]]*[^[:space:]]'; then
     deny "In $where: calls a failure 'flaky'/'transient'/a 'CDN blip' without naming the deterministic cause. CLAUDE.md rule 1: an intermittent failure has a deterministic cause (race, shared/global state, an env/sandbox dependency) — name it or state the precise fail condition. Add a 'Mechanism: <named cause>' line, or add: Flaky-gate: N/A — <reason> (decoration fine)."
   fi
 }
@@ -32,8 +28,22 @@ gate_check_file() { gate_check "$1" "staged file $2"; }
 
 gate_load
 gate_is_commit || exit 0
+# shellcheck disable=SC2034 # consumed by sourced helpers
+GATE_LABEL="Flaky-gate"
 # (1) commit message text
-gate_check "$GATE_COMMAND" "the commit message"
+msg_class="$(gate_hatch_class "${GATE_COMMAND:-}" "$GATE_LABEL")"
+if [ "$msg_class" != "accepted" ]; then
+  GATE_NEAR_MISS=""
+  if [ "$msg_class" = "near-miss" ]; then
+    GATE_NEAR_MISS="$(gate_near_miss_line "${GATE_COMMAND:-}" "$GATE_LABEL")"
+  fi
+  # shellcheck disable=SC2034 # consumed by sourced deny
+  GATE_SCAN_PATH=""
+  scan="$(gate_mask_escape "${GATE_COMMAND:-}" "$GATE_LABEL")"
+  gate_check "$scan" "the commit message"
+fi
+# shellcheck disable=SC2034 # consumed by sourced deny
+GATE_NEAR_MISS=""
 # (2) staged LEARNINGS.md content
 gate_scan_staged gate_in_scope gate_check_file
 exit 0

@@ -33,6 +33,14 @@ check "decorated escape matches" "yes" "$out"
 out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_has_escape "'"$none"'" "Proven-gate" && echo yes || echo no')"
 check "no escape does not match" "no" "$out"
 
+# gate_hatch_class: strict accepted grammar, broader near-miss recognition.
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_hatch_class "Proven-gate: N/A — ok" "Proven-gate"')"
+check "hatch class accepted" "accepted" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_hatch_class "Proven-gate: N/A - bad" "Proven-gate"')"
+check "hatch class near-miss single hyphen" "near-miss" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_hatch_class "no hatch" "Proven-gate"')"
+check "hatch class absent" "absent" "$out"
+
 # gate_mask_escape: blanks this gate's own hatch line so the claim scan can
 # never be triggered by the line that exempts the doc. Blanks rather than
 # deletes, so reported line numbers still match the real file.
@@ -68,6 +76,21 @@ files="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_CWD="'"$repo"'"; 
 check "staged file listed" "meta/plans/x.md" "$files"
 blob="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_CWD="'"$repo"'"; gate_staged_blob "meta/plans/x.md"' | head -1)"
 check "staged blob read" "line one" "$blob"
+gt_cleanup "$repo"
+
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/e.md" $'Proven-gate: N/A — skip me\nwe verified nothing\n'
+hits="$(print -rn -- "$(gt_commit_payload "$repo")" | bash -c '
+  source "'"$HOOKS"'/lib/gate-common.sh"
+  GATE_LABEL="Proven-gate"
+  GATE_CHECK_HITS=0
+  gate_in_scope() { case "$1" in *.md) return 0;; *) return 1;; esac; }
+  gate_check() { GATE_CHECK_HITS=$((GATE_CHECK_HITS+1)); }
+  gate_load
+  gate_scan_staged gate_in_scope gate_check
+  printf "%s" "$GATE_CHECK_HITS"
+')"
+check "accepted hatch skips check_fn" "0" "$hits"
 gt_cleanup "$repo"
 
 # _GT_HOOKS_DIR is captured at source time and resolves to repo root/hooks

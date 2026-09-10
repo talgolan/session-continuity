@@ -70,21 +70,21 @@ _dvg_check_verbatim() {
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
 gate_check() {
-  local content="$1" path="$2" masked
-  if gate_has_escape "$content" "Derived-value-gate"; then return 0; fi
-  masked="$(gate_mask_escape "$content" "Derived-value-gate")"
+  local content="$1" path="$2"
   # Fixed priority order below (duration > count > compare > verbatim): a
   # line tripping two categories at once is cited under the first one
   # checked, not necessarily the earliest line in the file. Harmless — one
   # escape hatch clears every category — but worth knowing when reading a
   # denial that names a category other than the one you expected.
-  _dvg_check_duration "$masked" "$path"
-  _dvg_check_count "$masked" "$path"
-  _dvg_check_compare "$masked" "$path"
-  _dvg_check_verbatim "$masked" "$path"
+  _dvg_check_duration "$content" "$path"
+  _dvg_check_count "$content" "$path"
+  _dvg_check_compare "$content" "$path"
+  _dvg_check_verbatim "$content" "$path"
 }
 
 gate_load
 gate_is_commit || exit 0
+# shellcheck disable=SC2034 # consumed by sourced gate_scan_staged
+GATE_LABEL="Derived-value-gate"
 gate_scan_staged gate_in_scope gate_check
 exit 0

@@ -17,7 +17,6 @@ gate_in_scope() {
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
 gate_check() {
   local content="$1" path="$2" n max_n=0 has_inv=0
-  if gate_has_escape "$content" "Occurrence-gate"; then return 0; fi
   while IFS= read -r n; do
     if [ -z "$n" ]; then continue; fi
     if [ "$n" -gt "$max_n" ] 2>/dev/null; then max_n="$n"; fi
@@ -36,5 +35,7 @@ EOF
 
 gate_load
 gate_is_commit || exit 0
+# shellcheck disable=SC2034 # consumed by sourced gate_scan_staged
+GATE_LABEL="Occurrence-gate"
 gate_scan_staged gate_in_scope gate_check
 exit 0
