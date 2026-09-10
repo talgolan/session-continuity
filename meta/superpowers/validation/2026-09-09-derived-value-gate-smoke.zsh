@@ -72,4 +72,26 @@ out="$(gt_run derived-value-gate.sh "$(gt_commit_payload "$repo")")"
 check "real commands/*.md content -> allow" "allow" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+# 10. unrelated edits do not re-trigger a pre-existing derived-value phrase
+repo="$(gt_make_repo)"
+gt_stage "$repo" "commands/primer.md" $'Pin to the count seen in 2 of 3 runs.\n'
+git -C "$repo" commit -qm base
+print -rn -- $'Pin to the count seen in 2 of 3 runs.\nUnrelated prose.\n' > "$repo/commands/primer.md"
+git -C "$repo" add "commands/primer.md"
+out="$(gt_run derived-value-gate.sh "$(gt_commit_payload "$repo")")"
+check "unrelated edit over existing derived phrase -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 11. a newly added derived-value phrase still denies and cites its document line
+repo="$(gt_make_repo)"
+gt_stage "$repo" "commands/primer.md" $'Existing introduction.\n'
+git -C "$repo" commit -qm base
+print -rn -- $'Existing introduction.\nPin to the count seen in 2 of 3 runs.\n' > "$repo/commands/primer.md"
+git -C "$repo" add "commands/primer.md"
+out="$(gt_run derived-value-gate.sh "$(gt_commit_payload "$repo")")"
+check "new derived-value phrase -> deny" "deny" "$(verdict "$out")"
+print -r -- "$out" | grep -q 'line 2:' && cited=yes || cited=no
+check "new derived-value phrase cites document line" "yes" "$cited"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

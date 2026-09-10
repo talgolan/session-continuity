@@ -36,9 +36,16 @@ _dvg_deny() {  # <path> <label> <hit "N:text"> <explanation>
   deny "In staged file $path, line $line: $label (\"$matched\"). $explanation Add: Derived-value-gate: N/A — <reason> (decoration fine)."
 }
 
+_dvg_hit() {  # <ere> <content> -> first whole-document "N:line" for a delta hit
+  local ere="$1" content="$2" frag
+  frag="$(printf '%s' "${GATE_DELTA_ADDED:-}" | LC_ALL=C grep -ioE "$ere" | head -1 || true)"
+  [ -n "$frag" ] || { printf ''; return 0; }
+  gate_first_match "$content" "$(printf '%s' "$frag" | sed -e 's/[.[\*^$()+?{|]/\\&/g')"
+}
+
 _dvg_check_duration() {
   local content="$1" path="$2" hit
-  hit="$(printf '%s' "$content" | grep -inoE 'date -u -j -f|date -u -d "|\$\(\([^)]*_epoch[^)]*-[^)]*_epoch' | head -1)"
+  hit="$(_dvg_hit 'date -u -j -f|date -u -d "|\$\(\([^)]*_epoch[^)]*-[^)]*_epoch' "$content")"
   [ -n "$hit" ] || return 0
   _dvg_deny "$path" "instructs a model to compute a duration by hand (epoch subtraction)" "$hit" \
     "A script owns duration math — see hooks/lib/perf-log.sh's since subcommand."
@@ -46,7 +53,7 @@ _dvg_check_duration() {
 
 _dvg_check_count() {
   local content="$1" path="$2" hit
-  hit="$(printf '%s' "$content" | grep -inoE 'cardinality|Pin to the count seen in|RETRIES count|saw.*across[[:space:]]+[0-9]+[[:space:]]+runs[[:space:]]*—' | head -1)"
+  hit="$(_dvg_hit 'cardinality|Pin to the count seen in|RETRIES count|saw.*across[[:space:]]+[0-9]+[[:space:]]+runs[[:space:]]*—' "$content")"
   [ -n "$hit" ] || return 0
   _dvg_deny "$path" "instructs a model to tally or vote on a count by eye" "$hit" \
     "A script owns cardinality/majority-vote math — see hooks/lib/token-overlap.sh and hooks/lib/test-count-rerun.sh."
@@ -54,7 +61,7 @@ _dvg_check_count() {
 
 _dvg_check_compare() {
   local content="$1" path="$2" hit
-  hit="$(printf '%s' "$content" | grep -inoE '^[[:space:]]*[Dd]oes[^.]*match[^.]*above|match(es)?[[:space:]]+the[^.]*output above|disagrees with the recorded' | head -1)"
+  hit="$(_dvg_hit '^[[:space:]]*[Dd]oes[^.]*match[^.]*above|match(es)?[[:space:]]+the[^.]*output above|disagrees with the recorded' "$content")"
   [ -n "$hit" ] || return 0
   _dvg_deny "$path" "instructs a model to eyeball-compare a claimed value against an actual one" "$hit" \
     "A script owns the comparison (an awk range extract plus diff, or the same shape as hooks/lib/primer-detect.sh)."
@@ -62,7 +69,7 @@ _dvg_check_compare() {
 
 _dvg_check_verbatim() {
   local content="$1" path="$2" hit
-  hit="$(printf '%s' "$content" | grep -inoE 'not instructions to you|Illustrative only|List every file[^.]*do not summarize|Never omit it\. Never replace it with paraphrased prose|Always emit[^.]*exactly:' | head -1)"
+  hit="$(_dvg_hit 'not instructions to you|Illustrative only|List every file[^.]*do not summarize|Never omit it\. Never replace it with paraphrased prose|Always emit[^.]*exactly:' "$content")"
   [ -n "$hit" ] || return 0
   _dvg_deny "$path" "ships fixed reference text or a determinism-compensating instruction as prompt prose" "$hit" \
     "Fixed output belongs in the script that computes the values around it (skills/session-continuity/REFERENCE.md or a spec, not a command body)."
