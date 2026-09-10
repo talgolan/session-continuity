@@ -2,7 +2,7 @@
 
 **Plugin:** `session-continuity`
 **Maintainer:** Tal Golan ([github.com/talgolan](https://github.com/talgolan))
-**Last updated:** 2026-09-09
+**Last updated:** 2026-09-10
 
 ## Short version
 
@@ -12,10 +12,10 @@ This plugin does not collect analytics or send data to the maintainer. Durable m
 
 - **File contents in your own repositories.** The slash commands `/session-continuity:primer`, `/session-continuity:learning`, and `/session-continuity:end-session` read and write `.session-continuity/SESSION_PRIMER.md`, `.session-continuity/PROJECT_CONTEXT.md`, `.session-continuity/ROADMAP.md`, and `.session-continuity/LEARNINGS.md` in the current git repository. These are ordinary files in your repo. `/session-continuity:spike-check`, `/session-continuity:doctor`, `/session-continuity:update`, and `/session-continuity:help` touch no files at all — they print a checklist/report/instructions and (for spike-check) ask questions in-conversation. `/session-continuity:backlog` lists GitHub Issues; it does not write a local backlog file.
 - **GitHub Issues.** Filing a backlog item runs `gh issue create --label backlog` with the title and body you (or the agent) supplied. Listing and SessionStart injection run `gh issue list --label backlog`. Closing runs `gh issue close`. That traffic is authenticated as your `gh` login and is subject to that repository's GitHub visibility.
-- **Git metadata.** The commands invoke `git log`, `git status`, `git diff --cached`, and similar read-only commands to populate the primer and checklist. This metadata is processed locally and written into the in-repo files; it is never transmitted except as issue text you chose to file.
+- **Git metadata.** The commands invoke `git log`, `git status`, `git diff --cached`, and similar read-only commands for freshness probes (`primer-freshness.sh`), dispatch (`primer-detect.sh`), init derive, and the end-session checklist. This metadata is processed locally. The thin hard-template primer does **not** embed a `git log` dump; Mid-flight/Confirm are prose you (or the agent) write. Metadata is never transmitted except as issue text you chose to file.
 - **Hook payloads.** Claude Code passes the hook scripts a JSON payload containing the current working directory and, depending on the hook, the Bash command about to run or the file path + content about to be written/edited. The scripts read these values locally to decide whether to emit a reminder or block the action. Nothing from the payload is persisted outside the running session. SessionStart does call `gh issue list` as described above.
 
-**The plugin does not touch:** environment variables (other than `GH_BIN`, `BACKLOG_ISSUES_TIMEOUT`, and `SESSION_CONTINUITY_SKIP_UPDATE_CHECK`), shell history, editor state, other files in your repo, any file outside the current working directory, your clipboard, or anything on disk outside the documented files plus the update-check cache described below.
+**The plugin does not touch:** environment variables (other than `GH_BIN`, `ENGRIM_BIN`, `BACKLOG_ISSUES_TIMEOUT`, `PEER_PROBES_TIMEOUT`, and `SESSION_CONTINUITY_SKIP_UPDATE_CHECK`), shell history, editor state, other files in your repo, any file outside the current working directory, your clipboard, or anything on disk outside the documented files plus the update-check cache described below.
 
 ## External network calls
 

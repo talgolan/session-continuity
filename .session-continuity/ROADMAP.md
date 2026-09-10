@@ -8,42 +8,33 @@ edits.
 
 ## Now
 
-**The determinism program.** The plugin should spend model turns only on
-irreducible judgment. Invariant: no command prompt asks a model to compute a
-value that is a pure function of files, git state, or transcript data. Eight
-phases, each independently shippable and independently useful, each filed as
-its own backlog item. Scope and design:
+**Thin hard-template + peers are the boot contract (0.36.x).** Primer is
+Boot order / Mid-flight / Confirm / Peers; freshness is
+`primer-freshness.sh`; detect's `LOG_DRIFT` maps from that probe (0.36.1 /
+#64). SessionStart/doctor hard-incomplete without local engrim and a
+committed `graphify-out/graph.json`.
+
+**Determinism program — mostly shipped.** Phases 0–5, 6-A/B/D, and 7
+(`derived-value-gate`) landed through 0.35–0.36. Invariant still holds:
+no command prompt asks a model to compute a pure function of files, git
+state, or transcript data. Remaining Phase 6 sub-projects C/E stay
+deprioritized (see #43). Design spine:
 `meta/superpowers/specs/2026-09-02-determinism-program-design.md`.
 
-Backlog identity is GitHub `#N`. Phase ordering lives here, not in
-issue numbers. Three phases are unblocked today:
-
-- Phase 0 `[3b71]` — fresh-install count defects. Two reproduced bugs hitting
-  every new project; smallest unit, patch release, and it closes item `6258`.
-- Phase 1 `[5c2d]` — zero-turn read-only lists. Opens with a measurement gate,
-  so if the four unprobed hook behaviors don't hold, the approach changes
-  before any code lands.
-- Phase 2 `[8e4a]` — `end-session` Step 2 rendering and reference relocation.
-  Largest single token reduction available.
+**Near-term backlog (GitHub `#N`):** #60 learnings-index smoke pins, #55
+`test-count-rerun` no-count waste, #53 end-session TSV `cp` alias, #45
+doctor retrofit once `4a9d` is decided, #38 docguard generalization
+(githooks side).
 
 ## Next
 
-Phase 3 `[a17f]`, the shared mechanics library, comes first: it unblocks two
-later phases and forces the `/doctor` question filed as `[4a9d]`. Then Phase 4
-`#41`, `end-session` Step 3 checklist assembly, which needs Phase 3's
-`perf-log.sh since`. Phase 5 `#42`, backlog mechanics and the commit-overlap
-gate, depends on nothing but must close item #40 on its way through — it
-lifts the same `overlap()` that item documents as broken.
+Marketplace submission (#35) and broader automated integration coverage
+(#36 / #37) once the dogfood loop stays green on the thin primer + peers
+path. Prefer small patches that keep Confirm/smokes hermetic over new
+surface area.
 
 ## Later
 
-Phase 6 `#43` rewrites `commands/primer.md`'s detect, migrate, init, and
-drift paths. Largest phase, lowest invocation frequency, highest blast radius:
-it performs a destructive `git mv` and rewrites five files, so it waits until
-the shared library underneath it has settled.
-
-Phase 7 `#44` ships last by design. It is the commit-time content gate that
-keeps the invariant true, and its pattern list should be written from what the
-earlier phases actually removed rather than guessed up front. Every phase
-before it is a one-time cleanup that decays the first time someone adds a step
-saying "count the entries."
+Anything that expands beyond four in-repo files + GitHub Issues backlog,
+or that reintroduces embedded git-log / fat-primer shapes, stays out of
+scope unless a concrete failure mode forces it (see CONTRIBUTING).

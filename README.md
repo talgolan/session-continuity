@@ -17,7 +17,7 @@ There's a second reason, less obvious than the first: **shorter Claude Code sess
 | Component | What it does |
 |---|---|
 | **`session-continuity` skill** | Claude loads it automatically based on the task. It teaches Claude the four-file pattern plus the GitHub Issues queue, the maintenance rules, and the decision tree for what belongs where, even before you run any command. |
-| **`.session-continuity/SESSION_PRIMER.md`** | The current-state snapshot. What's true about the project right now. |
+| **`.session-continuity/SESSION_PRIMER.md`** | Thin hard-template snapshot: Boot order, Mid-flight, Confirm, Peers. What's in flight right now. |
 | **`.session-continuity/PROJECT_CONTEXT.md`** | Stable repo context — layout, conventions, module table. Changes rarely, only when the project's shape itself changes. |
 | **GitHub Issues (`backlog` label)** | Explicitly deferred follow-ups and decisions. Identity is `#N`. Title + 1-3 sentence cap. Close once the code shows it shipped. |
 | **`.session-continuity/ROADMAP.md`** | Strategic direction — Now/Next/Later. Freeform, no numbering, rewritten wholesale as direction changes. |
@@ -31,7 +31,7 @@ There's a second reason, less obvious than the first: **shorter Claude Code sess
 | **`/session-continuity:update`** | Print the commands to pull and activate this plugin's latest published version. |
 | **`/session-continuity:help`** | Explain what the plugin does, why, and what each of the four files plus the GitHub queue is for. |
 | **`/session-continuity:spike-check`** | Emit the stand-in spike checklist before a spike, so it's designed to hit the real binary + auth/lifecycle/fixed-port path. |
-| **Session hooks** | A SessionStart reminder, a non-blocking commit nudge, an action-keyed retrieval gate, a smoke-task gate for plan files, a proven-claim gate for specs/plans, an occurrence-counter gate for LEARNINGS, an evidence-preservation gate for smoke design, a flaky-claim gate, a multi-backend-parity gate, and a weekly freshness check. |
+| **Session hooks** | A SessionStart reminder (peers + freshness), a non-blocking commit nudge, an action-keyed retrieval gate, seven commit-time content gates (smoke, proven, occurrence, evidence, flaky, backend-parity, derived-value), and a weekly version check. |
 
 Nothing here writes a file behind your back. Commands stage, they never commit. Hooks remind or gate, they never edit your files.
 
@@ -52,7 +52,7 @@ Required peers for a green `/session-continuity:doctor`: local `engrim` on PATH,
 
 Everything else is machinery around these documents. Each has a different update contract.
 
-**`.session-continuity/SESSION_PRIMER.md`** is the high-churn current-state snapshot: latest commits, working state. It's the fastest path for a fresh session to get productive. Refresh it alongside substantive commits so it always reflects what's true right now. It's meant to be overwritten freely and short enough to re-read on every session start.
+**`.session-continuity/SESSION_PRIMER.md`** is the high-churn thin snapshot: **Boot order**, **Mid-flight** (≤5 bullets of what's in flight), **Confirm** (≤5 commands that prove the claimed state), and **Peers** (engrim + committed `graphify-out/graph.json`). Refresh Mid-flight + Confirm alongside substantive commits. Do not embed a `git log` dump — freshness is `primer-freshness.sh`. Short enough to re-read on every session start.
 
 **`.session-continuity/PROJECT_CONTEXT.md`** is stable reference material: repo layout, module table, workflow conventions, test expectations, "where to look for what." It changes rarely — only when the project's shape itself changes — so a fresh session skims it once and doesn't need to re-check it every turn.
 
@@ -70,13 +70,13 @@ The four files ship as templates. The backlog does not — it lives on GitHub.
 
 One command, six behaviors, dispatched on the repo's current state:
 
-- **No primer yet** → copies the templates into `.session-continuity/`, fills every placeholder it can derive (project name, latest commits, working directory, test command), asks you for the rest, files named follow-ups as GitHub Issues labeled `backlog` when `gh` is authenticated for the origin's host (github.com or a GitHub Enterprise Server instance), and stages four files. Any field you skip becomes `TBD` rather than a leftover `{{PLACEHOLDER}}`.
+- **No primer yet** → copies the thin templates into `.session-continuity/`, fills every placeholder it can derive (project name, working directory, test command summary, and related fields via `primer-init-derive.sh`), asks for Mid-flight bullets and Confirm commands, files named follow-ups as GitHub Issues labeled `backlog` when `gh` is authenticated for the origin's host (github.com or a GitHub Enterprise Server instance), and stages four files. Any field you skip becomes `TBD` rather than a leftover `{{PLACEHOLDER}}`.
 - **Primer exists but not yet split** → partitions its stable sections (layout, conventions, module table, "where to look for what") into a new `.session-continuity/PROJECT_CONTEXT.md`, leaving the primer with only the volatile shortlist. One-time content move, no file move.
-- **Primer has an inline Outstanding items section, or a leftover `OUTSTANDING_ITEMS.md` / `BACKLOG.md`** → migrates that markdown queue to GitHub Issues labeled `backlog` when `gh` is authenticated for the origin's host, then deletes the file. Without that, the file is left as a fossil and `doctor` warns.
-- **Primer exists but drifted** → rewrites Mid-flight + Confirm only (thin hard-template), re-runs Confirm commands, validates shape via `primer-validate.sh`, surfaces commits since the last primer touch as candidates, and prompts you for backlog changes before staging. Peers (engrim + committed `graphify-out/graph.json`) stay doctor/SessionStart concerns — refresh does not embed a git-log dump.
-- **Primer current** → reports a four-line status (HEAD, last refresh, backlog count, learnings count) and exits without touching anything.
+- **Fat / pre-thin primer, or leftover `OUTSTANDING_ITEMS.md` / `BACKLOG.md`** → slim-migrates to the thin hard-template and/or migrates a markdown queue to GitHub Issues labeled `backlog` when `gh` is authenticated for the origin's host, then deletes the fossil file. Without that, the file is left and `doctor` warns.
+- **Primer exists but drifted** → rewrites Mid-flight + Confirm only, re-runs Confirm commands, validates shape via `primer-validate.sh`, surfaces commits since the last primer touch as candidates, and prompts you for backlog changes before staging. Peers stay doctor/SessionStart concerns — refresh does not embed a git-log dump.
+- **Primer current** → reports a four-line status from `primer-status.sh` (HEAD, primer mtime, backlog count, learnings count) and exits without touching anything.
 
-Drift is detected by `primer-freshness.sh` (substantive commits after the last primer touch, with basename ignores for README/CHANGELOG/LICENSE), not by an embedded git-log block or file mtime.
+Drift for refresh vs check is decided by `primer-freshness.sh` (`STALE=0|1|?`: substantive commits after the last primer tip, with basename ignores for README/CHANGELOG/LICENSE). `/session-continuity:primer`'s dispatch (`primer-detect.sh`) maps that same probe into `LOG_DRIFT` — not an embedded git-log block or file mtime.
 
 ### `/session-continuity:learning`
 
@@ -94,7 +94,7 @@ It never commits and never pushes. The checklist flags what's outstanding; you d
 
 ### `/session-continuity:doctor`
 
-Read-only, zero-arg diagnostic: is the install actually wired up? Five ✓/⚠️ rows — install mode (plugin vs. vendored), hooks registered, all five `.session-continuity/` files present with the primer's staleness re-checked, `CLAUDE_PLUGIN_ROOT` resolves and isn't a stale plugin-cache dir, gate scripts executable. Never mutates anything; every fix is a printed command you run yourself.
+Read-only, zero-arg diagnostic: is the install actually wired up? Rows cover install mode (plugin vs. vendored), hooks registered, the four `.session-continuity/` files plus primer shape (`primer-validate.sh`), peers (engrim + committed `graphify-out/graph.json`), freshness (`primer-freshness.sh`), `CLAUDE_PLUGIN_ROOT` / cache staleness, gate scripts executable, and GitHub backlog reachability. Never mutates anything; every fix is a printed command you run yourself.
 
 ### `/session-continuity:spike-check`
 
@@ -134,6 +134,7 @@ The hooks are bash scripts wired through `hooks/hooks.json`. They split into two
 - **Evidence gate** (`evidence-gate`, `PreToolUse` on Write/Edit, spec/plan files only) blocks a spec/plan's smoke-design prose if it tears down a test subject without first saying the failure diagnostic is captured, or polls for success only instead of watching for both success and failure signals. Override with `Evidence-gate: N/A — <reason>`.
 - **Flaky gate** (`flaky-gate`, `PreToolUse` on `git commit` and on Write/Edit to `LEARNINGS.md`) blocks a commit message or LEARNINGS entry that calls a failure "flaky" / "transient" / "CDN blip" without naming the deterministic mechanism behind it (a race, shared state, an environment dependency). Override with `Flaky-gate: N/A — <reason>`.
 - **Backend-parity gate** (`backend-parity-gate`, `PreToolUse` on Write/Edit, plan files only) blocks a plan that frames its smoke coverage as multi-backend (mentions "backend"/"backends") but names only one concrete backend, instead of naming a second for parity coverage. Only fires when the plan text itself uses the word "backend" — single-backend projects are never touched. Override with `Backend-parity: N/A — <reason>`.
+- **Derived-value gate** (`derived-value-gate`, `PreToolUse` on `git commit` for staged `commands/*.md`) blocks new command prose that tells a model to hand-compute a duration, tally/vote a count by eye, eyeball-compare a claimed value against an actual one, or print fixed reference text as if it were an instruction — the reconciler for the determinism program. Override with `Derived-value-gate: N/A — <reason>`.
 
 **Stay fresh:**
 
@@ -152,7 +153,7 @@ The hooks are bash scripts wired through `hooks/hooks.json`. They split into two
 /session-continuity:primer
 ```
 
-Detects no primer exists, copies templates into `.session-continuity/`, fills derivable placeholders, asks you for the rest, and stages four files.
+Detects no primer exists, copies thin templates into `.session-continuity/`, fills derivable placeholders, asks for Mid-flight / Confirm, and stages four files.
 
 **Before a commit:**
 
@@ -182,13 +183,14 @@ Refreshes the primer, proposes LEARNINGS candidates drawn from this session, and
 
 **Picking up an existing project:**
 
-The SessionStart hook reminds Claude to read `.session-continuity/SESSION_PRIMER.md` first. Follow its "First things first" list before touching anything.
+The SessionStart hook reminds Claude to follow the primer's **Boot order** (PROJECT_CONTEXT → LEARNINGS → engrim → graphify → Mid-flight/Confirm → backlog) and hard-stops if required peers are missing.
 
 ## What goes where
 
 | Observation | Where |
 |---|---|
-| "The latest commit is X" | `.session-continuity/SESSION_PRIMER.md` → Current state |
+| "What's in flight this session" | `.session-continuity/SESSION_PRIMER.md` → Mid-flight |
+| "How do I prove the claimed state" | `.session-continuity/SESSION_PRIMER.md` → Confirm |
 | "We should follow up on X" | GitHub Issue labeled `backlog` |
 | "Where is this headed next quarter" | `.session-continuity/ROADMAP.md` → Now/Next/Later |
 | "How is this repo laid out" | `.session-continuity/PROJECT_CONTEXT.md` → Repo layout |
@@ -252,7 +254,7 @@ The weekly freshness check in SessionStart will nudge you inside Claude when a n
 
 ## Contributing
 
-Issues and PRs welcome at [github.com/talgolan/session-continuity](https://github.com/talgolan/session-continuity). See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide: scope policy, local development, authoring conventions for commands and hooks, and the release process. TL;DR: this plugin ships a five-file pattern, not a framework. PRs that fit the existing shape will move quickly; PRs that expand scope will be declined or redirected.
+Issues and PRs welcome at [github.com/talgolan/session-continuity](https://github.com/talgolan/session-continuity). See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide: scope policy, local development, authoring conventions for commands and hooks, and the release process. TL;DR: this plugin ships a four-file-plus-GitHub-Issues pattern, not a framework. PRs that fit the existing shape will move quickly; PRs that expand scope will be declined or redirected.
 
 ## Privacy
 
