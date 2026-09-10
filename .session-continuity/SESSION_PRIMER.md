@@ -9,10 +9,9 @@
 6. `/session-continuity:backlog` for the deferred queue
 
 ## Mid-flight
-- Docs pass: README / SKILL / REFERENCE / PRIVACY / ROADMAP / PROJECT_CONTEXT aligned to thin primer + freshness + peers (0.36.x)
-- Determinism Phase 6 on #43 — C/E still open (deprioritized); A/B/D shipped in 0.32–0.34
-- #38 docguard generalization still open (githooks side unmerged; this-repo design already landed)
-- Next backlog candidates: #60 pins, #55 no-count, #53 TSV cp, #45 doctor
+- #60 learnings/render smoke pins: derive count + file-order from live LEARNINGS.md (no more hardcoded 15/16)
+- Determinism Phase 6 on #43 — A/B/D shipped; C/E deprioritized (issue closed)
+- Next backlog candidates: #55 no-count, #53 TSV cp, #45 doctor, #37 scratch-smoke
 
 ## Confirm
 ```bash
