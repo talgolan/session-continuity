@@ -168,7 +168,7 @@ deny() {
 #   <in_scope_fn> <relpath>            -> return 0 if this gate should scan it
 #   <check_fn>    <content> <relpath>  -> inspect; call deny (exits) on violation
 gate_scan_staged() {
-  local in_scope="$1" check="$2" f raw class status
+  local in_scope="$1" check="$2" f raw class status empty_m_fallback
   if [ -z "${GATE_LABEL:-}" ]; then
     deny "internal: GATE_LABEL unset before gate_scan_staged"
   fi
@@ -177,7 +177,6 @@ gate_scan_staged() {
     if ! "$in_scope" "$f"; then continue; fi
     if gate_is_scratch "$f"; then continue; fi
     raw="$(gate_staged_blob "$f")"
-    if [ -z "$raw" ]; then continue; fi
     GATE_SCAN_PATH="$f"
     class="$(gate_hatch_class "$raw" "$GATE_LABEL")"
     GATE_NEAR_MISS=""
@@ -190,9 +189,13 @@ gate_scan_staged() {
       R*) continue ;;
     esac
     gate_staged_delta "$f"
+    empty_m_fallback=0
     if [ "$status" = "M" ] && [ -z "${GATE_DELTA_ADDED}" ] && [ -z "${GATE_DELTA_REMOVED}" ]; then
       GATE_DELTA_ADDED="$raw"
+      empty_m_fallback=1
     fi
+    # Skip empty blobs except empty-M whole-document fallback (mode-only / empty file).
+    if [ -z "$raw" ] && [ "$empty_m_fallback" -eq 0 ]; then continue; fi
     GATE_DELTA_ADDED="$(gate_mask_escape "${GATE_DELTA_ADDED}" "$GATE_LABEL")"
     GATE_DELTA_REMOVED="$(gate_mask_escape "${GATE_DELTA_REMOVED}" "$GATE_LABEL")"
     raw="$(gate_mask_escape "$raw" "$GATE_LABEL")"

@@ -93,6 +93,30 @@ hits="$(print -rn -- "$(gt_commit_payload "$repo")" | bash -c '
 check "accepted hatch skips check_fn" "0" "$hits"
 gt_cleanup "$repo"
 
+# Mode-only change on an empty file: status M, empty blob, empty deltas →
+# empty-M whole-document fallback must still invoke check_fn.
+repo="$(gt_make_repo)"
+mkdir -p "$repo/meta/plans"
+: > "$repo/meta/plans/empty.md"
+git -C "$repo" add "meta/plans/empty.md"
+git -C "$repo" commit -qm base
+chmod +x "$repo/meta/plans/empty.md"
+git -C "$repo" add "meta/plans/empty.md"
+st="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_CWD="'"$repo"'"; gate_staged_status "meta/plans/empty.md"')"
+check "empty mode-only status is M" "M" "$st"
+hits="$(print -rn -- "$(gt_commit_payload "$repo")" | bash -c '
+  source "'"$HOOKS"'/lib/gate-common.sh"
+  GATE_LABEL="Proven-gate"
+  GATE_CHECK_HITS=0
+  gate_in_scope() { case "$1" in *.md) return 0;; *) return 1;; esac; }
+  gate_check() { GATE_CHECK_HITS=$((GATE_CHECK_HITS+1)); }
+  gate_load
+  gate_scan_staged gate_in_scope gate_check
+  printf "%s" "$GATE_CHECK_HITS"
+')"
+check "empty-M fallback invokes check_fn" "1" "$hits"
+gt_cleanup "$repo"
+
 # _GT_HOOKS_DIR is captured at source time and resolves to repo root/hooks
 hooks_dir_test="$(zsh -c 'source "'"$HERE"'/lib/gate-test-common.zsh"; echo "$_GT_HOOKS_DIR"')"
 real_hooks="$HOOKS"
