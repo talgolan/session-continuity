@@ -9,9 +9,10 @@
 6. `/session-continuity:backlog` for the deferred queue
 
 ## Mid-flight
-- #60 learnings/render smoke pins: derive count + file-order from live LEARNINGS.md (no more hardcoded 15/16)
+- #55+#53 landed unreleased: no-count skips suite run; end-session TSV uses `command cp`
 - Determinism Phase 6 on #43 — A/B/D shipped; C/E deprioritized (issue closed)
-- Next backlog candidates: #55 no-count, #53 TSV cp, #45 doctor, #37 scratch-smoke
+- Next backlog candidates: #45 doctor, #37 scratch-smoke, #36 integration, #35 marketplace
+- Optional: derive `count-entries-smoke.zsh` pin (still hardcodes 21)
 
 ## Confirm
 ```bash

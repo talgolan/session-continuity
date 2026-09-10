@@ -120,10 +120,10 @@ to rerun. `RETRIES=0`, `DRIFT=0`, `SPREAD=0`.
 
 `MODE=no-count`: `TEST_CMD` exists but `RECORDED_COUNT` doesn't (the
 seeded line fell back to the bare command string) — there is nothing to
-diff against. The command still runs once so the caller can seed a count
-going forward, but `DRIFT` is always `0` and `SPREAD` always `0` in this
-mode — you cannot drift from, or disagree against, a value that was
-never recorded.
+diff against. The command does **not** run (`RETRIES=0`, empty
+`OBSERVED`): a one-shot "seed" run was never consumed by callers (#55).
+`DRIFT` is always `0` and `SPREAD` always `0` in this mode — you cannot
+drift from, or disagree against, a value that was never recorded.
 
 `MODE=run`: the normal path. Runs 1-3 times per the majority-vote rule
 already in the current prose (unchanged behavior, now scripted): first
