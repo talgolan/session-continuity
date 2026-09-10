@@ -58,15 +58,15 @@ gate_staged_status() {  # <relpath> -> A|M|D|R100|... or empty
   printf '%s' "${line%%$'\t'*}"
 }
 
-gate_staged_entries() {  # -> status<TAB>relative-path, one row per staged path
+gate_staged_entries() {  # -> status<TAB>dest<TAB>source-or-empty
   [ -n "${GATE_CWD:-}" ] || return 0
   [ -d "$GATE_CWD" ] || return 0
   # Collect rename-aware status once for the whole scan. Pairing status with
-  # the path here makes the driver's per-file status lookup O(1).
+  # destination and source here makes the driver's status lookup O(1).
   git -C "$GATE_CWD" diff --cached --name-status -M --no-color 2>/dev/null \
     | awk -F '\t' '
-        $1 ~ /^R/ { print $1 "\t" $3; next }
-        { print $1 "\t" $2 }
+        $1 ~ /^R/ { print $1 "\t" $3 "\t" $2; next }
+        { print $1 "\t" $2 "\t" }
       ' || true
 }
 
@@ -215,11 +215,11 @@ gate_scan_commit_message() {  # <check_fn>
 #   <in_scope_fn> <relpath>            -> return 0 if this gate should scan it
 #   <check_fn>    <content> <relpath>  -> inspect; call deny (exits) on violation
 gate_scan_staged() {
-  local in_scope="$1" check="$2" f raw class status empty_m_fallback
+  local in_scope="$1" check="$2" f source raw class status empty_m_fallback
   if [ -z "${GATE_LABEL:-}" ]; then
     deny "internal: GATE_LABEL unset before gate_scan_staged"
   fi
-  while IFS=$'\t' read -r status f; do
+  while IFS=$'\t' read -r status f source; do
     if [ -z "$f" ]; then continue; fi
     if ! "$in_scope" "$f"; then continue; fi
     if gate_is_scratch "$f"; then continue; fi
@@ -232,7 +232,9 @@ gate_scan_staged() {
       GATE_NEAR_MISS="$(gate_near_miss_line "$raw" "$GATE_LABEL")"
     fi
     case "$status" in
-      R100) continue ;;
+      R100)
+        if [ -n "$source" ] && "$in_scope" "$source"; then continue; fi
+        ;;
     esac
     gate_staged_delta "$f"
     empty_m_fallback=0

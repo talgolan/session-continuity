@@ -87,7 +87,7 @@ where the rule "what may a gate fire on" is enforced once for all of them.
 | `gate_window_around` | Not built |
 | Worktree-vs-index | Best-effort diagnostic text only; never allow/deny |
 | Chained `git add` + `git commit` | Best-effort diagnostic; fixed matcher below |
-| Rename status vs content pins | **Split:** content delta keeps `--no-renames` (determinism). The driver reads `git diff --cached --name-status -M` once per scan **without** `--no-renames`, so a pure rename reports exact `R100`. Only `R100` skips `check_fn` (allow); rename+edit reported as low-score `R` is evaluated. It may instead appear as `D`+`A` — document + smoke |
+| Rename status vs content pins | **Split:** content delta keeps `--no-renames` (determinism). The driver reads `git diff --cached --name-status -M` once per scan **without** `--no-renames`, so a pure rename reports exact `R100`. Only `R100` whose source is already in scope skips `check_fn` (allow); a rename into scope and rename+edit reported as low-score `R` are evaluated. It may instead appear as `D`+`A` — document + smoke |
 | Empty `M` delta fallback | Whole-document scan when status is `M` and added+removed text is empty (mode-only / empty blob / pin failure) |
 | Release | 0.37.0 — behavior change across all seven gates |
 
@@ -101,7 +101,8 @@ gate_scan_staged(in_scope_fn, check_fn)
     class = gate_hatch_class(raw, GATE_LABEL)  # accepted | near-miss | absent
     if class == accepted: continue             # short-circuit; never call check_fn
     GATE_NEAR_MISS = near-miss details or empty
-    if status == R100: continue                # pure rename → allow
+    if status == R100 and source in scope:
+      continue                                 # in-scope pure rename → allow
     added, removed = gate_staged_delta(path)   # content pins: --no-renames
     if status==M and added and removed empty:
       added = raw                              # fallback: behave like today
@@ -172,10 +173,12 @@ git diff --cached --name-status -M --no-color
 Pins on the content call are load-bearing (see Determinism). Added = `^+`
 minus `^+++`. Removed = `^-` minus `^---`.
 
-**Pure rename:** exact status `R100` → skip `check_fn`. Measured: with `--no-renames`
-on status, the same rename is `D`+`A` and content delta for the new path is
-the full body — that is why status must not use `--no-renames`. Path-filtering
-`name-status -- <dest>` also collapses pure `git mv` to `A` (verified Task 1).
+**Pure rename:** exact status `R100` skips `check_fn` only when its source is
+already in scope. A rename into scope is evaluated like an add. Measured: with
+`--no-renames` on status, the same rename is `D`+`A` and content delta for the
+new path is the full body — that is why status must not use `--no-renames`.
+Path-filtering `name-status -- <dest>` also collapses pure `git mv` to `A`
+(verified Task 1).
 
 **Rename+edit tradeoff:** may still appear as `D`+`A` (whole-file add) or a
 low-score `R`. Both are evaluated; content extraction still uses `--no-renames`.

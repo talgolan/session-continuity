@@ -139,4 +139,29 @@ out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
 check "rename+edit adding claim -> deny" "deny" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+# 15. An exact rename from outside the gate's path scope into scope is a new
+# scoped document and must be evaluated even though its content is unchanged.
+repo="$(gt_make_repo)"
+gt_stage "$repo" "notes/p.md" $'We verified the pipeline.\n'
+git -C "$repo" commit -qm base
+mkdir -p "$repo/meta/plans"
+git -C "$repo" mv "notes/p.md" "meta/plans/p.md"
+rename_status="$(git -C "$repo" diff --cached --name-status -M --no-color | cut -f1)"
+check "rename into scope fixture is R100" "R100" "$rename_status"
+out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
+check "pure rename into scope with claim -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 16. An exact rename whose source and destination are both already in scope
+# changes no gated content and remains allowed.
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/old.md" $'We verified the pipeline.\n'
+git -C "$repo" commit -qm base
+git -C "$repo" mv "meta/plans/old.md" "meta/plans/new.md"
+rename_status="$(git -C "$repo" diff --cached --name-status -M --no-color | cut -f1)"
+check "within-scope rename fixture is R100" "R100" "$rename_status"
+out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
+check "pure rename within scope -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]
