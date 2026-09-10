@@ -72,4 +72,34 @@ out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
 check "malformed hatch does not exempt a binary plan -> deny" "deny" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+# 10. unrelated edits do not re-trigger a pre-existing weak-smoke phrase
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'smoke test is optional for the binary.\n'
+git -C "$repo" commit -qm base
+print -rn -- $'smoke test is optional for the binary.\nUnrelated documentation note.\n' > "$repo/meta/plans/p.md"
+git -C "$repo" add "meta/plans/p.md"
+out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
+check "unrelated edit over existing weak smoke -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 11. a newly added weak-smoke phrase still denies
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'Build release artifacts.\n'
+git -C "$repo" commit -qm base
+print -rn -- $'Build release artifacts.\nsmoke test is deferred until after merge.\n' > "$repo/meta/plans/p.md"
+git -C "$repo" add "meta/plans/p.md"
+out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
+check "new weak smoke -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 12. a newly added binary token without smoke satisfaction denies
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'Build release artifacts.\n'
+git -C "$repo" commit -qm base
+print -rn -- $'Build release artifacts.\nCompile the binary release.\n' > "$repo/meta/plans/p.md"
+git -C "$repo" add "meta/plans/p.md"
+out="$(gt_run smoke-gate.sh "$(gt_commit_payload "$repo")")"
+check "new binary without smoke -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

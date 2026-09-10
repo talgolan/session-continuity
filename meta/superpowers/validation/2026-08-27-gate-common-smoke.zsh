@@ -33,6 +33,14 @@ check "decorated escape matches" "yes" "$out"
 out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_has_escape "'"$none"'" "Proven-gate" && echo yes || echo no')"
 check "no escape does not match" "no" "$out"
 
+# gate_hatch_class: strict accepted grammar, broader near-miss recognition.
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_hatch_class "Proven-gate: N/A — ok" "Proven-gate"')"
+check "hatch class accepted" "accepted" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_hatch_class "Proven-gate: N/A - bad" "Proven-gate"')"
+check "hatch class near-miss single hyphen" "near-miss" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; gate_hatch_class "no hatch" "Proven-gate"')"
+check "hatch class absent" "absent" "$out"
+
 # gate_mask_escape: blanks this gate's own hatch line so the claim scan can
 # never be triggered by the line that exempts the doc. Blanks rather than
 # deletes, so reported line numbers still match the real file.
@@ -70,6 +78,74 @@ blob="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_CWD="'"$repo"'"; g
 check "staged blob read" "line one" "$blob"
 gt_cleanup "$repo"
 
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/e.md" $'Proven-gate: N/A — skip me\nwe verified nothing\n'
+hits="$(print -rn -- "$(gt_commit_payload "$repo")" | bash -c '
+  source "'"$HOOKS"'/lib/gate-common.sh"
+  GATE_LABEL="Proven-gate"
+  GATE_CHECK_HITS=0
+  gate_in_scope() { case "$1" in *.md) return 0;; *) return 1;; esac; }
+  gate_check() { GATE_CHECK_HITS=$((GATE_CHECK_HITS+1)); }
+  gate_load
+  gate_scan_staged gate_in_scope gate_check
+  printf "%s" "$GATE_CHECK_HITS"
+')"
+check "accepted hatch skips check_fn" "0" "$hits"
+gt_cleanup "$repo"
+
+# The driver may scan many files, but rename-aware name-status is a repository
+# snapshot and must be collected once per gate_scan_staged invocation.
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/a.md" $'first\n'
+gt_stage "$repo" "meta/plans/b.md" $'second\n'
+mkdir -p "$repo/bin"
+real_git="$(command -v git)"
+count_file="$repo/name-status.count"
+cat > "$repo/bin/git" <<'EOF'
+#!/usr/bin/env bash
+case " $* " in
+  *" --name-status "*) printf 'probe\n' >> "$GIT_COUNT_FILE" ;;
+esac
+exec "$GIT_REAL" "$@"
+EOF
+chmod +x "$repo/bin/git"
+PATH="$repo/bin:$PATH" GIT_REAL="$real_git" GIT_COUNT_FILE="$count_file" \
+  bash -c '
+    source "'"$HOOKS"'/lib/gate-common.sh"
+    GATE_CWD="'"$repo"'"
+    GATE_LABEL="Proven-gate"
+    gate_in_scope() { return 0; }
+    gate_check() { return 0; }
+    gate_scan_staged gate_in_scope gate_check
+  '
+probe_count="$(wc -l < "$count_file" | tr -d ' ')"
+check "driver runs name-status once for multiple files" "1" "$probe_count"
+gt_cleanup "$repo"
+
+# Mode-only change on an empty file: status M, empty blob, empty deltas →
+# empty-M whole-document fallback must still invoke check_fn.
+repo="$(gt_make_repo)"
+mkdir -p "$repo/meta/plans"
+: > "$repo/meta/plans/empty.md"
+git -C "$repo" add "meta/plans/empty.md"
+git -C "$repo" commit -qm base
+chmod +x "$repo/meta/plans/empty.md"
+git -C "$repo" add "meta/plans/empty.md"
+st="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_CWD="'"$repo"'"; gate_staged_status "meta/plans/empty.md"')"
+check "empty mode-only status is M" "M" "$st"
+hits="$(print -rn -- "$(gt_commit_payload "$repo")" | bash -c '
+  source "'"$HOOKS"'/lib/gate-common.sh"
+  GATE_LABEL="Proven-gate"
+  GATE_CHECK_HITS=0
+  gate_in_scope() { case "$1" in *.md) return 0;; *) return 1;; esac; }
+  gate_check() { GATE_CHECK_HITS=$((GATE_CHECK_HITS+1)); }
+  gate_load
+  gate_scan_staged gate_in_scope gate_check
+  printf "%s" "$GATE_CHECK_HITS"
+')"
+check "empty-M fallback invokes check_fn" "1" "$hits"
+gt_cleanup "$repo"
+
 # _GT_HOOKS_DIR is captured at source time and resolves to repo root/hooks
 hooks_dir_test="$(zsh -c 'source "'"$HERE"'/lib/gate-test-common.zsh"; echo "$_GT_HOOKS_DIR"')"
 real_hooks="$HOOKS"
@@ -83,6 +159,67 @@ else
   print -r -- "FAIL - _GT_HOOKS_DIR should contain hooks.json"
   ((fail++))
 fi
+
+delta_added() {
+  local repo="$1" relpath="$2"
+  bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_CWD="'"$repo"'"; gate_staged_delta "'"$relpath"'"; printf "%s" "$GATE_DELTA_ADDED"'
+}
+delta_status() {
+  local repo="$1" relpath="$2"
+  bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_CWD="'"$repo"'"; gate_staged_status "'"$relpath"'"'
+}
+
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/d.md" $'keep\nsmoke here\n'
+git -C "$repo" commit -qm base
+print -rn -- $'keep\nsmoke here\nnew line\n' > "$repo/meta/plans/d.md"
+git -C "$repo" add "meta/plans/d.md"
+out="$(delta_added "$repo" "meta/plans/d.md")"
+check "edit delta is added lines only" "new line" "$out"
+gt_cleanup "$repo"
+
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/n.md" $'a\nb\n'
+out="$(delta_added "$repo" "meta/plans/n.md" | tr '\n' '|')"
+check "new file delta is all lines" "a|b|" "$out"
+gt_cleanup "$repo"
+
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/r.md" $'body\n'
+git -C "$repo" commit -qm base
+git -C "$repo" mv meta/plans/r.md meta/plans/s.md
+st="$(delta_status "$repo" "meta/plans/s.md")"
+check "pure rename status is R100" "R100" "$st"
+gt_cleanup "$repo"
+
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/c.md" $'a\n'
+git -C "$repo" commit -qm base
+print -rn -- $'a\ncolor line\n' > "$repo/meta/plans/c.md"
+git -C "$repo" add "meta/plans/c.md"
+git -C "$repo" config color.diff always
+out="$(delta_added "$repo" "meta/plans/c.md")"
+check "color.diff=always still yields plain added line" "color line" "$out"
+gt_cleanup "$repo"
+
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="hello smoke"; GATE_DELTA_REMOVED=""; gate_triggered "smoke" && echo fire || echo quiet')"
+check "triggered on added" "fire" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="unproven only"; GATE_DELTA_REMOVED=""; gate_triggered -w "proven|verified" && echo fire || echo quiet')"
+check "-w does not fire on unproven" "quiet" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="we verified it"; GATE_DELTA_REMOVED=""; gate_triggered -w "proven|verified" && echo fire || echo quiet')"
+check "-w fires on verified" "fire" "$out"
+out="$(bash -c 'source "'"$HOOKS"'/lib/gate-common.sh"; GATE_DELTA_ADDED="unrelated"; GATE_DELTA_REMOVED="Real path: x"; gate_triggered -w "proven|verified" "Real path:[[:space:]]*[^[:space:]]" && echo fire || echo quiet')"
+check "re-arm on removed SAT" "fire" "$out"
+
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/old.md" $'smoke poll timeout\n'
+git -C "$repo" commit -qm base
+git -C "$repo" mv meta/plans/old.md meta/plans/new.md
+print -rn -- $'smoke poll timeout\nextra\n' > "$repo/meta/plans/new.md"
+git -C "$repo" add -A
+out="$(delta_added "$repo" "meta/plans/new.md" | grep -c smoke || true)"
+check "rename+edit may put smoke in added delta (known tradeoff)" "1" "$out"
+gt_cleanup "$repo"
 
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"
 [[ $fail -eq 0 ]]

@@ -9,6 +9,7 @@
 6. `/session-continuity:backlog` for the deferred queue
 
 ## Mid-flight
+- Branch `eval/gate-escape-smoke-scope`: plan+design fixed post caveman-review; execute next (0.37.0)
 - #68+#37 unreleased: zero-turn doctor-report.sh; scratch primer init/split smoke
 - Determinism Phase 6 on #43 — A/B/D shipped; C/E deprioritized (issue closed)
 - Next backlog candidates: #36 integration, #35 marketplace

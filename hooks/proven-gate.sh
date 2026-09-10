@@ -21,23 +21,25 @@ gate_in_scope() {
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
 gate_check() {
   local content="$1" path="$2"
-  if gate_has_escape "$content" "Proven-gate"; then return 0; fi
-  # Scan with this gate's own escape lines blanked out — otherwise a doc whose
-  # only trigger word is its own "Proven-gate:" hatch condemns itself.
-  local scan; scan="$(gate_mask_escape "$content" "Proven-gate")"
-  local has_claim=0
-  if printf '%s' "$scan" | grep -Eiqw 'proven|verified'; then has_claim=1; fi
-  if printf '%s' "$scan" | grep -Eiq 'spike[[:space:]]+conclusive'; then has_claim=1; fi
-  if [ "$has_claim" -eq 0 ]; then return 0; fi
+  local sat_real='Real path:[[:space:]]*[^[:space:]]'
+  local sat_stub='Stubbed:[[:space:]]*[^[:space:]]'
+  if ! gate_triggered -w 'proven|verified' "$sat_real" "$sat_stub" \
+    && ! gate_triggered 'spike[[:space:]]+conclusive' "$sat_real" "$sat_stub"; then
+    return 0
+  fi
+  if ! printf '%s' "$content" | LC_ALL=C grep -Eiqw 'proven|verified' \
+    && ! printf '%s' "$content" | LC_ALL=C grep -Eiq 'spike[[:space:]]+conclusive'; then
+    return 0
+  fi
   local has_real=0 has_stub=0
-  if printf '%s' "$scan" | grep -Eiq 'Real path:[[:space:]]*[^[:space:]]'; then has_real=1; fi
-  if printf '%s' "$scan" | grep -Eiq 'Stubbed:[[:space:]]*[^[:space:]]'; then has_stub=1; fi
+  if printf '%s' "$content" | LC_ALL=C grep -Eiq "$sat_real"; then has_real=1; fi
+  if printf '%s' "$content" | LC_ALL=C grep -Eiq "$sat_stub"; then has_stub=1; fi
   if [ "$has_real" -eq 0 ] || [ "$has_stub" -eq 0 ]; then
     # Name the offending line so a denial is diagnosable in one read. Line
-    # numbers are the real file's: gate_mask_escape blanks, never deletes.
+    # numbers are the real file's: the driver blanks hatch lines, never deletes.
     local hit where=""
-    hit="$(gate_first_match "$scan" 'proven|verified')"
-    if [ -z "$hit" ]; then hit="$(gate_first_match "$scan" 'conclusive')"; fi
+    hit="$(gate_first_match "$content" 'proven|verified')"
+    if [ -z "$hit" ]; then hit="$(gate_first_match "$content" 'conclusive')"; fi
     if [ -n "$hit" ]; then
       where=" Matched at line ${hit%%:*}: \"$(printf '%s' "${hit#*:}" | cut -c1-120)\"."
     fi
@@ -47,5 +49,7 @@ gate_check() {
 
 gate_load
 gate_is_commit || exit 0
+# shellcheck disable=SC2034 # consumed by sourced gate_scan_staged
+GATE_LABEL="Proven-gate"
 gate_scan_staged gate_in_scope gate_check
 exit 0

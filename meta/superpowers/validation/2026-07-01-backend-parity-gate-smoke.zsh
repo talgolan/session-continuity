@@ -60,4 +60,14 @@ out="$(gt_run backend-parity-gate.sh "$(gt_commit_payload "$repo")")"
 check "real single-backend beside malformed hatch -> deny" "deny" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+# 8. an unrelated addition does not re-litigate a single-backend claim in HEAD
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'multi backend smoke on docker only\n'
+git -C "$repo" commit -qm base
+print -rn -- $'multi backend smoke on docker only\nunrelated\n' > "$repo/meta/plans/p.md"
+git -C "$repo" add "meta/plans/p.md"
+out="$(gt_run backend-parity-gate.sh "$(gt_commit_payload "$repo")")"
+check "unrelated edit over single-backend claim -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

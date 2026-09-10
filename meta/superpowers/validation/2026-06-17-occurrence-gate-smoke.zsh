@@ -51,4 +51,34 @@ out="$(gt_run occurrence-gate.sh "$(gt_commit_payload "$repo")")"
 check "top-level LEARNINGS.md -> allow (out of scope)" "allow" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+# 7. an unrelated edit must not re-trigger a pre-existing occurrence debt
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'Occurrence count: 2 of 2\nFix: patched it again.\n'
+git -C "$repo" commit -qm base
+print -rn -- $'Occurrence count: 2 of 2\nFix: patched it again.\nUnrelated note.\n' > "$repo/.session-continuity/LEARNINGS.md"
+git -C "$repo" add ".session-continuity/LEARNINGS.md"
+out="$(gt_run occurrence-gate.sh "$(gt_commit_payload "$repo")")"
+check "unrelated edit over existing occ2 debt -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 8. a newly added occurrence debt still denies
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'Fix: patched it again.\n'
+git -C "$repo" commit -qm base
+print -rn -- $'Fix: patched it again.\nOccurrence count: 2 of 2\n' > "$repo/.session-continuity/LEARNINGS.md"
+git -C "$repo" add ".session-continuity/LEARNINGS.md"
+out="$(gt_run occurrence-gate.sh "$(gt_commit_payload "$repo")")"
+check "new occ2 without invariant -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 9. deleting the satisfying Invariant re-arms the existing occurrence debt
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'Occurrence count: 2 of 2\nInvariant: reconciler enforces X on every path.\n'
+git -C "$repo" commit -qm base
+print -rn -- $'Occurrence count: 2 of 2\n' > "$repo/.session-continuity/LEARNINGS.md"
+git -C "$repo" add ".session-continuity/LEARNINGS.md"
+out="$(gt_run occurrence-gate.sh "$(gt_commit_payload "$repo")")"
+check "delete invariant beside existing occ2 -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

@@ -23,6 +23,20 @@ question when you run `git commit`, naming the offending staged file in
 its denial. (`git commit -a` and pathspec commits are a documented,
 accepted permissive miss — see CHANGELOG `[0.17.0]` and LEARNINGS.)
 
+The editor and the index are separate states. Saving a compliant escape
+hatch or required field in the worktree does not affect a commit until that
+line is staged. If the worktree has a hatch that the staged blob lacks, a
+denial may point out the mismatch, but the index still determines the
+verdict.
+
+The file-scoped gates **trigger on the staged delta and satisfy against the
+whole staged document**. A newly added claim can use a required field that
+already exists elsewhere in that document. An unrelated edit does not
+re-litigate old claim prose. Removing a required field while leaving its
+claim behind re-arms the gate, and a pure `git mv` with no content edit is
+allowed. Rename-and-edit follows Git's rename detection and may be evaluated
+as changed or newly added content.
+
 - **`smoke-gate.sh`** — blocks a staged plan file that touches binary/engine work but lacks a MANDATORY smoke task.
 - **`proven-gate.sh`** — blocks a staged spec/plan's "proven"/"verified" claim unless it also names the real path exercised and what was stubbed.
 - **`occurrence-gate.sh`** — blocks a staged LEARNINGS entry recording a 2nd-or-later occurrence of a mistake-class unless it also names the end-state invariant.
@@ -35,11 +49,20 @@ Every blocking gate has an explicit skip-with-reason escape hatch (e.g.
 `Smoke: N/A — <reason>`) documented in that hook's own header comment.
 The escape line tolerates markdown decoration — `> **Smoke:** N/A —
 <reason>` (blockquote, bold) works exactly like the bare
-`Smoke: N/A — <reason>` form; only the `Label:`, `N/A`, and a dash then
-a non-blank reason are required, wrapped in any combination of `>`,
+`Smoke: N/A — <reason>` form. The separator must be an em dash (`—`) or
+two hyphens (`--`), followed by a non-blank reason; a single hyphen is a
+near-miss. Only the `Label:`, `N/A`, separator, and reason are required,
+wrapped in any combination of `>`,
 `#`, `**`, or `` ` ``. The escape hatch is **file-scoped, not
 entry-scoped** — one `Gate: N/A` line in a LEARNINGS.md whitelists the
 whole file for that gate, not just the entry it's attached to.
+
+Prefer satisfying the gate to escaping it. Add the required field when the
+claim is real; use the hatch only when the gate does not apply, and state
+why. An accepted hatch short-circuits that gate for the file. A malformed
+hatch never grants an exemption. When the gate would deny anyway, its denial
+quotes the near-miss and shows the accepted form; a near-miss does not create
+a denial by itself.
 
 `proven-gate.sh` specifically: rather than escaping a real
 "proven"/"verified" claim, prefer meeting its requirement directly —
@@ -47,6 +70,12 @@ add two fields next to the claim, `Real path: <which production code
 path actually ran>` and `Stubbed: <what stood in, or "nothing">`. If
 the stubbed thing is the feature under test, the claim isn't proven;
 say so instead of asserting it.
+
+Stage and commit in separate tool calls for gated files. Do not run
+`git add <file> && git commit ...` (or join them with `;` or `||`) in one
+Bash call. The hooks match the whole command because it contains
+`git commit`; if a gate denies the call, the preceding `git add` never ran.
+Stage first, then issue a plain `git commit` with no `-a` or pathspec.
 
 ## What goes where — a decision tree
 

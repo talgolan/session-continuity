@@ -21,6 +21,22 @@ All notable changes to this project are documented here. The format follows [Kee
 - **`end-session.md` TSV copy-out uses `command cp`.** Bypasses a user
   `cp -i` alias that hung on the existing `mktemp` destination. (#53)
 
+## [0.37.0] — 2026-09-10
+
+### Changed
+- **Commit-time content gates trigger on the staged delta and satisfy against
+  the whole staged document.** Newly added claims are checked against required
+  fields anywhere in the file, while unrelated edits no longer re-litigate old
+  prose. Removing a required field re-arms the applicable gate. The flaky
+  commit-message path remains a whole-message check.
+- **Gate escape handling is centralized.** Accepted file-scoped hatches
+  short-circuit before a gate scans content. A denying commit with a malformed
+  hatch names the near-miss and accepted grammar; denials can also diagnose an
+  unstaged worktree hatch or a chained `git add` + `git commit` call.
+- **Pure renames bypass content checks.** Rename detection uses staged status
+  separately from deterministic, config-pinned content deltas; rename-and-edit
+  remains subject to Git's rename classification.
+
 ## [0.36.1] — 2026-09-10
 
 ### Fixed
