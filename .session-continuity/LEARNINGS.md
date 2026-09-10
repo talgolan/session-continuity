@@ -25,6 +25,7 @@ within each group.
 - Discovered while hardening the Step 2 transcript-extraction jq filter after a user… — #10
 - Documented as an accepted tradeoff while designing the commit-time gates (`meta/superpowers/specs/2026-08-27-commit-time-content-gates-design.md`'s Tradeoffs… — #14
 - Every run of that one check silently wrote a real entry into… — #12
+- Hermetic suites that `git init` under `/tmp` fail with `Operation not permitted`… — #22
 - Implementing the same state machine directly in jq (to write real tests,… — #20
 - In a live Claude session, the hook runs (verified via debug logs)… — #1
 - Real invocation of `/session-continuity:primer` after installing the change failed every one of… — #11
@@ -41,6 +42,20 @@ within each group.
 ---
 
 ## Claude Code plugin mechanics
+
+### 22. Cursor parent Shell sandbox blocks hermetic smoke `git init` in `/tmp`
+Slug: cursor-sandbox-blocks-tmp-git-init
+Trigger: Bash /gate-.*smoke|proven-gate-smoke|git init/
+
+**The trap.** Parent Shell looks fine for smokes; `required_permissions: ["all"]` often still leaves the call sandboxed. Treat green/red from that Shell as truth.
+
+**Symptom.** Hermetic suites that `git init` under `/tmp` fail with `Operation not permitted` (or false-fail the whole suite). Same scripts pass via a subagent run with real unsandboxed/`all` execution.
+
+**Fix.** Do not trust Cursor parent Shell for those smokes. Dispatch a generalPurpose (or similar) agent with unsandboxed permissions, or run in a real terminal. Confirm with a one-liner `mktemp` + `git init` → `GIT_INIT_OK` before believing suite results.
+
+**Diagnostic signal** *(optional)*. Smoke fails at repo setup in `/tmp` with `Operation not permitted`, while the gate logic under test never runs.
+
+---
 
 ### 17. Worktree-isolation guard blocks any "too complex" command, not just `git -C` or compound git chains
 Slug: worktree-guard-blocks-non-git-commands
