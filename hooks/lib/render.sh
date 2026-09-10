@@ -102,8 +102,11 @@ humans and Claude alike. The backlog is GitHub Issues labeled "backlog"
 — stable IDs, close semantics, comments and PR links.
 
 THE FOUR FILES, PLUS THE QUEUE
-- SESSION_PRIMER.md    — volatile. Current state, latest commits. Refresh
-                          alongside every substantive commit.
+- SESSION_PRIMER.md    — thin hard-template (Boot order / Mid-flight /
+                          Confirm / Peers). High-churn snapshot of what's
+                          in flight. Refresh Mid-flight + Confirm alongside
+                          substantive commits. No embedded git-log dump —
+                          freshness is primer-freshness.sh.
 - PROJECT_CONTEXT.md   — stable. Repo layout, conventions, module table.
                           Changes rarely — only when the project's shape
                           changes.
@@ -115,6 +118,11 @@ THE FOUR FILES, PLUS THE QUEUE
                           changes.
 - LEARNINGS.md         — durable wisdom. Append-only, numbered. One entry
                           per bug that took 15+ minutes to diagnose.
+
+PEERS (required for a green doctor / SessionStart)
+- engrim on PATH (local memory; never leaves the machine via this plugin)
+- committed non-empty graphify-out/graph.json
+  Install order: primer → graphify commit → engrim → re-doctor
 
 COMMANDS
 EOF

@@ -23,11 +23,13 @@ freshness status, a non-blocking pre-commit nudge, a retrieval hook that
 surfaces relevant LEARNINGS entries before you act, and seven commit-time
 content gates (`smoke-gate.sh`, `proven-gate.sh`, `occurrence-gate.sh`,
 `evidence-gate.sh`, `flaky-gate.sh`, `backend-parity-gate.sh`,
-`derived-value-gate.sh`) that block a `git commit` staging a
-spec/plan/LEARNINGS/commands claim missing its required fields. Each has
-a skip-with-reason escape hatch. **See [`REFERENCE.md`](REFERENCE.md) for
-what each hook/gate checks and the exact escape-hatch syntax** — the one
-thing to know day-to-day is the chaining trap below.
+`derived-value-gate.sh`) that block a `git commit` whose staged delta
+introduces a spec/plan/LEARNINGS/commands claim missing its required
+fields (gates trigger on the delta, satisfy against the whole staged
+document). Each has a skip-with-reason escape hatch. **See
+[`REFERENCE.md`](REFERENCE.md) for what each hook/gate checks and the
+exact escape-hatch syntax** — the one thing to know day-to-day is the
+chaining trap below.
 
 ### Gate mechanics — never chain `git add` and `git commit` in one call
 
