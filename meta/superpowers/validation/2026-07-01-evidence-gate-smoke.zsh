@@ -59,4 +59,43 @@ out="$(gt_run evidence-gate.sh "$(gt_commit_payload "$repo")")"
 check "scratch file skipped -> allow" "allow" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+# 8. unrelated edit, smoke+poll already in HEAD -> allow
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/specs/s.md" $'Deleted old-smoke-runner.ts\n\n# pad\nline\nline\nline\nline\nline\nline\nline\nline\nline\nline\n\n| pollRoute.test.ts | No poll/ack |\n'
+git -C "$repo" commit -qm base
+print -rn -- "$(cat "$repo/meta/specs/s.md")"$'\nUnrelated paragraph only.\n' > "$repo/meta/specs/s.md"
+git -C "$repo" add "meta/specs/s.md"
+out="$(gt_run evidence-gate.sh "$(gt_commit_payload "$repo")")"
+check "unrelated edit with existing smoke+poll -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 9. add-only poll beside existing smoke -> deny
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/specs/s.md" $'smoke design lives here\n'
+git -C "$repo" commit -qm base
+print -rn -- $'smoke design lives here\npoll for ready with timeout\n' > "$repo/meta/specs/s.md"
+git -C "$repo" add "meta/specs/s.md"
+out="$(gt_run evidence-gate.sh "$(gt_commit_payload "$repo")")"
+check "add poll beside existing smoke -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 10. deleting dual-signal while leaving poll/smoke -> deny
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/specs/s.md" $'smoke design lives here\nsmoke poll_until ok fail 5s\n'
+git -C "$repo" commit -qm base
+print -rn -- $'smoke design lives here\nsmoke poll loop with a timeout\n' > "$repo/meta/specs/s.md"
+git -C "$repo" add "meta/specs/s.md"
+out="$(gt_run evidence-gate.sh "$(gt_commit_payload "$repo")")"
+check "delete dual-signal leave poll -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 11. near-miss hatch still denies and is named
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/specs/s.md" $'Evidence-gate: N/A - wrong dash\nsmoke SUT teardown on failure\n'
+out="$(gt_run evidence-gate.sh "$(gt_commit_payload "$repo")")"
+check "near-miss hatch still denies" "deny" "$(verdict "$out")"
+printf '%s' "$out" | grep -qi 'Near-miss' && near=yes || near=no
+check "near-miss named in denial" "yes" "$near"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]
