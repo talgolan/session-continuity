@@ -28,6 +28,10 @@ gate_check_file() {
       'Mechanism:[[:space:]]*[^[:space:]]'; then
     return 0
   fi
+  if ! printf '%s' "$content" | LC_ALL=C grep -Eiq \
+      '\b(flaky|transient)\b|CDN[[:space:]]+(blip|flake)'; then
+    return 0
+  fi
   if ! printf '%s' "$content" | LC_ALL=C grep -Eiq 'Mechanism:[[:space:]]*[^[:space:]]'; then
     deny "In staged file $path: calls a failure 'flaky'/'transient'/a 'CDN blip' without naming the deterministic cause. CLAUDE.md rule 1: an intermittent failure has a deterministic cause (race, shared/global state, an env/sandbox dependency) — name it or state the precise fail condition. Add a 'Mechanism: <named cause>' line, or add: Flaky-gate: N/A — <reason> (decoration fine)."
   fi

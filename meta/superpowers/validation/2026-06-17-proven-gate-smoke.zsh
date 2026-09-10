@@ -103,4 +103,40 @@ out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
 check "delete Real path leave verified -> deny" "deny" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+# 13. removing the claim together with its satisfaction fields leaves no
+# claim to reconcile, so the deletion is allowed.
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/p.md" $'we verified the spike\nReal path: hooks/x.sh\nStubbed: nothing\n'
+git -C "$repo" commit -qm base
+print -rn -- $'replacement text with no claim\n' > "$repo/meta/plans/p.md"
+git -C "$repo" add "meta/plans/p.md"
+out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
+check "delete claim and both fields -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
+# 14. A low-score rename+edit is not a pure rename. The real driver must scan
+# its added violating claim rather than skipping every R* status.
+repo="$(gt_make_repo)"
+mkdir -p "$repo/meta/plans"
+for i in {1..20}; do print -r -- "baseline line $i"; done > "$repo/meta/plans/old.md"
+git -C "$repo" add "meta/plans/old.md"
+git -C "$repo" commit -qm base
+git -C "$repo" mv "meta/plans/old.md" "meta/plans/new.md"
+{
+  for i in {1..20}; do print -r -- "baseline line $i"; done
+  for i in {1..8}; do print -r -- "new filler $i"; done
+  print -r -- "We verified the pipeline."
+} > "$repo/meta/plans/new.md"
+git -C "$repo" add -A
+rename_status="$(git -C "$repo" diff --cached --name-status -M --no-color | cut -f1)"
+case "$rename_status" in
+  R100|"") status_ok="no:$rename_status" ;;
+  R*) status_ok=yes ;;
+  *) status_ok="no:$rename_status" ;;
+esac
+check "fixture is a low-score rename" "yes" "$status_ok"
+out="$(gt_run proven-gate.sh "$(gt_commit_payload "$repo")")"
+check "rename+edit adding claim -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

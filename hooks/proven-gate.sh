@@ -27,6 +27,10 @@ gate_check() {
     && ! gate_triggered 'spike[[:space:]]+conclusive' "$sat_real" "$sat_stub"; then
     return 0
   fi
+  if ! printf '%s' "$content" | LC_ALL=C grep -Eiqw 'proven|verified' \
+    && ! printf '%s' "$content" | LC_ALL=C grep -Eiq 'spike[[:space:]]+conclusive'; then
+    return 0
+  fi
   local has_real=0 has_stub=0
   if printf '%s' "$content" | LC_ALL=C grep -Eiq "$sat_real"; then has_real=1; fi
   if printf '%s' "$content" | LC_ALL=C grep -Eiq "$sat_stub"; then has_stub=1; fi

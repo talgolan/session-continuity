@@ -58,6 +58,18 @@ gate_staged_status() {  # <relpath> -> A|M|D|R100|... or empty
   printf '%s' "${line%%$'\t'*}"
 }
 
+gate_staged_entries() {  # -> status<TAB>relative-path, one row per staged path
+  [ -n "${GATE_CWD:-}" ] || return 0
+  [ -d "$GATE_CWD" ] || return 0
+  # Collect rename-aware status once for the whole scan. Pairing status with
+  # the path here makes the driver's per-file status lookup O(1).
+  git -C "$GATE_CWD" diff --cached --name-status -M --no-color 2>/dev/null \
+    | awk -F '\t' '
+        $1 ~ /^R/ { print $1 "\t" $3; next }
+        { print $1 "\t" $2 }
+      ' || true
+}
+
 gate_staged_delta() {  # <relpath> -> sets GATE_DELTA_ADDED, GATE_DELTA_REMOVED
   local path="$1" raw
   GATE_DELTA_ADDED=""
@@ -207,7 +219,7 @@ gate_scan_staged() {
   if [ -z "${GATE_LABEL:-}" ]; then
     deny "internal: GATE_LABEL unset before gate_scan_staged"
   fi
-  while IFS= read -r f; do
+  while IFS=$'\t' read -r status f; do
     if [ -z "$f" ]; then continue; fi
     if ! "$in_scope" "$f"; then continue; fi
     if gate_is_scratch "$f"; then continue; fi
@@ -219,9 +231,8 @@ gate_scan_staged() {
     if [ "$class" = "near-miss" ]; then
       GATE_NEAR_MISS="$(gate_near_miss_line "$raw" "$GATE_LABEL")"
     fi
-    status="$(gate_staged_status "$f")"
     case "$status" in
-      R*) continue ;;
+      R100) continue ;;
     esac
     gate_staged_delta "$f"
     empty_m_fallback=0
@@ -236,6 +247,6 @@ gate_scan_staged() {
     raw="$(gate_mask_escape "$raw" "$GATE_LABEL")"
     "$check" "$raw" "$f" || true
   done <<EOF
-$(gate_staged_files)
+$(gate_staged_entries)
 EOF
 }

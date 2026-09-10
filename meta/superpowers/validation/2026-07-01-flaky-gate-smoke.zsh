@@ -100,4 +100,14 @@ out="$(gt_run flaky-gate.sh "$(gt_commit_payload "$repo")")"
 check "real claim beside malformed hatch -> deny" "deny" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+# 13. removing the claim together with its Mechanism leaves no claim to
+# reconcile, so the wholesale deletion is allowed.
+repo="$(gt_make_repo)"
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'The suite is flaky.\nMechanism: shared temp directory race.\n'
+git -C "$repo" commit -qm baseline
+gt_stage "$repo" ".session-continuity/LEARNINGS.md" $'Replacement note with no intermittent-failure claim.\n'
+out="$(gt_run flaky-gate.sh "$(gt_commit_payload "$repo")")"
+check "file: delete flaky claim and Mechanism -> allow" "allow" "$(verdict "$out")"
+gt_cleanup "$repo"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

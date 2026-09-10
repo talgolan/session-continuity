@@ -87,7 +87,7 @@ where the rule "what may a gate fire on" is enforced once for all of them.
 | `gate_window_around` | Not built |
 | Worktree-vs-index | Best-effort diagnostic text only; never allow/deny |
 | Chained `git add` + `git commit` | Best-effort diagnostic; fixed matcher below |
-| Rename status vs content pins | **Split:** content delta keeps `--no-renames` (determinism). Status uses `git diff --cached --name-status -M` **without** `--no-renames` so pure rename reports `R*`. On `R*`, skip `check_fn` (allow). Rename+edit may still appear as `D`+`A` or low-score `R` — document + smoke |
+| Rename status vs content pins | **Split:** content delta keeps `--no-renames` (determinism). The driver reads `git diff --cached --name-status -M` once per scan **without** `--no-renames`, so a pure rename reports exact `R100`. Only `R100` skips `check_fn` (allow); rename+edit reported as low-score `R` is evaluated. It may instead appear as `D`+`A` — document + smoke |
 | Empty `M` delta fallback | Whole-document scan when status is `M` and added+removed text is empty (mode-only / empty blob / pin failure) |
 | Release | 0.37.0 — behavior change across all seven gates |
 
@@ -95,13 +95,13 @@ where the rule "what may a gate fire on" is enforced once for all of them.
 
 ```
 gate_scan_staged(in_scope_fn, check_fn)
-  for each staged file in scope:
+  entries = gate_staged_entries()              # one name-status -M call
+  for each (status, path) staged entry in scope:
     raw = gate_staged_blob(path)               # unmasked staged blob
     class = gate_hatch_class(raw, GATE_LABEL)  # accepted | near-miss | absent
     if class == accepted: continue             # short-circuit; never call check_fn
     GATE_NEAR_MISS = near-miss details or empty
-    status = gate_staged_status(path)          # name-status -M (renames OK)
-    if status matches R*: continue             # pure rename → allow
+    if status == R100: continue                # pure rename → allow
     added, removed = gate_staged_delta(path)   # content pins: --no-renames
     if status==M and added and removed empty:
       added = raw                              # fallback: behave like today
@@ -161,21 +161,26 @@ git -c diff.algorithm=myers diff --cached --no-color --no-ext-diff \
     --no-textconv --no-renames -U0 -- <path>
 ```
 
-Status (rename-aware, separate call):
+Status (rename-aware, separate call — **do not path-filter**):
 
 ```
-git diff --cached --name-status -M --no-color -- <path>
+git diff --cached --name-status -M --no-color
+# collect once per scan; pair each status with its staged path
+# path-filtering collapses rename status to A/D
 ```
 
 Pins on the content call are load-bearing (see Determinism). Added = `^+`
 minus `^+++`. Removed = `^-` minus `^---`.
 
-**Pure rename:** status `R*` → skip `check_fn`. Measured: with `--no-renames`
+**Pure rename:** exact status `R100` → skip `check_fn`. Measured: with `--no-renames`
 on status, the same rename is `D`+`A` and content delta for the new path is
-the full body — that is why status must not use `--no-renames`.
+the full body — that is why status must not use `--no-renames`. Path-filtering
+`name-status -- <dest>` also collapses pure `git mv` to `A` (verified Task 1).
 
 **Rename+edit tradeoff:** may still appear as `D`+`A` (whole-file add) or a
-low-score `R`. Accepted cost. Smoke covers one rename+edit case.
+low-score `R`. Both are evaluated; content extraction still uses `--no-renames`.
+A driver-level smoke covers a measured low-score rename+edit that adds a
+violating claim and must deny.
 
 ### Near-miss recognition
 
@@ -252,7 +257,7 @@ Test-first against existing per-gate smokes and
 - `gate_triggered TRIGGER SAT` returns true when only removed lines match SAT.
 - Classifier: accepted / near-miss / absent.
 - Accepted hatch → `check_fn` never invoked (spy / counter in smoke).
-- Rename+edit → documents current whole-file-add behavior (not a flake).
+- Rename+edit → a low-score `R` that adds a violating claim is denied.
 
 Per gate (LEARNINGS path for flaky; **not** the commit-message path for the
 "unrelated line" pair):

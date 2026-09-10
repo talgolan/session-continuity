@@ -12,7 +12,8 @@ masking owned by the shared driver.
 **Architecture:** Extend `hooks/lib/gate-common.sh` with pinned content
 `gate_staged_delta`, rename-aware `gate_staged_status`, `gate_hatch_class`,
 `gate_triggered [-w] TRIGGER [SAT…]`, driver short-circuit on accepted hatch
-and on `R*` renames, central mask, and best-effort `deny` diagnostics. Each
+and on exact `R100` pure renames, central mask, and best-effort `deny`
+diagnostics. Each
 gate sets `GATE_LABEL`, deletes local escape/mask in Task 2, and migrates
 triggers per
 [`meta/superpowers/specs/2026-09-10-gate-delta-trigger-reconciler-design.md`](../specs/2026-09-10-gate-delta-trigger-reconciler-design.md).
@@ -35,8 +36,11 @@ Smoke: N/A — this plan changes shell gate drivers only; no binary/engine/SUT.
 - Content diff pins (verbatim):
   `git -c diff.algorithm=myers diff --cached --no-color --no-ext-diff --no-textconv --no-renames -U0 -- <path>`
 - Status probe (rename-aware, **no** `--no-renames`):
-  `git diff --cached --name-status -M --no-color -- <path>`
-- On status matching `R*`: skip `check_fn` (pure rename → allow).
+  `git diff --cached --name-status -M --no-color` (one full-list call per
+  driver scan; **do not** path-filter because `diff -- <path>` collapses
+  rename status to `A`/`D`; pair each row's status with its staged path).
+- On exact status `R100`: skip `check_fn` (pure rename → allow). Low-score
+  rename+edit `R` statuses are evaluated; content still uses `--no-renames`.
 - Greps/masker: `LC_ALL=C`.
 - Escape order: classify unmasked blob → accepted skips `check_fn` → mask →
   `check_fn`. Delete local `gate_has_escape` / `gate_mask_escape` from all
@@ -108,8 +112,7 @@ gt_stage "$repo" "meta/plans/r.md" $'body\n'
 git -C "$repo" commit -qm base
 git -C "$repo" mv meta/plans/r.md meta/plans/s.md
 st="$(delta_status "$repo" "meta/plans/s.md")"
-case "$st" in R*) st_ok=yes ;; *) st_ok="no:$st" ;; esac
-check "pure rename status is R*" "yes" "$st_ok"
+check "pure rename status is R100" "R100" "$st"
 gt_cleanup "$repo"
 
 repo="$(gt_make_repo)"
@@ -136,7 +139,12 @@ gate_staged_status() {  # <relpath> -> A|M|D|R100|... or empty
   local path="$1" line
   [ -n "${GATE_CWD:-}" ] || { printf ''; return 0; }
   # Rename-aware on purpose — do NOT pass --no-renames here.
-  line="$(git -C "$GATE_CWD" diff --cached --name-status -M --no-color -- "$path" 2>/dev/null | head -1 || true)"
+  # Do not path-filter: `diff -- <path>` collapses rename status into A/D.
+  line="$(git -C "$GATE_CWD" diff --cached --name-status -M --no-color 2>/dev/null \
+    | awk -v p="$path" -F '\t' '
+        $1 ~ /^R/ && ($2 == p || $3 == p) { print; exit }
+        $1 !~ /^R/ && $2 == p { print; exit }
+      ' || true)"
   # R100\told\tnew  or  A\tpath  or  M\tpath
   printf '%s' "${line%%$'\t'*}"
 }
@@ -173,7 +181,8 @@ gate_staged_delta() {  # <relpath> -> sets GATE_DELTA_ADDED, GATE_DELTA_REMOVED
 **Interfaces:**
 - `gate_hatch_class <text> <Label>` → `accepted|near-miss|absent`
 - `gate_near_miss_line <text> <Label>` → `N:line` or empty
-- `gate_scan_staged`: require `GATE_LABEL`; skip on accepted; skip on `R*`;
+- `gate_scan_staged`: require `GATE_LABEL`; skip on accepted; skip on exact
+  `R100`;
   empty-`M` fallback; mask then `check_fn`
 - `deny`: append near-miss / chain / worktree (best-effort)
 
@@ -236,7 +245,7 @@ gate_scan_staged() {
   if [ -z "${GATE_LABEL:-}" ]; then
     deny "internal: GATE_LABEL unset before gate_scan_staged"
   fi
-  while IFS= read -r f; do
+  while IFS=$'\t' read -r status f; do
     if [ -z "$f" ]; then continue; fi
     if ! "$in_scope" "$f"; then continue; fi
     if gate_is_scratch "$f"; then continue; fi
@@ -249,9 +258,8 @@ gate_scan_staged() {
     if [ "$class" = "near-miss" ]; then
       GATE_NEAR_MISS="$(gate_near_miss_line "$raw" "$GATE_LABEL")"
     fi
-    status="$(gate_staged_status "$f")"
     case "$status" in
-      R*) continue ;;  # pure rename
+      R100) continue ;;  # pure rename only; low-score rename+edit is scanned
     esac
     gate_staged_delta "$f"
     if [ "$status" = "M" ] && [ -z "${GATE_DELTA_ADDED}" ] && [ -z "${GATE_DELTA_REMOVED}" ]; then
@@ -262,7 +270,7 @@ gate_scan_staged() {
     raw="$(gate_mask_escape "$raw" "$GATE_LABEL")"
     "$check" "$raw" "$f" || true
   done <<EOF
-$(gate_staged_files)
+$(gate_staged_entries)
 EOF
 }
 
@@ -958,7 +966,7 @@ Expected: no matches.
 | Spec requirement | Task |
 |---|---|
 | Pinned content delta + color.diff | 1 |
-| Rename-aware status `R*` skip | 1–2 |
+| Rename-aware exact `R100` skip | 1–2 |
 | Hatch short-circuit + central mask + delete local escape | 2 |
 | `gate_triggered [-w]` + rename+edit | 3 |
 | evidence fire paths + Bug A + inv-2 fixture + near-miss | 4 |
@@ -971,7 +979,7 @@ Expected: no matches.
 ## Self-review notes (post caveman-review fix)
 
 - Rename vs `--no-renames`: status uses `-M` without `--no-renames`; content
-  keeps pins; `R*` skips check.
+  keeps pins; exact `R100` skips while low-score rename+edit `R` is evaluated.
 - `set -e` continues use `if` form only.
 - Proven uses `gate_triggered -w`.
 - No `…` placeholders; full gate bodies in Tasks 4–7.

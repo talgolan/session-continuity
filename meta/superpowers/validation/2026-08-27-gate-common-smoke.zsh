@@ -93,6 +93,35 @@ hits="$(print -rn -- "$(gt_commit_payload "$repo")" | bash -c '
 check "accepted hatch skips check_fn" "0" "$hits"
 gt_cleanup "$repo"
 
+# The driver may scan many files, but rename-aware name-status is a repository
+# snapshot and must be collected once per gate_scan_staged invocation.
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/a.md" $'first\n'
+gt_stage "$repo" "meta/plans/b.md" $'second\n'
+mkdir -p "$repo/bin"
+real_git="$(command -v git)"
+count_file="$repo/name-status.count"
+cat > "$repo/bin/git" <<'EOF'
+#!/usr/bin/env bash
+case " $* " in
+  *" --name-status "*) printf 'probe\n' >> "$GIT_COUNT_FILE" ;;
+esac
+exec "$GIT_REAL" "$@"
+EOF
+chmod +x "$repo/bin/git"
+PATH="$repo/bin:$PATH" GIT_REAL="$real_git" GIT_COUNT_FILE="$count_file" \
+  bash -c '
+    source "'"$HOOKS"'/lib/gate-common.sh"
+    GATE_CWD="'"$repo"'"
+    GATE_LABEL="Proven-gate"
+    gate_in_scope() { return 0; }
+    gate_check() { return 0; }
+    gate_scan_staged gate_in_scope gate_check
+  '
+probe_count="$(wc -l < "$count_file" | tr -d ' ')"
+check "driver runs name-status once for multiple files" "1" "$probe_count"
+gt_cleanup "$repo"
+
 # Mode-only change on an empty file: status M, empty blob, empty deltas →
 # empty-M whole-document fallback must still invoke check_fn.
 repo="$(gt_make_repo)"
@@ -160,8 +189,7 @@ gt_stage "$repo" "meta/plans/r.md" $'body\n'
 git -C "$repo" commit -qm base
 git -C "$repo" mv meta/plans/r.md meta/plans/s.md
 st="$(delta_status "$repo" "meta/plans/s.md")"
-case "$st" in R*) st_ok=yes ;; *) st_ok="no:$st" ;; esac
-check "pure rename status is R*" "yes" "$st_ok"
+check "pure rename status is R100" "R100" "$st"
 gt_cleanup "$repo"
 
 repo="$(gt_make_repo)"
