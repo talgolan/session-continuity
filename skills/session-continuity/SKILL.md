@@ -7,7 +7,7 @@ description: Establish and maintain cross-session memory for a project via four 
 
 Four in-repo files plus GitHub Issues act as a handoff between Claude sessions on the same project:
 
-- **`.session-continuity/SESSION_PRIMER.md`** — current-state snapshot (latest commits, working state). **Refresh alongside substantive commits** (stage the update in the same commit as the real change). Always reflects "what's true right now."
+- **`.session-continuity/SESSION_PRIMER.md`** — thin hard-template snapshot (Boot order, Mid-flight, Confirm, Peers). **Refresh Mid-flight + Confirm alongside substantive commits** (stage the update in the same commit as the real change). Never embed a `git log` dump — freshness is `primer-freshness.sh`.
 - **GitHub Issues labeled `backlog`** — explicitly deferred follow-ups and decisions (not current state). Identity is `#N`. Title + 1-3 sentence length cap per issue — anything longer moves to a linked file under `meta/superpowers/`. Close with `gh issue close N --reason completed` once the code shows it shipped.
 - **`.session-continuity/ROADMAP.md`** — strategic direction: Now/Next/Later. Freeform — no numbering, no permanence rules, no length cap. Rewritten wholesale as direction changes.
 - **`.session-continuity/PROJECT_CONTEXT.md`** — stable repo context (layout, module table, workflow conventions, test expectations, "where to look for what"). Changes rarely — only when the project's shape itself changes.
@@ -18,20 +18,20 @@ These are complementary: primer is volatile current-state, GitHub Issues capture
 If installed as a plugin, nine commands are available: `/session-continuity:primer` (init/split/refresh/check the primer), `/session-continuity:learning` (append a new LEARNINGS entry interactively), `/session-continuity:end-session` (close-out ritual — refresh the primer, capture any new learnings from this session, and report a ✓/⚠️ checklist before you close the laptop), `/session-continuity:spike-check` (force a spike to be designed against the real load-bearing path before it's built), `/session-continuity:doctor` (read-only diagnostic — is the install actually wired up: hooks registered, four files present and not stale, GitHub backlog reachable, plugin root resolved and not a stale cache, gate scripts executable), `/session-continuity:backlog` (render open GitHub Issues labeled `backlog` — zero-turn when the hook fires, one model call as fallback), `/session-continuity:learnings` (render LEARNINGS.md's entries — zero-turn when the hook fires, one model call as fallback), `/session-continuity:update` (print the commands to pull and activate the plugin's latest published version), and `/session-continuity:help` (explain what the plugin does and what each file is for).
 
 `hooks/hooks.json` also wires up several non-blocking and blocking hooks
-— a SessionStart reminder that injects the outstanding-items shortlist,
-a non-blocking pre-commit nudge, a retrieval hook that surfaces relevant
-LEARNINGS entries before you act, and six commit-time content gates
-(`smoke-gate.sh`, `proven-gate.sh`, `occurrence-gate.sh`,
-`evidence-gate.sh`, `flaky-gate.sh`, `backend-parity-gate.sh`) that block
-a `git commit` staging a spec/plan/LEARNINGS claim missing its required
-fields. Each has a skip-with-reason escape hatch. **See
-[`REFERENCE.md`](REFERENCE.md) for what each hook/gate checks and the
-exact escape-hatch syntax** — the one thing to know day-to-day is the
-chaining trap below.
+— a SessionStart reminder that injects the backlog shortlist and peer/
+freshness status, a non-blocking pre-commit nudge, a retrieval hook that
+surfaces relevant LEARNINGS entries before you act, and seven commit-time
+content gates (`smoke-gate.sh`, `proven-gate.sh`, `occurrence-gate.sh`,
+`evidence-gate.sh`, `flaky-gate.sh`, `backend-parity-gate.sh`,
+`derived-value-gate.sh`) that block a `git commit` staging a
+spec/plan/LEARNINGS/commands claim missing its required fields. Each has
+a skip-with-reason escape hatch. **See [`REFERENCE.md`](REFERENCE.md) for
+what each hook/gate checks and the exact escape-hatch syntax** — the one
+thing to know day-to-day is the chaining trap below.
 
 ### Gate mechanics — never chain `git add` and `git commit` in one call
 
-All six gates above are `PreToolUse` hooks matched on `Bash(git commit
+All seven gates above are `PreToolUse` hooks matched on `Bash(git commit
 *)` against the **whole command string** passed to the Bash tool. If
 that string is `git add some/file.md && git commit -m "..."` and a
 gate denies it, the entire tool call is denied — not just the commit.
@@ -49,14 +49,14 @@ first time a chained add+commit gets denied.
 Invoke when:
 
 - Starting work on a project that does not yet have `.session-continuity/SESSION_PRIMER.md`, `.session-continuity/PROJECT_CONTEXT.md`, and `.session-continuity/LEARNINGS.md` — initialize from the templates.
-- About to commit code changes — refresh the primer's "Current state" section and close or file GitHub Issues labeled `backlog` so the next session sees the truth.
+- About to commit code changes — refresh the primer's Mid-flight + Confirm sections and close or file GitHub Issues labeled `backlog` so the next session sees the truth.
 - A bug has just been resolved after significant effort (15+ min, or required reading unfamiliar code, or surprised you) — add a LEARNINGS entry.
 - The user says something like "help me preserve session memory," "how do I hand this off to the next session," "create a primer," or "add this to learnings."
 - Picking up work on a project that already has these files — read them as the first step, before touching anything else.
 
 ## Quick start (new project)
 
-Run `/session-continuity:primer`. The command detects that no primer exists, copies four templates from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/` into the project's `.session-continuity/`, fills in every placeholder it can derive automatically (project name, latest commits, working directory, test command), prompts the user for anything left blank, files any named follow-ups as GitHub Issues labeled `backlog` when `gh` is authenticated for the origin's host (github.com or a GitHub Enterprise Server instance), and stages all four files. It does not commit.
+Run `/session-continuity:primer`. The command detects that no primer exists, copies four templates from `${CLAUDE_PLUGIN_ROOT}/skills/session-continuity/templates/` into the project's `.session-continuity/`, fills in every placeholder it can derive automatically (project name, working directory, test command summary, and related fields via `primer-init-derive.sh`), prompts for Mid-flight bullets and Confirm commands, files any named follow-ups as GitHub Issues labeled `backlog` when `gh` is authenticated for the origin's host (github.com or a GitHub Enterprise Server instance), and stages all four files. It does not commit.
 
 After the user commits, remind them of the two maintenance rules: refresh the primer alongside substantive commits (stage the refresh in the same commit as the real change — do not commit the primer by itself), and add a LEARNINGS entry for every bug that took 15+ minutes to diagnose.
 
@@ -66,7 +66,7 @@ If the `/session-continuity:primer` command is not installed (e.g. this skill wa
 
 1. Read `.session-continuity/SESSION_PRIMER.md` end-to-end. It is designed for this exact moment.
 2. Read `.session-continuity/PROJECT_CONTEXT.md` once per session — it changes rarely, so a stale read is unlikely, but skim it if anything about the repo's shape surprises you.
-3. Follow the primer's "First things first" list.
+3. Follow the primer's **Boot order** (and hard-stop if peers are incomplete).
 4. Before doing ANY work, verify claimed state is still current (the primer can be stale — run Confirm commands, check `primer-freshness.sh` / peers, etc.).
 5. When you commit, update the primer.
 
@@ -170,4 +170,4 @@ A bug qualifies when any of:
 For the full gate/hook reference, the "what goes where" decision tree,
 customization guidance, team-wide rollout steps, red flags for when
 *not* to use this skill, complementary mechanisms, and the philosophy
-behind the five-file split, see [`REFERENCE.md`](REFERENCE.md).
+behind the four-file-plus-GitHub-Issues split, see [`REFERENCE.md`](REFERENCE.md).

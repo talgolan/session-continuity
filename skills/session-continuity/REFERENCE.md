@@ -9,19 +9,19 @@ not on every session.
 
 `hooks/hooks.json` wires up several non-blocking and blocking hooks:
 
-- **`session-start.sh`** (SessionStart) — reminds Claude to read the primer, and injects the backlog shortlist. **Standing rule: whenever you discuss or echo backlog to the user — in this reminder, in `/session-continuity:end-session`'s prompts, or in free-form chat when directly asked — render them as a numbered list, always starting at 1, never 0, with each item shown as `#N Title`.** Paraphrasing the list into unnumbered prose drops the numbering the user relies on to reply with a bare number. `hooks/lib/render.sh backlog` is the canonical renderer for this shape.
+- **`session-start.sh`** (SessionStart) — reminds Claude to follow the primer Boot order, injects the backlog shortlist, probes engrim + `graphify-out/graph.json`, and warns on `STALE=1` from `primer-freshness.sh`. **Standing rule: whenever you discuss or echo backlog to the user — in this reminder, in `/session-continuity:end-session`'s prompts, or in free-form chat when directly asked — render them as a numbered list, always starting at 1, never 0, with each item shown as `#N Title`.** Paraphrasing the list into unnumbered prose drops the numbering the user relies on to reply with a bare number. `hooks/lib/render.sh backlog` is the canonical renderer for this shape.
 - **`pre-commit-check.sh`** (PreToolUse, before `git commit`) — non-blocking nudge when code is staged without a primer refresh.
 - **`learnings-surface.sh`** (PreToolUse, before Bash/Write/Edit) — the retrieval hook: surfaces any LEARNINGS entry carrying a `Trigger: <tool> /<regex>/` line when the imminent action matches, so the lesson lands *before* the mistake instead of after.
 - **`prompt-intercept.sh`** (UserPromptSubmit) — intercepts a fixed table of read-only prompts (backlog/learnings natural language plus the fully plugin-scoped slash forms of `/session-continuity:backlog`, `/session-continuity:learnings`, `/session-continuity:help`, `/session-continuity:update`) and answers them directly via `hooks/lib/render.sh`, at zero model calls. It fails open on every ambiguity — no `jq` on PATH, empty or unparseable stdin, a missing/non-string `prompt` field, a normalized prompt that isn't an exact match against the fixed table (never substring/regex), or `render.sh` missing, exiting non-zero, or printing nothing — falling through to let the prompt reach the model untouched rather than risk silently erasing real user work.
 
-The six content gates below all fire at **commit time**, not on save:
+The seven content gates below all fire at **commit time**, not on save:
 each one is a `PreToolUse` hook scoped to `Bash(git commit *)` that
 scans the files already staged in the git index, not the `Write`/`Edit`
-payload. Iterate on a spec/plan/LEARNINGS file freely — a `Write` or
-`Edit` never gets blocked — and the gate only asks its question when
-you run `git commit`, naming the offending staged file in its denial.
-(`git commit -a` and pathspec commits are a documented, accepted
-permissive miss — see CHANGELOG `[0.17.0]` and LEARNINGS.)
+payload. Iterate on a spec/plan/LEARNINGS/commands file freely — a
+`Write` or `Edit` never gets blocked — and the gate only asks its
+question when you run `git commit`, naming the offending staged file in
+its denial. (`git commit -a` and pathspec commits are a documented,
+accepted permissive miss — see CHANGELOG `[0.17.0]` and LEARNINGS.)
 
 - **`smoke-gate.sh`** — blocks a staged plan file that touches binary/engine work but lacks a MANDATORY smoke task.
 - **`proven-gate.sh`** — blocks a staged spec/plan's "proven"/"verified" claim unless it also names the real path exercised and what was stubbed.
@@ -29,6 +29,7 @@ permissive miss — see CHANGELOG `[0.17.0]` and LEARNINGS.)
 - **`evidence-gate.sh`** — blocks a staged spec/plan's smoke design if it tears down before capturing failure evidence, or polls for success only.
 - **`flaky-gate.sh`** — blocks a commit message or staged LEARNINGS entry that calls a failure "flaky"/"transient" without naming the deterministic mechanism behind it.
 - **`backend-parity-gate.sh`** — blocks a staged plan that frames its smoke coverage as multi-backend but names only one concrete backend.
+- **`derived-value-gate.sh`** — blocks staged `commands/*.md` prose that tells a model to hand-compute a duration, tally/vote a count by eye, eyeball-compare claimed vs actual, or print fixed reference text as if it were an instruction.
 
 Every blocking gate has an explicit skip-with-reason escape hatch (e.g.
 `Smoke: N/A — <reason>`) documented in that hook's own header comment.
@@ -51,7 +52,8 @@ say so instead of asserting it.
 
 | Observation | Where it goes |
 |---|---|
-| "The latest commit is X" | `.session-continuity/SESSION_PRIMER.md` → Current state |
+| "What's in flight this session" | `.session-continuity/SESSION_PRIMER.md` → Mid-flight |
+| "How do I prove the claimed state" | `.session-continuity/SESSION_PRIMER.md` → Confirm |
 | "We should follow up on X" | GitHub Issue labeled `backlog` |
 | "How is this repo laid out" | `.session-continuity/PROJECT_CONTEXT.md` → Repo layout |
 | "What are our workflow conventions" | `.session-continuity/PROJECT_CONTEXT.md` → Workflow conventions |
@@ -71,10 +73,11 @@ say so instead of asserting it.
 
 Different projects have different shapes, but the core file pattern adapts well:
 
-- **Test counts in the primer.** If you have one package, one line. If you have three packages (like SF_Tunnel: relay, tunnel, web), show three. If counts are unstable (integration tests that depend on external services), drop the exact count and document the green command instead.
+- **Test counts / Confirm commands in the primer.** Prefer Confirm commands that prove Mid-flight claims. Do not embed a `git log` dump (banlisted). If counts are unstable, document the green command instead of an exact number.
 - **"Workflow conventions" section.** Replace with whatever this project's disciplines are: commit message format, branch naming, code review process, required CI checks.
 - **"Backlog" section.** Use your own taxonomy: "blocked", "deferred", "needs decision". Keep it actionable.
 - **LEARNINGS section headings.** Replace "Bun", "SvelteKit", etc. with the actual layers of the project. Stack varies, structure is universal.
+- **Peers.** Engrim + committed `graphify-out/graph.json` are required for a green SessionStart/doctor; install order is primer → graphify commit → engrim → re-doctor.
 
 ## For team-wide use
 

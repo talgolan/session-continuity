@@ -4,9 +4,9 @@
 
 Claude Code sessions start cold — Claude doesn't remember yesterday's debugging, last week's refactor, or the three-hour bug you eventually cornered. Most fixes reach for clever infrastructure (vector databases, MCP memory servers, vendor-specific notes stores) that hides the knowledge outside the repo, away from human eyes.
 
-session-continuity takes a different route: plain Markdown files, committed to git, alongside the code they describe. `.session-continuity/SESSION_PRIMER.md` holds current state (the last five commits, what's outstanding, what's in flight) and refreshes with every substantive change. `.session-continuity/PROJECT_CONTEXT.md` holds stable repo context (layout, conventions, module table) that changes only when the project's shape itself changes. `.session-continuity/LEARNINGS.md` holds append-only wisdom — numbered entries for bugs that took 15+ minutes to diagnose, kept stable so cross-references don't rot.
+session-continuity takes a different route: plain Markdown files, committed to git, alongside the code they describe, plus GitHub Issues labeled `backlog` for the work queue. `.session-continuity/SESSION_PRIMER.md` is a thin hard-template (Boot order / Mid-flight / Confirm / Peers) refreshed alongside substantive commits — no embedded `git log` dump; drift is `primer-freshness.sh`. `.session-continuity/PROJECT_CONTEXT.md` holds stable repo context. `.session-continuity/ROADMAP.md` holds strategic direction. `.session-continuity/LEARNINGS.md` holds append-only wisdom — numbered entries for bugs that took 15+ minutes to diagnose. Boot also expects local engrim and a committed `graphify-out/graph.json` as required peers (neither leaves the machine via this plugin).
 
-Four slash commands keep the habit cheap: `/session-continuity:primer` initializes, splits, refreshes, or checks the primer; `/session-continuity:learning` appends a LEARNINGS entry interactively; `/session-continuity:end-session` runs a close-out ritual that refreshes the primer, surfaces LEARNINGS candidates from the session's context, and reports a checklist of staged / unstaged / untracked / unpushed state; `/session-continuity:spike-check` forces a spike to be designed against the real load-bearing path before it's built. A handful of hooks nudge or gate when the habit slips — a `SessionStart` hook reminds Claude to read the primer on new sessions, a non-blocking `PreToolUse` hook flags `git commit` calls that land without a primer refresh staged, and several blocking `PreToolUse` gates enforce evidence/invariant discipline in specs, plans, and LEARNINGS entries (each with an explicit skip-with-reason escape hatch).
+Nine slash commands keep the habit cheap (four of them zero-turn via a prompt-intercept hook in the common case). Notable: `/session-continuity:primer` initializes, splits, slim-migrates, refreshes, or checks; `/session-continuity:end-session` is freshness-gated; `/session-continuity:doctor` diagnoses shape, peers, and freshness. Hooks nudge or gate when the habit slips — SessionStart (peers + freshness), a non-blocking commit nudge, LEARNINGS retrieval before action, and seven commit-time content gates (each with an explicit skip-with-reason escape hatch).
 
 Install this when you work on the same project across many sessions and want Claude to pick up context in seconds instead of rebuilding it each time.
 
@@ -20,7 +20,7 @@ Developers using Claude Code on projects they'll come back to across many sessio
 
 ## Any telemetry / external calls?
 
-One external call: a weekly unauthenticated GET to the GitHub Releases API to check for new versions and nudge the user when an update is available. The URL is derived from the `repository` field in `.claude-plugin/plugin.json` (falling back to `https://api.github.com/repos/talgolan/session-continuity/releases/latest` if parsing fails), so renaming the repo doesn't silently break the check. The request runs at most once per 7 days per machine (mtime-cached to `~/.cache/session-continuity/last-check`), has a 3-second timeout, fails silently on network errors, and can be disabled entirely by setting `SESSION_CONTINUITY_SKIP_UPDATE_CHECK=1`. No analytics, no identifiers, no PII sent. All other functionality (primer files, LEARNINGS, slash commands, hooks) runs entirely locally against the user's own repo.
+See [PRIVACY.md](../../PRIVACY.md). Short version: weekly unauthenticated GitHub Releases GET (disable with `SESSION_CONTINUITY_SKIP_UPDATE_CHECK=1`); authenticated `gh` for the backlog when origin is github.com. Engrim and graphify stay local. No analytics.
 
 ---
 
@@ -30,9 +30,9 @@ For reference, the form likely pulls these directly from the manifest:
 
 - **Name:** `session-continuity`
 - **Repository:** `https://github.com/talgolan/session-continuity`
-- **Description:** `Cross-session memory for Claude Code projects via three in-repo docs: SESSION_PRIMER.md (current state), PROJECT_CONTEXT.md (stable repo context), and LEARNINGS.md (hard-won bugs).`
+- **Description:** (copy from current `.claude-plugin/plugin.json` — four docs + GitHub Issues backlog)
 - **Author:** Tal Golan
 - **License:** MIT
 - **Homepage:** `https://github.com/talgolan/session-continuity`
 - **Keywords:** memory, session, handoff, continuity, documentation, onboarding, post-mortem
-- **Version at submission:** 0.14.0 (re-check against `.claude-plugin/plugin.json` at actual submission time — this field drifts with every release and was last synced 2026-08-13)
+- **Version at submission:** re-check against `.claude-plugin/plugin.json` at actual submission time (was last synced in prose 2026-09-10; plugin was at 0.36.1 then)

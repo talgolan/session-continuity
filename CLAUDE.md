@@ -20,10 +20,10 @@ Canonical locations for in-repo agent artifacts:
 | Administrative notes (marketplace submission, etc.) | `meta/administrative/` |
 
 History: the `docs/` → `meta/` move shipped in v0.3 (see CHANGELOG).
-The three files the plugin ships to user projects
-(`SESSION_PRIMER.md`, `PROJECT_CONTEXT.md`, and `LEARNINGS.md`
-templates) live under `skills/session-continuity/templates/`, not
-`docs/`. This repo has no top-level `docs/` directory at all today —
+The four templates the plugin ships to user projects
+(`SESSION_PRIMER.md`, `PROJECT_CONTEXT.md`, `ROADMAP.md`, and
+`LEARNINGS.md`) live under `skills/session-continuity/templates/`,
+not `docs/`. This repo has no top-level `docs/` directory at all today —
 if one gets added later for some other purpose, it stays clean of
 agent meta-artifacts per the table above.
 

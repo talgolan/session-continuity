@@ -58,7 +58,7 @@ git commit -m "init"
 claude --plugin-dir /Users/YOU/path/to/session-continuity
 ```
 
-Inside Claude, exercise the slash commands (`/session-continuity:primer`, `/session-continuity:learning`, `/session-continuity:end-session`, `/session-continuity:spike-check`, `/session-continuity:doctor`) and check that the hooks fire when expected.
+Inside Claude, exercise the slash commands (`/session-continuity:primer`, `/session-continuity:learning`, `/session-continuity:end-session`, `/session-continuity:spike-check`, `/session-continuity:doctor`, plus the zero-turn `backlog` / `learnings` / `help` / `update` set) and check that the hooks fire when expected. Confirm peers: local `engrim` and a committed `graphify-out/graph.json`.
 
 ### Hook smoke tests
 
@@ -251,7 +251,7 @@ Expect review feedback. The project has a specific voice and set of conventions,
 
 - Use `{{PLACEHOLDER}}` syntax for fields Claude fills in during `/session-continuity:primer` init mode. Don't get clever with templating engines; it's just string replacement.
 - Keep sections short. These templates are read in every new session, so every line has a budget.
-- Separate instructions (what to do) from pointers (where to read). The "Ground rules" section is for imperatives; "First things first" is for read-pointers.
+- Separate instructions (what to do) from pointers (where to read). The "Ground rules" section is for imperatives; the primer's **Boot order** is for read-pointers.
 
 ### Writing style
 

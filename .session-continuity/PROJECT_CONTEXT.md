@@ -43,25 +43,44 @@ The repo also lives at `/Users/tal.golan/.claude/skills/session-continuity` as a
 | Component | Purpose | Notes |
 |---|---|---|
 | `skills/session-continuity/SKILL.md` | Main skill (session-continuity) | Invoked at session start |
-| `commands/primer.md` | `/session-continuity:primer` | Init / split / refresh / check state machine |
+| `skills/session-continuity/templates/` | Thin primer + PROJECT_CONTEXT + ROADMAP + LEARNINGS | Banlist: no embedded `git log` in primer |
+| `commands/primer.md` | `/session-continuity:primer` | Init / split / slim-migrate / refresh / check via `primer-detect.sh` |
 | `commands/learning.md` | `/session-continuity:learning` | Append a LEARNINGS entry interactively |
-| `commands/end-session.md` | `/session-continuity:end-session` | Close-out ritual: refresh + LEARNINGS candidates + git checklist |
-| `hooks/` | SessionStart + PreToolUse | Remind Claude to read primer; nudge on git commit without primer staged |
+| `commands/end-session.md` | `/session-continuity:end-session` | Freshness-gated refresh + LEARNINGS candidates + git checklist |
+| `commands/doctor.md` | `/session-continuity:doctor` | Shape + peers + freshness diagnostic |
+| `hooks/lib/primer-freshness.sh` | `STALE=0\|1\|?` | Source of truth for substantive drift |
+| `hooks/lib/primer-detect.sh` | Dispatch `STEPS=` | Maps freshness → `LOG_DRIFT`; never reimplements ignore policy |
+| `hooks/lib/primer-validate.sh` / `peer-probes.sh` | Shape + engrim/graphify | SessionStart / doctor hard-incomplete on peer fail |
+| `hooks/` | SessionStart + PreToolUse gates | Seven commit-time content gates + retrieval + nudge |
 
 ## Test expectations — these must stay green
 
-No automated test suite. Validation is manual: install the plugin in a test project and exercise each slash command.
+Hermetic zsh smokes under `meta/superpowers/validation/` (no live MCP /
+live GitHub required for the core helpers). Confirm block in the dogfood
+primer lists the load-bearing ones. Notable:
+
+```bash
+zsh meta/superpowers/validation/2026-09-08-primer-detect-smoke.zsh
+zsh meta/superpowers/validation/2026-09-09-primer-freshness-smoke.zsh
+zsh meta/superpowers/validation/2026-09-09-peer-probes-smoke.zsh
+zsh meta/superpowers/validation/2026-09-09-primer-validate-smoke.zsh
+```
+
+Manual: install via `--plugin-dir` in a scratch repo and exercise primer /
+doctor / end-session.
 
 ## End-to-end check (real integration)
 
 ```bash
-# Install in a scratch project and run all three commands:
-/session-continuity:primer    # init → fill → stage
+# Install in a scratch project and run:
+/session-continuity:primer    # init → Mid-flight/Confirm → stage
+/session-continuity:doctor    # peers + shape + freshness
 /session-continuity:learning  # append entry → stage
-/session-continuity:end-session  # refresh + checklist
+/session-continuity:end-session  # freshness-gated refresh + checklist
 ```
 
-No external credentials or costs.
+Peers: local `engrim` on PATH; commit non-empty `graphify-out/graph.json`.
+No external paid APIs required.
 
 ## Workflow conventions
 
@@ -75,11 +94,12 @@ No external credentials or costs.
 
 | Question | File |
 |---|---|
+| "What's in flight / how do I confirm it?" | `.session-continuity/SESSION_PRIMER.md` (Mid-flight + Confirm) |
+| "Did the primer drift?" | `bash hooks/lib/primer-freshness.sh .` |
 | "Why does X work this way?" | `.session-continuity/LEARNINGS.md`, `CHANGELOG.md` |
-| "What did the last session do?" | `git log`, `.session-continuity/SESSION_PRIMER.md` |
-| "How do I configure the plugin?" | `plugin.json`, `skills/session-continuity/SKILL.md` |
-| "How do the slash commands work?" | `commands/primer.md`, `commands/learning.md`, `commands/end-session.md` |
-| "What hooks are installed?" | `hooks/` |
+| "How do I configure the plugin?" | `.claude-plugin/plugin.json`, `skills/session-continuity/SKILL.md` |
+| "How do the slash commands work?" | `commands/*.md` |
+| "What hooks are installed?" | `hooks/hooks.json`, `hooks/` |
 | "Who is the user?" | Global `~/.claude/CLAUDE.md` for cross-project context |
 
 ## If you get stuck
