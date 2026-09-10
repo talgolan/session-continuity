@@ -21,6 +21,14 @@ All notable changes to this project are documented here. The format follows [Kee
 - **`end-session.md` TSV copy-out uses `command cp`.** Bypasses a user
   `cp -i` alias that hung on the existing `mktemp` destination. (#53)
 
+## [0.37.1] — 2026-09-10
+
+### Fixed
+- **Pure `R100` rename no longer skips when the source was scratch.**
+  Promoting a dot-prefixed scratch file into a real scoped doc now runs the
+  gate (`gate_would_scan`: in-scope and not scratch). Closes a bypass left by
+  0.37.0's in-scope-only R100 short-circuit. (#72)
+
 ## [0.37.0] — 2026-09-10
 
 ### Changed
