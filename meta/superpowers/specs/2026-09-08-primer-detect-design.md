@@ -24,6 +24,9 @@ the highest-frequency, zero-judgment piece. Sub-projects B (Step 4's
 test-count rerun), C (3c+3d migrations), and D (Step 2's placeholder
 derivation) are each their own future spec/plan cycle, not in scope here.
 
+Drift source amended by
+`meta/superpowers/specs/2026-09-10-primer-detect-freshness-design.md` (#64).
+
 ## Problem
 
 Step 1 today gathers ~9 raw facts in one bash call (already scripted),
@@ -39,12 +42,11 @@ blast radius (some of the triggered steps run `git mv`/`git rm`).
 
 ```
 primer-detect.sh (I/O)              primer-detect.jq (pure decision)
-  - file-existence checks    -->      - extract primer's recorded
-  - git remote get-url                  git-log block from content,
-  - git log --oneline -5                diff against actual git log
-  - git diff --cached --name-only     - classify staged files against
-  - primer file content (if any)        the allowlist
-                                       - detect inline-outstanding heading
+  - file-existence checks    -->      - use injected `log_drift` from
+  - git remote get-url                  freshness map
+  - primer-freshness.sh "$DIR"        - classify staged files against
+  - git diff --cached --name-only       the allowlist
+  - primer file content (if any)      - detect inline-outstanding heading
                                        - detect github.com in origin
                                        - run the 4-state + 3-trigger
                                          sequencing tree
@@ -107,7 +109,7 @@ STEPS = [split if DO_SPLIT] + [outstanding_split if DO_OSPLIT]
 ```
 
 `DO_REFRESH` reads the *raw* `LOG_DRIFT`/`CODE_STAGED` facts, not
-projected ones — splitting and renaming don't touch the git-log block or
+projected ones — splitting and renaming don't touch the freshness tip or
 the staged-file set, so no threading is needed on this last link.
 
 **Why threading, not disjunctions.** An earlier draft of this spec wrote
@@ -155,7 +157,7 @@ smoke test's 16 assertions total — see
 1. Fresh install (all existence flags 0) → `STEPS=init`.
 2. Existing unsplit primer, otherwise current → `STEPS=split`.
 3. Split + current + clean → `STEPS=` (empty).
-4. Split + current, but recorded log block differs from actual → `STEPS=refresh`.
+4. Split + current, but freshness reports STALE drift (`STALE=1` / `?`) → `STEPS=refresh`.
 5. Split + current, non-allowlisted file staged → `STEPS=refresh`.
 6. Inline outstanding heading present, no `OUTSTANDING_ITEMS.md` → `STEPS=outstanding_split`.
 7. Both unsplit AND inline-outstanding → `STEPS=split,outstanding_split` (order proves the sequencing rule).

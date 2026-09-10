@@ -1,11 +1,13 @@
 # CONTRACT_VERSION=1
 # hooks/lib/primer-detect.jq — /session-continuity:primer dispatch decision.
 # Invoked via primer-detect.sh; see that file for the CLI contract and
-# meta/superpowers/specs/2026-09-08-primer-detect-design.md for the state
-# machine this ports.
+# meta/superpowers/specs/2026-09-08-primer-detect-design.md (amended by
+# 2026-09-10-primer-detect-freshness-design.md) for the state machine.
 #
 # All decision logic lives here, not in the .sh wrapper — no I/O, so this
 # is directly fixture-testable with synthetic strings (see the smoke test).
+# LOG_DRIFT is injected by the .sh wrapper from primer-freshness.sh
+# (not computed from an embedded git-log block).
 # The trigger chain is evaluated by threading each trigger's effect
 # forward into the fact the next trigger reads (PROJ_OI, PROJ_BL below),
 # not by writing out "OR about to become true" disjunctions per trigger —
@@ -14,20 +16,6 @@
 
 def has_inline_outstanding:
   test("(?m)^## Outstanding items");
-
-# jq/Oniguruma's "m" flag makes "." match newlines (the "s" flag means
-# something else here -- single-line anchor mode -- unlike PCRE, where
-# the letters are swapped). Without "m", .*? can never cross the log
-# block's internal newlines and this always fails to match.
-def log_drift($primer_exists; $actual_log; $primer_content):
-  if $primer_exists == 0 then 0
-  else
-    (($primer_content | capture("Current `git log --oneline -5`[^`]*```\\n(?<block>.*?)```"; "m")) // null | .block) as $recorded
-    | if $recorded == null then 1
-      elif ($recorded | gsub("^\\s+|\\s+$";"")) == ($actual_log | gsub("^\\s+|\\s+$";"")) then 0
-      else 1
-      end
-  end;
 
 def is_allowlisted:
   (startswith("docs/") or startswith(".session-continuity/")) as $dir_ok
@@ -43,7 +31,7 @@ def github_origin($origin):
   $origin | test("github\\.com");
 
 ($primer_content | has_inline_outstanding) as $INLINE
-| (log_drift($primer_exists; $git_log; $primer_content)) as $DRIFT
+| ($log_drift) as $DRIFT
 | (code_staged($staged_files)) as $STAGED
 | (github_origin($origin_url)) as $GH
 
