@@ -10,7 +10,7 @@
 
 ## Mid-flight
 - Released **v0.37.1** on `main` @ `84be9eb` — scratch→real R100 gate fix (#72); https://github.com/talgolan/session-continuity/releases/tag/v0.37.1
-- Primer-detect freshness plan still open: `meta/superpowers/plans/2026-09-10-primer-detect-freshness.md`
+- Primer-detect freshness (#64) already on main since 0.36.1 (`74101d5`) — plan file historical only
 - Next backlog candidates: #36 integration, #35 marketplace
 - Trap: Cursor parent Shell sandbox blocks smoke `git init` in `/tmp` — run smokes via agent with `all` / unsandboxed
 
