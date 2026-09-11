@@ -35,4 +35,4 @@ For reference, the form likely pulls these directly from the manifest:
 - **License:** MIT
 - **Homepage:** `https://github.com/talgolan/session-continuity`
 - **Keywords:** memory, session, handoff, continuity, documentation, onboarding, post-mortem
-- **Version at submission:** re-check against `.claude-plugin/plugin.json` at actual submission time (was last synced in prose 2026-09-10; plugin is at 0.37.0 as of that sync refresh)
+- **Version at submission:** re-check against `.claude-plugin/plugin.json` at actual submission time (was last synced in prose 2026-09-11; plugin is at 0.37.1 as of that sync refresh)
