@@ -88,6 +88,39 @@ commit_parses "smoke-gate: offender line with quotes" \
 commit_parses "smoke-gate: offender line with backslashes" \
   smoke-gate.sh "meta/plans/p.md" 'The smoke test is optional, see C:\tmp\notes.'
 
+# Family B gates: command-shape triggered (not content), so drive them through
+# custom command payloads, not plain `git commit -m msg`.
+# dirty-tree-gate: denies git reset --hard when tree is dirty.
+# cp-mv-rm-gate: denies bare cp/mv/rm commands.
+family_b_parses() {  # <desc> <hook> <command>
+  local desc="$1" hook="$2" cmd="$3" repo_dir out
+  repo_dir="$(gt_make_repo)"
+  # For dirty-tree-gate: stage+commit something, then modify it (make dirty),
+  # then trigger with discard command. For cp-mv-rm-gate: just trigger with
+  # the bare command (no staging needed).
+  if [[ "$hook" == "dirty-tree-gate.sh" ]]; then
+    gt_stage "$repo_dir" "x.txt" "initial"
+    git -C "$repo_dir" commit -q -m "initial"
+    echo "modified" > "$repo_dir/x.txt"
+  fi
+  out="$(gt_run "$hook" "$(gt_commit_payload "$repo_dir" "$cmd")" 2>/dev/null)"
+  gt_cleanup "$repo_dir"
+  if [[ -z "$out" ]]; then
+    bad "$desc (expected a JSON object, got silence — fixture no longer triggers)"
+    return 0
+  fi
+  if printf '%s' "$out" | python3 -c 'import sys, json; json.load(sys.stdin)' 2>/dev/null; then
+    ok "$desc"
+  else
+    bad "$desc — stdout is not valid JSON: $out"
+  fi
+}
+
+family_b_parses "dirty-tree-gate: reset --hard with uncommitted changes" \
+  dirty-tree-gate.sh "git reset --hard"
+family_b_parses "cp-mv-rm-gate: bare rm command" \
+  cp-mv-rm-gate.sh "rm -rf /tmp/test"
+
 # prompt-intercept.sh: a UserPromptSubmit payload, not a PreToolUse/git-commit
 # payload — its own driver, `prompt_parses`, builds that shape directly with
 # `jq -n` rather than reusing gt_commit_payload. A block response's `reason`
@@ -115,7 +148,7 @@ prompt_parses "prompt-intercept: /session-continuity:help block parses" "/sessio
 
 # Completeness: every gate must own at least one fixture above. A newly added
 # gate fails this runner until someone adds one — that is the point.
-covered=(proven-gate.sh smoke-gate.sh evidence-gate.sh flaky-gate.sh backend-parity-gate.sh occurrence-gate.sh derived-value-gate.sh)
+covered=(proven-gate.sh smoke-gate.sh evidence-gate.sh flaky-gate.sh backend-parity-gate.sh occurrence-gate.sh derived-value-gate.sh dirty-tree-gate.sh cp-mv-rm-gate.sh)
 for f in "$hooks"/*-gate.sh; do
   b="${f:t}"
   if (( ${covered[(Ie)$b]} )); then
