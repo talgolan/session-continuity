@@ -8,14 +8,14 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
-gate_in_scope() {
+backend_parity_in_scope() {
   case "${1##*/}" in *.md) : ;; *) return 1 ;; esac
   case "$1" in */plans/*) return 0 ;; esac
   case "${1##*/}" in *plan*.md) return 0 ;; *) return 1 ;; esac
 }
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
-gate_check() {
+backend_parity_check() {
   local content="$1" path="$2" n hit_count=0
   gate_triggered 'backends?\b' || return 0
   for n in docker apple podman containerd colima kata lima orbstack; do
@@ -26,9 +26,11 @@ gate_check() {
   fi
 }
 
-gate_load
-gate_is_commit || exit 0
-# shellcheck disable=SC2034 # consumed by sourced gate_scan_staged
-GATE_LABEL="Backend-parity"
-gate_scan_staged gate_in_scope gate_check
-exit 0
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+  gate_load
+  gate_is_commit || exit 0
+  # shellcheck disable=SC2034 # consumed by sourced gate_scan_staged
+  GATE_LABEL="Backend-parity"
+  gate_scan_staged backend_parity_in_scope backend_parity_check
+  exit 0
+fi

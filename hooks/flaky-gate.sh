@@ -6,13 +6,13 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
-gate_in_scope() {
+flaky_in_scope() {
   [ "${1##*/}" = "LEARNINGS.md" ] || return 1
   case "$1" in .session-continuity/*|*/.session-continuity/*) return 0 ;; *) return 1 ;; esac
 }
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_commit_message
-gate_check_message() {
+flaky_check_message() {
   local text="$1"
   [ -z "$text" ] && return 0
   printf '%s' "$text" | LC_ALL=C grep -Eiq '\b(flaky|transient)\b|CDN[[:space:]]+(blip|flake)' || return 0
@@ -22,7 +22,7 @@ gate_check_message() {
 }
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
-gate_check_file() {
+flaky_check_file() {
   local content="$1" path="$2"
   if ! gate_triggered '\b(flaky|transient)\b|CDN[[:space:]]+(blip|flake)' \
       'Mechanism:[[:space:]]*[^[:space:]]'; then
@@ -37,10 +37,12 @@ gate_check_file() {
   fi
 }
 
-gate_load
-gate_is_commit || exit 0
-# shellcheck disable=SC2034 # consumed by sourced helpers
-GATE_LABEL="Flaky-gate"
-gate_scan_commit_message gate_check_message
-gate_scan_staged gate_in_scope gate_check_file
-exit 0
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+  gate_load
+  gate_is_commit || exit 0
+  # shellcheck disable=SC2034 # consumed by sourced helpers
+  GATE_LABEL="Flaky-gate"
+  gate_scan_commit_message flaky_check_message
+  gate_scan_staged flaky_in_scope flaky_check_file
+  exit 0
+fi

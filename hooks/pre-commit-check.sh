@@ -22,7 +22,13 @@
 #     `permissionDecision: "allow"` to stay non-blocking.
 #
 # Security notes:
-#   * `$cwd` is only used with `[ -d ]`, `[ -f ]`, and `git -C "$cwd"` —
+#   * `cwd`/staged-files now come from `gate_load`/`gate_staged_files` in
+#     `lib/gate-common.sh` rather than re-deriving them inline. `gate_load`
+#     populates `GATE_CWD` from the same stdin `cwd` field this file used to
+#     parse by hand; `gate_staged_files` runs `git -C "$GATE_CWD" diff
+#     --cached --name-status` (memoized) instead of this file's own `git
+#     diff --cached --name-only` call.
+#   * `$GATE_CWD` is only used with `[ -d ]`, `[ -f ]`, and `git -C` —
 #     all quoted. It is never `eval`ed or interpolated into an executed
 #     shell string.
 #   * `$command_value` is not used at all in v0.4 — the `if` filter in
@@ -32,65 +38,33 @@
 #   * All unexpected inputs cause a silent `exit 0`.
 
 set -euo pipefail
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
 
-# Read the JSON payload Claude Code delivers on stdin. `|| true` guards
-# against an empty-stdin test scenario.
-payload="$(cat || true)"
+# shellcheck disable=SC2329 # called indirectly from the driver guard below
+precommit_check() {
+  local cwd="${GATE_CWD:-}" primer_new primer_rel staged code_staged
+  [ -n "$cwd" ] && [ -d "$cwd" ] || return 0
 
-if [ -z "${payload:-}" ]; then
-  exit 0
-fi
-
-# Extract the cwd Claude is running in. NOTE: this is deliberately NOT
-# $CLAUDE_PROJECT_DIR — for plugin installs that env var usually points at
-# the plugin's own directory, not at the user's repo where the commit is
-# about to happen. The stdin payload's `cwd` field is the canonical source
-# for the user's repo directory.
-cwd="$(printf '%s' "$payload" \
-  | grep -oE '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' \
-  | head -1 \
-  | sed -E 's/.*"cwd"[[:space:]]*:[[:space:]]*"(.*)"/\1/' \
-  || true)"
-
-if [ -z "${cwd:-}" ] || [ ! -d "$cwd" ]; then
-  exit 0
-fi
-
-primer_new="$cwd/.session-continuity/SESSION_PRIMER.md"
-
-if [ -f "$primer_new" ]; then
+  primer_new="$cwd/.session-continuity/SESSION_PRIMER.md"
+  [ -f "$primer_new" ] || return 0
   primer_rel=".session-continuity/SESSION_PRIMER.md"
-else
-  exit 0
-fi
 
-# Ask git what's staged. `-C "$cwd"` is safe — git treats that flag as a
-# path, not a shell string. Any non-zero exit (not a git repo, corrupt
-# index, etc.) falls through to an empty `$staged`, which then causes a
-# silent early-exit below.
-staged="$(git -C "$cwd" diff --cached --name-only 2>/dev/null || true)"
+  staged="$(gate_staged_files)"
+  if printf '%s\n' "$staged" | grep -Fxq "$primer_rel"; then
+    return 0
+  fi
 
-# If the primer is already staged, nothing to remind about — the commit
-# will carry its refresh.
-if printf '%s\n' "$staged" | grep -Fxq "$primer_rel"; then
-  exit 0
-fi
+  code_staged="$(printf '%s\n' "$staged" | grep -Ev '^(docs/|\.session-continuity/|README|CHANGELOG|LICENSE|$)' || true)"
+  [ -n "$code_staged" ] || return 0
 
-# Consider only "code" changes as worth reminding about. A commit whose
-# staged set is entirely docs/, .session-continuity/, README*, CHANGELOG*,
-# LICENSE*, or (empty line from grep's \n handling) probably doesn't change
-# the primer's reality — the user is already dealing with the docs layer.
-code_staged="$(printf '%s\n' "$staged" | grep -Ev '^(docs/|\.session-continuity/|README|CHANGELOG|LICENSE|$)' || true)"
-
-if [ -z "$code_staged" ]; then
-  exit 0
-fi
-
-# Emit the reminder as JSON. permissionDecision:"allow" keeps this
-# non-blocking; additionalContext is what Claude will actually see.
-# Docs: https://code.claude.com/docs/en/hooks.md#decision-control-with-json-output
-cat <<EOF
+  cat <<EOF
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","additionalContext":"⚠️ $primer_rel is not staged for this commit, but code files are. Consider \`git add $primer_rel\` after refreshing Mid-flight and Confirm only — do not grow the file. Skip if Mid-flight/Confirm are genuinely unaffected by this change."}}
 EOF
+}
 
-exit 0
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+  gate_load
+  precommit_check
+  exit 0
+fi

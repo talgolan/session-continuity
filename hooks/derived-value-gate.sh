@@ -22,7 +22,7 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
-gate_in_scope() {
+derived_value_in_scope() {
   case "$1" in commands/*.md) return 0 ;; *) return 1 ;; esac
 }
 
@@ -76,7 +76,7 @@ _dvg_check_verbatim() {
 }
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
-gate_check() {
+derived_value_check() {
   local content="$1" path="$2"
   # Fixed priority order below (duration > count > compare > verbatim): a
   # line tripping two categories at once is cited under the first one
@@ -89,9 +89,11 @@ gate_check() {
   _dvg_check_verbatim "$content" "$path"
 }
 
-gate_load
-gate_is_commit || exit 0
-# shellcheck disable=SC2034 # consumed by sourced gate_scan_staged
-GATE_LABEL="Derived-value-gate"
-gate_scan_staged gate_in_scope gate_check
-exit 0
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+  gate_load
+  gate_is_commit || exit 0
+  # shellcheck disable=SC2034 # consumed by sourced gate_scan_staged
+  GATE_LABEL="Derived-value-gate"
+  gate_scan_staged derived_value_in_scope derived_value_check
+  exit 0
+fi

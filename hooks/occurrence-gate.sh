@@ -5,7 +5,7 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
-gate_in_scope() {
+occurrence_in_scope() {
   [ "${1##*/}" = "LEARNINGS.md" ] || return 1
   case "$1" in .session-continuity/*|*/.session-continuity/*) return 0 ;; *) return 1 ;; esac
 }
@@ -25,7 +25,7 @@ EOF
 }
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
-gate_check() {
+occurrence_check() {
   local content="$1" path="$2" max_n=0 max_added=0 has_inv=0 fire=0
   max_added="$(_occurrence_max_n "${GATE_DELTA_ADDED:-}")"
   max_n="$(_occurrence_max_n "$content")"
@@ -42,9 +42,11 @@ gate_check() {
   fi
 }
 
-gate_load
-gate_is_commit || exit 0
-# shellcheck disable=SC2034 # consumed by sourced gate_scan_staged
-GATE_LABEL="Occurrence-gate"
-gate_scan_staged gate_in_scope gate_check
-exit 0
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+  gate_load
+  gate_is_commit || exit 0
+  # shellcheck disable=SC2034 # consumed by sourced gate_scan_staged
+  GATE_LABEL="Occurrence-gate"
+  gate_scan_staged occurrence_in_scope occurrence_check
+  exit 0
+fi
