@@ -32,7 +32,7 @@ dtg_is_destructive() {  # <command> -> 0 iff some SEGMENT is itself a discard-fo
     seg="$(printf '%s' "$seg" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
     [ -n "$seg" ] || continue
     printf '%s' "$seg" | LC_ALL=C grep -Eq '^git[[:space:]]+reset[[:space:]]+.*--hard\b' && return 0
-    printf '%s' "$seg" | LC_ALL=C grep -Eq '^git[[:space:]]+checkout[[:space:]]+(--([[:space:]]|$)|\.([[:space:]]|$))' && return 0
+    printf '%s' "$seg" | LC_ALL=C grep -Eq '^git[[:space:]]+checkout([[:space:]]+(--([[:space:]]|$)|\.([[:space:]]|$))|[[:space:]]+[^-].*[[:space:]]--([[:space:]]|$))' && return 0
     if printf '%s' "$seg" | LC_ALL=C grep -Eq '^git[[:space:]]+restore\b'; then
       if printf '%s' "$seg" | LC_ALL=C grep -Eq -- '--staged\b'; then
         printf '%s' "$seg" | LC_ALL=C grep -Eq -- '--worktree\b' && return 0

@@ -40,6 +40,12 @@ out="$(gt_run dirty-tree-gate.sh "$(gt_commit_payload "$repo" "git checkout .")"
 check "checkout . on dirty tree -> deny" "deny" "$(verdict "$out")"
 gt_cleanup "$repo"
 
+# 4b. git checkout <ref> -- <path> on a dirty tree -> deny
+repo="$(gt_dirty_repo "f.txt" "edited")"
+out="$(gt_run dirty-tree-gate.sh "$(gt_commit_payload "$repo" "git checkout HEAD -- f.txt")")"
+check "checkout <ref> -- <path> on dirty tree -> deny" "deny" "$(verdict "$out")"
+gt_cleanup "$repo"
+
 # 5. git checkout <branch> (no -- , not a bare dot) is a branch switch, not a
 #    discard — must allow even on a dirty tree.
 repo="$(gt_dirty_repo "f.txt" "edited")"
