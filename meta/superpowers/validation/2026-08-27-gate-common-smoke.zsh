@@ -229,5 +229,68 @@ out="$(delta_added "$repo" "meta/plans/new.md" | grep -c smoke || true)"
 check "rename+edit may put smoke in added delta (known tradeoff)" "1" "$out"
 gt_cleanup "$repo"
 
+# Memoization: gate_staged_entries must shell out to `git --name-status`
+# exactly once per process even when called twice in the same process — the
+# whole point of Task 1 of meta/superpowers/plans/2026-09-14-hooks-sprawl-remediation.md.
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/m.md" $'one\n'
+mkdir -p "$repo/bin"
+real_git="$(command -v git)"
+count_file="$repo/name-status.count"
+cat > "$repo/bin/git" <<'EOF'
+#!/usr/bin/env bash
+case " $* " in
+  *" --name-status "*) printf 'probe\n' >> "$GIT_COUNT_FILE" ;;
+esac
+exec "$GIT_REAL" "$@"
+EOF
+chmod +x "$repo/bin/git"
+PATH="$repo/bin:$PATH" GIT_REAL="$real_git" GIT_COUNT_FILE="$count_file" \
+  bash -c '
+    source "'"$HOOKS"'/lib/gate-common.sh"
+    GATE_CWD="'"$repo"'"
+    gate_staged_entries >/dev/null
+    gate_staged_entries >/dev/null
+    gate_staged_files >/dev/null
+  '
+probe_count="$(wc -l < "$count_file" | tr -d ' ')"
+check "gate_staged_entries memoized across 3 calls in one process" "1" "$probe_count"
+gt_cleanup "$repo"
+
+# gate_staged_blob memoization: two calls for the same path, one `git show`.
+repo="$(gt_make_repo)"
+gt_stage "$repo" "meta/plans/n.md" $'blob content\n'
+mkdir -p "$repo/bin"
+show_count_file="$repo/show.count"
+cat > "$repo/bin/git" <<'EOF'
+#!/usr/bin/env bash
+case " $* " in
+  *" show "*) printf 'probe\n' >> "$GIT_SHOW_COUNT_FILE" ;;
+esac
+exec "$GIT_REAL" "$@"
+EOF
+chmod +x "$repo/bin/git"
+PATH="$repo/bin:$PATH" GIT_REAL="$real_git" GIT_SHOW_COUNT_FILE="$show_count_file" \
+  bash -c '
+    source "'"$HOOKS"'/lib/gate-common.sh"
+    GATE_CWD="'"$repo"'"
+    gate_staged_blob "meta/plans/n.md" >/dev/null
+    gate_staged_blob "meta/plans/n.md" >/dev/null
+  '
+show_count="$(wc -l < "$show_count_file" | tr -d ' ')"
+check "gate_staged_blob memoized across 2 calls for the same path" "1" "$show_count"
+gt_cleanup "$repo"
+
+# Re-sourcing gate-common.sh must not reset an already-populated blob cache —
+# this is the exact failure mode the source guard in Step 1 exists to prevent.
+out="$(bash -c '
+  source "'"$HOOKS"'/lib/gate-common.sh"
+  _GATE_BLOB_KEYS+=("probe-path")
+  _GATE_BLOB_VALS+=("probe-value")
+  source "'"$HOOKS"'/lib/gate-common.sh"
+  printf "%s" "${_GATE_BLOB_VALS[0]:-}"
+')"
+check "source guard preserves populated cache across re-source" "probe-value" "$out"
+
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"
 [[ $fail -eq 0 ]]
