@@ -22,8 +22,10 @@ gt_stage() {  # <repo> <relpath> <content>
 }
 gt_commit_payload() {  # <repo> <command> ; command defaults to a plain commit
   local repo="$1" cmd="${2:-git commit -m msg}"
-  # JSON with cwd top-level and command nested; escape backslashes and quotes.
-  local esc="${cmd//\\/\\\\}"; esc="${esc//\"/\\\"}"
+  # JSON with cwd top-level and command nested; escape backslashes, quotes,
+  # and real newlines (a raw newline inside a JSON string value is invalid
+  # JSON and gate_command()'s line-based sed can't parse across it).
+  local esc="${cmd//\\/\\\\}"; esc="${esc//\"/\\\"}"; esc="${esc//$'\n'/\\n}"
   print -r -- "{\"tool_name\":\"Bash\",\"cwd\":\"$repo\",\"tool_input\":{\"command\":\"$esc\"}}"
 }
 gt_run() {  # <gate-name> <payload>  -> gate stdout
