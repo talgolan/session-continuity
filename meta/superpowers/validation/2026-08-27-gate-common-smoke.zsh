@@ -258,6 +258,13 @@ check "gate_staged_entries memoized across 3 calls in one process" "1" "$probe_c
 gt_cleanup "$repo"
 
 # gate_staged_blob memoization: two calls for the same path, one `git show`.
+# Both calls here are bare, direct calls in the SAME shell (no subshell in
+# between), which demonstrates the cache mechanism works in principle. It is
+# NOT the call pattern the real gates use in production — every production
+# call site reaches gate_staged_blob through `$(...)` command substitution,
+# which forks a subshell whose cache write never survives — so this test
+# does NOT validate cross-gate cache reuse inside the commit-gate
+# multiplexer. See the caveat comment at gate_staged_blob's definition.
 repo="$(gt_make_repo)"
 gt_stage "$repo" "meta/plans/n.md" $'blob content\n'
 mkdir -p "$repo/bin"

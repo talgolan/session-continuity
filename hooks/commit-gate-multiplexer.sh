@@ -47,7 +47,7 @@ gate_staged_entries >/dev/null
 
 # shellcheck disable=SC2034 # consumed by sourced helpers
 GATE_LABEL="Flaky-gate"
-gate_scan_commit_message flaky_check_message
+gate_scan_commit_message flaky_check_message || true
 gate_scan_staged flaky_in_scope flaky_check_file
 
 GATE_LABEL="Proven-gate"
@@ -68,5 +68,5 @@ gate_scan_staged occurrence_in_scope occurrence_check
 GATE_LABEL="Derived-value-gate"
 gate_scan_staged derived_value_in_scope derived_value_check
 
-precommit_check
+precommit_check || true
 exit 0

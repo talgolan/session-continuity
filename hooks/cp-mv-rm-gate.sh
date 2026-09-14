@@ -8,6 +8,18 @@
 # `alias cp='cp -i'` (etc.) and the Bash tool's non-interactive stdin can
 # never answer the overwrite prompt. `\cp`/`command cp` bypass the alias and
 # are always allowed through.
+#
+# Escape hatch: SESSION_CONTINUITY_SKIP_CP_MV_RM_GATE=1 in the hook's own
+# process environment allows the command through unconditionally — for the
+# false-positive class where the splitter's quote-unawareness misdetects a
+# bare cp/mv/rm sitting inside a quoted string literal (e.g. `echo "a | rm
+# b"`), which the user cannot fix with `\rm`/`command rm` since that text
+# belongs to someone else's string. Same naming convention as
+# dirty-tree-gate.sh's SESSION_CONTINUITY_SKIP_DIRTY_GATE.
+#
+# Known limitation: does not detect the covered forms when hidden inside a
+# subshell `(...)`, `{ ...; }` grouping, `eval`, or `bash -c` — this is a
+# best-effort net on top-level commands, not a hardened boundary.
 set -euo pipefail
 # shellcheck disable=SC1091
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
@@ -41,13 +53,14 @@ EOF
 
 cmrg_deny() {  # <segment>
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' \
-    "$(json_escape "Bare command hangs if this shell has an interactive -i alias for cp/mv/rm and cannot be answered non-interactively: \`$1\`. Bypass the alias: \`\\$1\` or \`command $1\`.")"
+    "$(json_escape "Bare command hangs if this shell has an interactive -i alias for cp/mv/rm and cannot be answered non-interactively: \`$1\`. Bypass the alias: \`\\$1\` or \`command $1\`. If this is a false positive (e.g. quoted text, not a real invocation), set SESSION_CONTINUITY_SKIP_CP_MV_RM_GATE=1.")"
   exit 0
 }
 
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
   gate_load
   [ "${GATE_TOOL:-}" = "Bash" ] || exit 0
+  [ "${SESSION_CONTINUITY_SKIP_CP_MV_RM_GATE:-}" != "1" ] || exit 0
   offender="$(cmrg_offending_segment "${GATE_COMMAND:-}")" || exit 0
   cmrg_deny "$offender"
 fi

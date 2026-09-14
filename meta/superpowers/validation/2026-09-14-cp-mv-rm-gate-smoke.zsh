@@ -59,6 +59,20 @@ check "bare rm on its own line of a multi-line command -> deny" "deny" "$(verdic
 out="$(gt_run cp-mv-rm-gate.sh "$(gt_commit_payload "$repo" "git status")")"
 check "unrelated command -> allow" "allow" "$(verdict "$out")"
 
+# 12. Escape hatch bypasses a real bare-rm deny.
+out="$(SESSION_CONTINUITY_SKIP_CP_MV_RM_GATE=1 gt_run cp-mv-rm-gate.sh "$(gt_commit_payload "$repo" "rm -rf /tmp/x")")"
+check "escape hatch bypasses bare rm -> allow" "allow" "$(verdict "$out")"
+
+# 13. Bug report repro: quoted text containing " | rm " is not a real pipe,
+# but the splitter has no quote-awareness and misdetects the trailing
+# `rm b"` as a bare rm invocation. No way for the user to \-escape text
+# inside someone else's string, so this denies without the escape hatch and
+# is allowed through with it.
+out="$(gt_run cp-mv-rm-gate.sh "$(gt_commit_payload "$repo" 'echo "a | rm b"')")"
+check "quoted text false positive denies without escape hatch" "deny" "$(verdict "$out")"
+out="$(SESSION_CONTINUITY_SKIP_CP_MV_RM_GATE=1 gt_run cp-mv-rm-gate.sh "$(gt_commit_payload "$repo" 'echo "a | rm b"')")"
+check "quoted text false positive allowed with escape hatch" "allow" "$(verdict "$out")"
+
 gt_cleanup "$repo"
 print -r -- "---"; print -r -- "pass=$pass fail=$fail"
 [[ $fail -eq 0 ]]

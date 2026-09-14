@@ -8,8 +8,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - **Family B operator-safety gates: `dirty-tree-gate.sh` and
   `cp-mv-rm-gate.sh`.** Blocking `PreToolUse` hooks on every `Bash` call
   (not scoped to `git commit *`) — the former denies `git reset
-  --hard`/`checkout --`/`restore` when the tree is dirty
-  (architect-workbench #122), the latter denies a bare `cp`/`mv`/`rm` that
+  --hard`/`checkout --`/`checkout <ref> -- <path>`/`restore` when the tree is
+  dirty (architect-workbench #122), the latter denies a bare `cp`/`mv`/`rm` that
   would hang on an interactive shell alias (engrim decision #43). (#73)
 - **Zero-turn `/session-continuity:doctor`.** New `hooks/lib/doctor-report.sh`
   prints the finished six-row diagnostic table; `prompt-intercept.sh` answers

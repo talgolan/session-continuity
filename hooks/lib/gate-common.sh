@@ -52,6 +52,15 @@ gate_staged_files() {  # relative paths staged in the index
   gate_staged_entries | awk -F '\t' '{ if ($2 != "") print $2 }'
 }
 
+# Memoization only helps if the SAME process reaches this function through a
+# bare, non-command-substitution call at least once before any
+# command-substitution call — command substitution forks a subshell, and a
+# cache write made inside that subshell is discarded when the subshell exits.
+# Unlike gate_staged_entries (warmed once by commit-gate-multiplexer.sh before
+# any gate runs), gate_staged_blob has no such warm-up anywhere: every real
+# call site (gate_scan_staged's `raw="$(gate_staged_blob "$f")"`, and deny's
+# status-class lookup) reaches it through `$(...)`, so in practice each call
+# re-shells to `git show` — this cache delivers no cross-call reuse today.
 gate_staged_blob() {  # <relpath> -> staged (index) content of the file (memoized)
   local path="$1" i
   for i in "${!_GATE_BLOB_KEYS[@]}"; do
@@ -85,6 +94,13 @@ gate_staged_status() {  # <relpath> -> A|M|D|R100|... or empty
 gate_staged_entries() {  # -> status<TAB>dest<TAB>source-or-empty (memoized: one
                           # `git diff --cached --name-status` per process, not
                           # one per gate)
+  # Same caveat as gate_staged_blob above: memoization only survives a
+  # command-substitution call if a bare call already populated the cache in
+  # THIS shell first — command substitution forks a subshell whose cache
+  # writes never make it back. This function IS warmed that way: see
+  # commit-gate-multiplexer.sh's plain `gate_staged_entries >/dev/null` call
+  # before any gate runs, which every later `$(gate_staged_entries)` call
+  # then inherits.
   if [ -n "$_GATE_STAGED_ENTRIES_CACHED" ]; then
     printf '%s' "$_GATE_STAGED_ENTRIES"
     return 0

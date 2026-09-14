@@ -4,7 +4,8 @@
 #
 # Fires on every Bash call (matcher "Bash", no `if` filter — deliberately not
 # scoped to `Bash(git commit *)`; this has nothing to do with commits). Denies
-# `git reset --hard`, `git checkout -- <path>`/`.`, or `git restore <path>`/`.`
+# `git reset --hard`, `git checkout -- <path>`/`.`, `git checkout <ref> --
+# <path>` (an explicit ref before `--`), or `git restore <path>`/`.`
 # when the target repo's working tree already has uncommitted changes to
 # lose. Driving incident: architect-workbench #122 — an advisory-only
 # LEARNINGS reminder missed a `git reset --hard` that wiped uncommitted work
@@ -14,6 +15,10 @@
 # process environment allows the command through regardless of dirty state —
 # for the rare case where discarding is genuinely intended. Same naming
 # convention as the existing SESSION_CONTINUITY_SKIP_UPDATE_CHECK.
+#
+# Known limitation: does not detect the covered forms when hidden inside a
+# subshell `(...)`, `{ ...; }` grouping, `eval`, or `bash -c` — this is a
+# best-effort net on top-level commands, not a hardened boundary.
 set -euo pipefail
 # shellcheck disable=SC1091
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
