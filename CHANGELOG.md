@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- **Family B operator-safety gates: `dirty-tree-gate.sh` and
+  `cp-mv-rm-gate.sh`.** Blocking `PreToolUse` hooks on every `Bash` call
+  (not scoped to `git commit *`) — the former denies `git reset
+  --hard`/`checkout --`/`restore` when the tree is dirty
+  (architect-workbench #122), the latter denies a bare `cp`/`mv`/`rm` that
+  would hang on an interactive shell alias (engrim decision #43). (#73)
 - **Zero-turn `/session-continuity:doctor`.** New `hooks/lib/doctor-report.sh`
   prints the finished six-row diagnostic table; `prompt-intercept.sh` answers
   matching prompts at zero model calls. `commands/doctor.md` is the one-call
@@ -13,6 +19,15 @@ All notable changes to this project are documented here. The format follows [Kee
   (`meta/superpowers/validation/2026-09-10-primer-scratch-smoke.zsh`) —
   deferred Testing items from the v0.13 split spec, plus init-derive against
   a fresh repo. (#37)
+
+### Changed
+- **Commit-time content gates now run in one multiplexed process.**
+  `commit-gate-multiplexer.sh` replaces the 8 separate `pre-commit-check.sh`
+  + 7-deny-gate `PreToolUse` processes with one process that loads the
+  commit payload and scans the staged index once. Each gate script keeps
+  its documented standalone CLI contract and can still be run/tested
+  directly. First denier now wins within one process, instead of up to 8
+  independent processes each reaching their own verdict. (#73)
 
 ### Fixed
 - **`test-count-rerun.sh` `MODE=no-count` no longer runs the suite.** Nothing
