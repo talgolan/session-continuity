@@ -3,6 +3,21 @@
 # SOURCED, never executed. Callers run `set -euo pipefail`; every function here
 # is written to be safe under it (if-form, never `cmd && var=1`).
 
+# Re-sourcing must be free of side effects: hooks/commit-gate-multiplexer.sh
+# sources every gate script once, and each of those sources this file too.
+# Without this guard the cache arrays below would reset on every re-source
+# and the multiplexer would pay for `git diff --cached` eight times again —
+# exactly the cost this file exists to remove.
+if [ -n "${_GATE_COMMON_LOADED:-}" ]; then
+  return 0
+fi
+_GATE_COMMON_LOADED=1
+
+_GATE_STAGED_ENTRIES_CACHED=""
+_GATE_STAGED_ENTRIES=""
+_GATE_BLOB_KEYS=()
+_GATE_BLOB_VALS=()
+
 # --- payload parsing -------------------------------------------------------
 gate_field() {  # <json-key> -> scalar string value from $GATE_PAYLOAD
   printf '%s' "${GATE_PAYLOAD:-}" \
@@ -34,13 +49,31 @@ gate_is_commit() {  # true iff a Bash `git commit` invocation
 
 # --- staged content --------------------------------------------------------
 gate_staged_files() {  # relative paths staged in the index
-  [ -n "${GATE_CWD:-}" ] || return 0
-  [ -d "$GATE_CWD" ] || return 0
-  git -C "$GATE_CWD" diff --cached --name-only 2>/dev/null || true
+  gate_staged_entries | awk -F '\t' '{ if ($2 != "") print $2 }'
 }
 
-gate_staged_blob() {  # <relpath> -> staged (index) content of the file
-  git -C "${GATE_CWD:-}" show ":$1" 2>/dev/null || true
+# Memoization only helps if the SAME process reaches this function through a
+# bare, non-command-substitution call at least once before any
+# command-substitution call — command substitution forks a subshell, and a
+# cache write made inside that subshell is discarded when the subshell exits.
+# Unlike gate_staged_entries (warmed once by commit-gate-multiplexer.sh before
+# any gate runs), gate_staged_blob has no such warm-up anywhere: every real
+# call site (gate_scan_staged's `raw="$(gate_staged_blob "$f")"`, and deny's
+# status-class lookup) reaches it through `$(...)`, so in practice each call
+# re-shells to `git show` — this cache delivers no cross-call reuse today.
+gate_staged_blob() {  # <relpath> -> staged (index) content of the file (memoized)
+  local path="$1" i
+  for i in "${!_GATE_BLOB_KEYS[@]}"; do
+    if [ "${_GATE_BLOB_KEYS[$i]}" = "$path" ]; then
+      printf '%s' "${_GATE_BLOB_VALS[$i]}"
+      return 0
+    fi
+  done
+  local blob
+  blob="$(git -C "${GATE_CWD:-}" show ":$path" 2>/dev/null || true)"
+  _GATE_BLOB_KEYS+=("$path")
+  _GATE_BLOB_VALS+=("$blob")
+  printf '%s' "$blob"
 }
 
 gate_staged_status() {  # <relpath> -> A|M|D|R100|... or empty
@@ -58,16 +91,32 @@ gate_staged_status() {  # <relpath> -> A|M|D|R100|... or empty
   printf '%s' "${line%%$'\t'*}"
 }
 
-gate_staged_entries() {  # -> status<TAB>dest<TAB>source-or-empty
-  [ -n "${GATE_CWD:-}" ] || return 0
-  [ -d "$GATE_CWD" ] || return 0
+gate_staged_entries() {  # -> status<TAB>dest<TAB>source-or-empty (memoized: one
+                          # `git diff --cached --name-status` per process, not
+                          # one per gate)
+  # Same caveat as gate_staged_blob above: memoization only survives a
+  # command-substitution call if a bare call already populated the cache in
+  # THIS shell first — command substitution forks a subshell whose cache
+  # writes never make it back. This function IS warmed that way: see
+  # commit-gate-multiplexer.sh's plain `gate_staged_entries >/dev/null` call
+  # before any gate runs, which every later `$(gate_staged_entries)` call
+  # then inherits.
+  if [ -n "$_GATE_STAGED_ENTRIES_CACHED" ]; then
+    printf '%s' "$_GATE_STAGED_ENTRIES"
+    return 0
+  fi
+  _GATE_STAGED_ENTRIES_CACHED=1
+  if [ -z "${GATE_CWD:-}" ] || [ ! -d "${GATE_CWD:-}" ]; then
+    return 0
+  fi
   # Collect rename-aware status once for the whole scan. Pairing status with
   # destination and source here makes the driver's status lookup O(1).
-  git -C "$GATE_CWD" diff --cached --name-status -M --no-color 2>/dev/null \
+  _GATE_STAGED_ENTRIES="$(git -C "$GATE_CWD" diff --cached --name-status -M --no-color 2>/dev/null \
     | awk -F '\t' '
         $1 ~ /^R/ { print $1 "\t" $3 "\t" $2; next }
         { print $1 "\t" $2 "\t" }
-      ' || true
+      ' || true)"
+  printf '%s' "$_GATE_STAGED_ENTRIES"
 }
 
 gate_staged_delta() {  # <relpath> -> sets GATE_DELTA_ADDED, GATE_DELTA_REMOVED

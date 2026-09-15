@@ -9,13 +9,13 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
-gate_in_scope() {
+evidence_in_scope() {
   case "$1" in */specs/*|*/plans/*) : ;; *) return 1 ;; esac
   case "${1##*/}" in *.md) return 0 ;; *) return 1 ;; esac
 }
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
-gate_check() {
+evidence_check() {
   local content="$1" path="$2"
   local sat_td='before teardown|before tear down|keep_on_fail|preserve[^.]*(diagnostic|evidence|log)|diagnostic[^.]*before|on failure[^.]*(preserve|keep|dump|surface)'
   local sat_poll='poll_until|both[^.]*(success|pass)[^.]*(failure|fail)|success and failure|dual.signal|failure signal'
@@ -43,9 +43,11 @@ gate_check() {
   fi
 }
 
-gate_load
-gate_is_commit || exit 0
-# shellcheck disable=SC2034 # consumed by sourced gate_scan_staged
-GATE_LABEL="Evidence-gate"
-gate_scan_staged gate_in_scope gate_check
-exit 0
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+  gate_load
+  gate_is_commit || exit 0
+  # shellcheck disable=SC2034 # consumed by sourced gate_scan_staged
+  GATE_LABEL="Evidence-gate"
+  gate_scan_staged evidence_in_scope evidence_check
+  exit 0
+fi

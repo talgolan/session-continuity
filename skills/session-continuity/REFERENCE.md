@@ -14,13 +14,12 @@ not on every session.
 - **`learnings-surface.sh`** (PreToolUse, before Bash/Write/Edit) — the retrieval hook: surfaces any LEARNINGS entry carrying a `Trigger: <tool> /<regex>/` line when the imminent action matches, so the lesson lands *before* the mistake instead of after.
 - **`prompt-intercept.sh`** (UserPromptSubmit) — intercepts a fixed table of read-only prompts (backlog/learnings/doctor natural language plus the fully plugin-scoped slash forms of `/session-continuity:backlog`, `/session-continuity:learnings`, `/session-continuity:help`, `/session-continuity:update`, `/session-continuity:doctor`) and answers them directly via `hooks/lib/render.sh` (or `hooks/lib/doctor-report.sh` for doctor), at zero model calls. It fails open on every ambiguity — no `jq` on PATH, empty or unparseable stdin, a missing/non-string `prompt` field, a normalized prompt that isn't an exact match against the fixed table (never substring/regex), or the renderer missing, exiting non-zero, or printing nothing — falling through to let the prompt reach the model untouched rather than risk silently erasing real user work.
 
-The seven content gates below all fire at **commit time**, not on save:
-each one is a `PreToolUse` hook scoped to `Bash(git commit *)` that
-scans the files already staged in the git index, not the `Write`/`Edit`
+The seven content gates below, plus the commit nudge, run inside one multiplexed `PreToolUse` process (`commit-gate-multiplexer.sh`) scoped to `Bash(git commit *)`.
+They scan the files already staged in the git index, not the `Write`/`Edit`
 payload. Iterate on a spec/plan/LEARNINGS/commands file freely — a
-`Write` or `Edit` never gets blocked — and the gate only asks its
-question when you run `git commit`, naming the offending staged file in
-its denial. (`git commit -a` and pathspec commits are a documented,
+`Write` or `Edit` never gets blocked — and the gates only ask their
+questions when you run `git commit`, naming the offending staged file in
+their denial. (`git commit -a` and pathspec commits are a documented,
 accepted permissive miss — see CHANGELOG `[0.17.0]` and LEARNINGS.)
 
 The editor and the index are separate states. Saving a compliant escape

@@ -13,13 +13,13 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/gate-common.sh"
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
-gate_in_scope() {
+proven_in_scope() {
   case "$1" in */specs/*|*/plans/*) : ;; *) return 1 ;; esac
   case "${1##*/}" in *.md) return 0 ;; *) return 1 ;; esac
 }
 
 # shellcheck disable=SC2329 # called indirectly by gate_scan_staged
-gate_check() {
+proven_check() {
   local content="$1" path="$2"
   local sat_real='Real path:[[:space:]]*[^[:space:]]'
   local sat_stub='Stubbed:[[:space:]]*[^[:space:]]'
@@ -47,9 +47,11 @@ gate_check() {
   fi
 }
 
-gate_load
-gate_is_commit || exit 0
-# shellcheck disable=SC2034 # consumed by sourced gate_scan_staged
-GATE_LABEL="Proven-gate"
-gate_scan_staged gate_in_scope gate_check
-exit 0
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+  gate_load
+  gate_is_commit || exit 0
+  # shellcheck disable=SC2034 # consumed by sourced gate_scan_staged
+  GATE_LABEL="Proven-gate"
+  gate_scan_staged proven_in_scope proven_check
+  exit 0
+fi

@@ -124,14 +124,18 @@ session-continuity/
 ├── hooks/
 │   ├── hooks.json               # hook registration
 │   ├── session-start.sh         # SessionStart event
-│   ├── pre-commit-check.sh      # PreToolUse, Bash matcher + `if: Bash(git commit *)` — commit nudge
+│   ├── commit-gate-multiplexer.sh  # PreToolUse, Bash(git commit *) — Family A: runs pre-commit-check + all 7 deny gates in one process
+│   ├── pre-commit-check.sh      # sourced by the multiplexer — commit nudge when a primer refresh isn't staged
 │   ├── learnings-surface.sh     # PreToolUse, Bash/Write/Edit — action-keyed LEARNINGS retrieval
-│   ├── smoke-gate.sh            # PreToolUse, Write/Edit — MANDATORY smoke task on binary/engine plans
-│   ├── proven-gate.sh           # PreToolUse, Write/Edit — Real path:/Stubbed: fields on "proven" claims
-│   ├── occurrence-gate.sh       # PreToolUse, Write/Edit — Invariant: on 2nd+ occurrence LEARNINGS entries
-│   ├── evidence-gate.sh         # PreToolUse, Write/Edit — failure-evidence preservation in smoke design
-│   ├── flaky-gate.sh            # PreToolUse, Bash(git commit)/Write/Edit — names the mechanism, not "flaky"
-│   ├── backend-parity-gate.sh   # PreToolUse, Write/Edit — second backend named for parity coverage
+│   ├── dirty-tree-gate.sh       # PreToolUse, every Bash call — Family B: blocks reset --hard/checkout/restore on a dirty tree
+│   ├── cp-mv-rm-gate.sh         # PreToolUse, every Bash call — Family B: blocks bare cp/mv/rm (interactive alias hang)
+│   ├── smoke-gate.sh            # sourced by the multiplexer — MANDATORY smoke task on binary/engine plans
+│   ├── proven-gate.sh           # sourced by the multiplexer — Real path:/Stubbed: fields on "proven" claims
+│   ├── occurrence-gate.sh       # sourced by the multiplexer — Invariant: on 2nd+ occurrence LEARNINGS entries
+│   ├── evidence-gate.sh         # sourced by the multiplexer — failure-evidence preservation in smoke design
+│   ├── flaky-gate.sh            # sourced by the multiplexer — names the mechanism, not "flaky"
+│   ├── backend-parity-gate.sh   # sourced by the multiplexer — second backend named for parity coverage
+│   ├── derived-value-gate.sh    # sourced by the multiplexer — no hand-computed durations/counts/comparisons in command prose
 │   └── version-check.sh         # weekly freshness check (invoked by session-start.sh)
 ├── .session-continuity/
 │   ├── SESSION_PRIMER.md        # this repo's own primer (yes, we dogfood the pattern)

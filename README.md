@@ -120,6 +120,23 @@ Zero-arg, read-only: explains what the plugin is for, why it exists, and what ea
 
 The hooks are bash scripts wired through `hooks/hooks.json`. They split into two philosophies.
 
+Two independent groupings both live in this plugin and both ship from it —
+consolidating hook sprawl does not mean moving these elsewhere (see
+`meta/superpowers/plans/2026-09-14-hooks-sprawl-evaluation.md`):
+
+- **Family A — product/continuity.** Everything below in this section:
+  SessionStart, the commit nudge, action-keyed LEARNINGS retrieval, and the
+  seven content gates. Runs as one multiplexed process at commit time
+  (`commit-gate-multiplexer.sh`) plus `learnings-surface.sh` on every
+  Bash/Write/Edit.
+- **Family B — operator safety.** Blocking gates unrelated to commits:
+  `dirty-tree-gate.sh` (denies `git reset --hard` / `checkout --` /
+  `checkout <ref> -- <path>` / `restore`
+  when the working tree has uncommitted changes) and `cp-mv-rm-gate.sh`
+  (denies a bare `cp`/`mv`/`rm` that would hang on an interactive shell
+  alias). Both fire on every Bash call, self-filter in-script, and are not
+  scoped to `Bash(git commit *)` — they have nothing to do with commits.
+
 **React after the fact:**
 
 - **SessionStart reminder** points a fresh session at the primer before it touches anything, and prints a quick freshness status line.
@@ -128,7 +145,10 @@ The hooks are bash scripts wired through `hooks/hooks.json`. They split into two
 **Fire before the action:**
 
 - **Action-keyed retrieval** (`learnings-surface`, `PreToolUse` on Bash/Write/Edit) is the mechanism that turns LEARNINGS from a read-after-symptom file into a read-before-action gate. When a LEARNINGS entry carries a `Trigger: <tool> /<regex>/` line and the command you're about to run (or the file you're about to write) matches that regex, the hook names the relevant entry so you read it *before* repeating the mistake. Entries without a trigger never fire, so there's zero cost to omitting one.
-The seven content gates below are `PreToolUse` hooks on `Bash(git commit *)`.
+- **Dirty-tree gate** (`dirty-tree-gate.sh`, `PreToolUse` on every `Bash` call) blocks `git reset --hard`, `git checkout -- <path>`/`.`, `git checkout <ref> -- <path>` (an explicit ref before `--`), or `git restore <path>`/`.` when the target repo's working tree has uncommitted changes. Override with `SESSION_CONTINUITY_SKIP_DIRTY_GATE=1`.
+- **Bare `cp`/`mv`/`rm` gate** (`cp-mv-rm-gate.sh`, `PreToolUse` on every `Bash` call) blocks a bare `cp`/`mv`/`rm` invocation that would hang if the shell has an interactive `-i` alias for it. Bypass per-call with `\cp`/`\mv`/`\rm` or `command cp`/`command mv`/`command rm` — no env-var override, the bypass is free.
+
+The seven content gates below, plus the commit nudge, run inside one multiplexed `PreToolUse` process (`commit-gate-multiplexer.sh`) scoped to `Bash(git commit *)`.
 They inspect the staged index. A gate **triggers on the staged delta** (lines
 added in this commit) and **satisfies against the whole staged document** — a
 new claim can reuse a required field that already exists elsewhere in the file.
